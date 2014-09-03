@@ -3,7 +3,7 @@ __email__ = 'heldercro@gmail.com'
 __url__ = 'http://helderc.net'
 
 """
-    This is an improved implmentation of SSIM, based on version of:
+    This is an improved implementation of SSIM, based on version of:
     Antoine Vacavant, ISIT lab, antoine.vacavant@iut.u-clermont1.fr,
     http://isit.u-clermont1.fr/~anvacava
 
@@ -30,7 +30,7 @@ def compute_ssim(im1, im2, l):
 
     window = np.ones((8, 8))
 
-    #window = gauss_2d((11, 11), 1.5)
+    # window = gauss_2d((11, 11), 1.5)
     # Normalization
     window /= np.sum(window)
 
