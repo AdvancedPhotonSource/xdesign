@@ -1,0 +1,5 @@
+python
+nose
+six
+numpy
+scipy

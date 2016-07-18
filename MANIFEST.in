@@ -1,0 +1,5 @@
+include README
+include LICENSE
+include VERSION
+recursive-include tests *
+recursive-exclude * __pycache__

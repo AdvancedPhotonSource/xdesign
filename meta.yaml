@@ -1,0 +1,36 @@
+package:
+  name: phantom
+  version: '0.1.0'
+
+source:
+  git_url: https://github.com/tomography/phantom.git
+  
+build:
+  number: 0
+
+requirements:
+  build:
+    - python
+    - setuptools
+
+  run:
+    - python
+    - numpy
+    - scipy
+    - six
+    
+test:
+  # Python imports
+  imports:
+    - phantom
+    - phantom.circle
+
+about:
+  home: http://phantom.readthedocs.io
+  license: BSD-3
+  summary: 'Benchmarking tools for tomography.'
+
+# See
+# http://docs.continuum.io/conda/build.html for
+# more information about meta.yaml
+
