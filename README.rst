@@ -1,6 +1,22 @@
 Phantom
 #######
 
+.. image:: https://readthedocs.org/projects/phantom/badge/?version=latest
+   :target: http://phantom.readthedocs.io/en/latest/?badge=latest
+   :alt: Read the Docs
+
+.. image:: https://travis-ci.org/tomography/phantom.svg?branch=master
+   :target: https://travis-ci.org/tomography/phantom
+   :alt: Travis CI
+
+.. image:: https://coveralls.io/repos/tomography/phantom/badge.svg?branch=master 
+   :target: https://coveralls.io/r/tomography/phantom?branch=master
+   :alt: Coveralls
+   
+.. image:: https://codeclimate.com/github/tomography/phantom/badges/gpa.svg
+   :target: https://codeclimate.com/github/tomography/phantom
+   :alt: Code Climate
+
 **Phantom** is an open-source Python package for generating
 simulation phantoms for evaluating tomographic data processing
 and image reconstruction.
