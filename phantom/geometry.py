@@ -50,6 +50,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -461,8 +462,23 @@ class Phantom():
         plt.grid('on')
         plt.show()
 
+    def numpy(self):
+        """Returns the Numpy representation."""
+        arr = np.empty((self.population, 3))
+        for m in range(self.population):
+            arr[m] = [
+                self.feature[m].center.x,
+                self.feature[m].center.y,
+                self.feature[m].radius]
+        return arr
+
     def save(self, filename):
-        pass
+        np.savetxt(filename, self.numpy(), delimiter=',')
+
+    def load(self, filename):
+        arr = np.loadtxt(filename, delimiter=',')
+        for m in range(arr.shape[0]):
+            self.add(Circle(Point(arr[m, 0], arr[m, 1]), arr[m, 2]))
 
 
 class Probe(Beam):
