@@ -142,9 +142,12 @@ class Circle(object):
         return "%s, %s" % (self.center, self.radius)
 
     def equation(self):
+        """Returns an equation (string) describing the circle."""
         return "(x-%s)^2 + (y-%s)^2 = %s^2" % (self.center.x, self.center.y, self.radius)
 
+    @property
     def area(self):
+        """Returns the area of the circle."""
         return np.pi * self.radius**2
 
 
@@ -203,6 +206,7 @@ class Line(object):
         return Point(-dy, dx)
 
     def equation(self):
+        """Returns a y-intercept equation (string) describing the line."""
         if self.vertical:
             return "x = %s" % self.p1.x
         return "y = %sx + %s" % (self.slope, self.intercept)
@@ -235,10 +239,10 @@ def translate(point, dx, dy):
     Parameters
     ----------
     point : Point
-        An arbitrary point.
+        A point to be translated.
     dx : scalar
         Translation in x-axis.
-    dy : Point, optional
+    dy : scalar
         Translation in y-axis.
 
     Returns
@@ -250,16 +254,16 @@ def translate(point, dx, dy):
 
 
 def rotate(point, theta, origin=Point(0, 0)):
-    """Rotates a point in counter-clockwise around another point.
+    """Rotates a point in counter-clockwise around an axis.
 
     Parameters
     ----------
     point : Point
-        An arbitrary point.
+        A point to be rotated.
     theta : scalar
         Rotation angle in radians.
     origin : Point, optional
-        The origin of rotation axis.
+        The location of the rotation axis.
 
     Returns
     -------
@@ -279,7 +283,7 @@ def scale(point, ds):
     Parameters
     ----------
     point : Point
-        An arbitrary point.
+        A point to be scaled.
     ds : scalar
         Scaling value.
 
@@ -315,7 +319,7 @@ def beamcirc(beam, circle):
     Returns
     -------
     scalar
-        Area of the intersected region. 
+        Area of the intersected region.
     """
 
     # Passive coordinate transformation.
@@ -356,13 +360,13 @@ class Phantom():
     Attributes
     ----------
     shape : string
-        Shape of the phantom. Available options: circle, square.
+        Outline shape of the phantom. Available options: circle, square.
     population : scalar
         Number of generated circles in the phantom.
     density : scalar
-        Density of the circles in the phantom.
+        Sum of the areas of the circles in the phantom.
     feature : list
-        List of circles.
+        List of circles in the phantom.
     """
 
     def __init__(self):
@@ -398,13 +402,14 @@ class Phantom():
         Parameters
         ----------
         margin : scalar
-            Determines the margin value of the shape.
-            Points will not be created in the margin area.
+            Determines the margin value of the phantom.
+            Points will not be created within the margin distance from the
+            edge of the phantom.
 
         Returns
         -------
         Point
-            Random point.
+            A random point inside the phantom.
         """
         if self.shape == 'square':
             x = np.random.uniform(margin, 1 - margin)
@@ -417,7 +422,7 @@ class Phantom():
         return Point(x, y)
 
     def sprinkle(self, counts, radius, gap=0, collision=False):
-        """Sprinkles a number of circles.
+        """Randomly adds a number of circles to the phantom.
 
         Parameters
         ----------
@@ -431,7 +436,7 @@ class Phantom():
         for m in range(int(counts)):
             center = self.generate_random_point(radius)
             circle = Circle(center, radius + gap)
-            if not self.collision(circle) or collision:
+            if collision or not self.collision(circle):
                 self.add(Circle(center, radius))
 
     def collision(self, circle):
@@ -489,7 +494,17 @@ class Probe(Beam):
 
 
 def sinogram(sx, sy, phantom):
-    """Generates sinogram given a phantom."""
+    """Generates sinogram given a phantom.
+
+    Parameters
+    ----------
+    sx : int
+        Number of samples in the rotation direction
+    sy : int
+        Number of samples in the y direction
+    phantom : Phantom
+
+    """
     size = 1. / sy
     beta = np.pi / sx
     sino = np.zeros((sx, sy))
