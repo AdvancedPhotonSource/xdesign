@@ -60,11 +60,16 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['plot']
+__all__ = ['plot_phantom']
 
 
-def plot(phantom):
-    """Plots the phantom."""
+def plot_phantom(phantom):
+    """Plots the phantom.
+
+    Parameters
+    ----------
+    phantom : Phantom
+    """
     fig = plt.figure(figsize=(8, 8), facecolor='w')
     a = fig.add_subplot(111)
 
