@@ -3,3 +3,4 @@ nose
 six
 numpy
 scipy
+matplotlib
