@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 # #########################################################################
-# Copyright (c) 2015, UChicago Argonne, LLC. All rights reserved.         #
+# Copyright (c) 2016, UChicago Argonne, LLC. All rights reserved.         #
 #                                                                         #
-# Copyright 2015. UChicago Argonne, LLC. This software was produced       #
+# Copyright 2016. UChicago Argonne, LLC. This software was produced       #
 # under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
 # Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
 # U.S. Department of Energy. The U.S. Government has rights to use,       #
@@ -49,15 +49,32 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from phantom.geometry import *
-from phantom.measure import *
-from phantom.plot import *
-
+import numpy as np
+import matplotlib.pylab as plt
+import matplotlib.patches as patches
 import logging
-logging.basicConfig()
 
-try:
-    import pkg_resources
-    __version__ = pkg_resources.working_set.require("phantom")[0].version
-except:
-    pass
+logger = logging.getLogger(__name__)
+
+
+__author__ = "Doga Gursoy"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = ['plot']
+
+
+def plot(phantom):
+    """Plots the phantom."""
+    fig = plt.figure(figsize=(8, 8), facecolor='w')
+    a = fig.add_subplot(111)
+
+    # Draw all circles in the phantom.
+    for m in range(phantom.population):
+        cx = phantom.feature[m].center.x
+        cy = phantom.feature[m].center.y
+        cr = phantom.feature[m].radius
+        circle = patches.Circle((cx, cy), cr)
+        a.add_patch(circle)
+
+    plt.grid('on')
+    plt.show()

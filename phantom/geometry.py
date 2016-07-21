@@ -372,23 +372,6 @@ class Phantom(object):
                 return True
         return False
 
-    def plot(self):
-        """Plots the generated circles."""
-        import matplotlib.pyplot as plt
-        import matplotlib.patches as patches
-
-        f = plt.figure(figsize=(8, 8), facecolor='w')
-        a = f.add_subplot(111, aspect='equal')
-        for m in range(self.population):
-            a.add_patch(
-                patches.Circle(
-                    (self.feature[m].center.x,
-                     self.feature[m].center.y),
-                    self.feature[m].radius,
-                    transform=a.transAxes))
-        plt.grid('on')
-        plt.show()
-
     def numpy(self):
         """Returns the Numpy representation."""
         arr = np.empty((self.population, 4))
