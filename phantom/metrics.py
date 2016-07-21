@@ -87,7 +87,72 @@ def background_mask(phantom, shape):
         mask -= (px - x)**2 + (py - y)**2 < rad**2
     return mask
 
-def _compute_ssim(im1, im2, l=255, filtersize=(11,11), sigma=None):
+def _compute_msssim(img1, img2, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03)):
+    '''
+    Multi-scale Structural Similarity Index (MS-SSIM)
+    Z. Wang, E. P. Simoncelli and A. C. Bovik, "Multi-scale structural similarity
+    for image quality assessment," Invited Paper, IEEE Asilomar Conference on
+    Signals, Systems and Computers, Nov. 2003
+
+    Paper can be found at: https://ece.uwaterloo.ca/~z70wang/publications/msssim.pdf
+
+    Parameters
+    -------------
+    img1 : ndarray
+    img2 : ndarray
+        img1 and img2 are refrence and distorted images. The order doesn't
+        matter because the SSIM index is symmetric.
+    nlevels : int
+        The max number of levels to analyze
+    filtersize : 2-tuple
+        Sets the smallest scale at which local quality is calculated. Subsquent
+        filters are larger.
+    sigma : float
+        Sets the standard deviation of the gaussian filter. Set this value to
+        None if you want to use a box filter.
+    L : int
+        The color depth of the images. L = 2^bidepth - 1
+    K : 2-tuple
+        A list of two constants which help prevent division by zero.
+
+    Returns
+    --------------
+
+    '''
+    # CHECK INPUTS FOR VALIDITY
+    assert(img1.shape == img2.shape)
+    # assert that the image is larger than 11x11
+    (M,N) = img1.shape
+    assert(M >= 11 and N >= 11)
+    # assert that the window is smaller than the image and larger than 2x2
+    (H,W) = filtersize
+    assert((H*W) > 4 and H<=M and W<=N)
+    # assert that there is at least one level requested
+    assert(level > 0)
+    # assert that the image never becomes smaller than the filter
+    min_img_width = min(M,N)/(2^(level-1))
+    max_win_width = max(H,W)
+    assert(min_img_width >= max_win_width)
+
+    # The relative imporance of each level as determined by human experimentation
+    weight = [0.0448 0.2856 0.3001 0.2363 0.1333]
+
+    lowpass_filter = np.ones((2,2))/4;
+    im1 = im1.astype(np.float)
+    im2 = im2.astype(np.float)
+
+    for l in range(0,level):
+       [ssim[l], ssim_map[l]] = _compute_ssim(im1, im2, filtersize=filtersizes,
+                                             sigma=sigma, L=L, K=K);
+       # Apply lowpass filter retain size, reflect at edges
+       filtered_im1 = scipy.ndimage.filters.convolve(im1, lowpass_filter, mode='same')
+       filtered_im2 = scipy.ndimage.filters.convolve(im2, lowpass_filter, mode='same')
+       # Downsample by factor of two using numpy slicing
+       im1 = filtered_im1[::2,::2];
+       im2 = filtered_im2[::2,::2];
+
+
+def _compute_ssim(im1, im2, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03)):
     """
     This is a modified version of SSIM based on implementation by
     Helder C. R. de Oliveira, based on the version of:
@@ -107,7 +172,7 @@ def _compute_ssim(im1, im2, l=255, filtersize=(11,11), sigma=None):
     ----------
     im1 : scalar
     im2 : scalar
-    l : scalar, default = 255
+    L : scalar, default = 255
         The dynamic range of the images. i.e 2^bitdepth-1
     filtersize : list, optional
         The dimensions of the filter to use.
@@ -123,11 +188,9 @@ def _compute_ssim(im1, im2, l=255, filtersize=(11,11), sigma=None):
         The local measures of structural Similiarity
     """
 
-    # k1,k2 & c1,c2 depend on L (width of color map)
-    k_1 = 0.01
-    c_1 = (k_1*l)**2
-    k_2 = 0.03
-    c_2 = (k_2*l)**2
+    # k0,k1 & c1,c2 depend on L (width of color map)
+    c_1 = (K[0]*L)**2
+    c_2 = (K[1]*L)**2
 
     window = np.ones(filtersize)
     if sigma is not None:
@@ -188,7 +251,7 @@ def _compute_ssim(im1, im2, l=255, filtersize=(11,11), sigma=None):
 
     return (index, ssim_map)
 
-def _gauss_2d(shape=(3, 3), sigma=0.5):
+def _gauss_2d(shape=(11, 11), sigma=1.5):
     """
     Code from Stack Overflow's thread
     2D gaussian mask - should give the same result as MATLAB's
