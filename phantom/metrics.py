@@ -87,6 +87,41 @@ def background_mask(phantom, shape):
         mask -= (px - x)**2 + (py - y)**2 < rad**2
     return mask
 
+class ImageQuality(object):
+    """Stores information about image quality"""
+    def __init__(self):
+        self.qualities = []
+        self.maps = []
+        self.scales = []
+
+    def __str__(self):
+        return "QUALITY: " + str(qualities) + "\nSCALES: " + str(scales)
+
+    def add_quality(self,quality,maps=None,scale):
+        '''
+        Attributes
+        -----------
+        quality : scalar, list
+            The average quality for the image
+        map : array, list of arrays, optional
+            the local quality rating across the image
+        scale : scalar, list
+            the size scale at which the quality was calculated
+        '''
+        if type(quality) is list:
+            self.qualites += quality
+            self.scales += scale
+            if maps is None:
+                maps = [None]*len(quality)
+            self.maps += maps
+        else:
+            self.qualites.append(quality)
+            self.scales.append(scale)
+            self.maps.append(map)
+
+    def sort(self):
+        """Sorts the qualities by scale. #STUB"""
+
 def _compute_ssim(im1, im2, l=255, filtersize=(11,11), sigma=None):
     """
     This is a modified version of SSIM based on implementation by
