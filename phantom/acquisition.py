@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 # #########################################################################
-# Copyright (c) 2015, UChicago Argonne, LLC. All rights reserved.         #
+# Copyright (c) 2016, UChicago Argonne, LLC. All rights reserved.         #
 #                                                                         #
-# Copyright 2015. UChicago Argonne, LLC. This software was produced       #
+# Copyright 2016. UChicago Argonne, LLC. This software was produced       #
 # under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
 # Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
 # U.S. Department of Energy. The U.S. Government has rights to use,       #
@@ -49,16 +49,88 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import numpy as np
 from phantom.geometry import *
-from phantom.acquisition import *
-from phantom.metrics import *
-from phantom.plot import *
-
 import logging
-logging.basicConfig()
 
-try:
-    import pkg_resources
-    __version__ = pkg_resources.working_set.require("phantom")[0].version
-except:
-    pass
+logger = logging.getLogger(__name__)
+
+
+__author__ = "Doga Gursoy"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = ['sinogram',
+           'angleogram']
+
+
+def sinogram(sx, sy, phantom):
+    """Generates sinogram given a phantom.
+
+    Parameters
+    ----------
+    sx : int
+        Number of rotation angles.
+    sy : int 
+        Number of detection pixels (or sample translations).
+    phantom : Phantom 
+    """
+    # Step size of the probe.
+    size = 1. / sy
+
+    # Step size of the rotation angle.
+    theta = np.pi / sx
+
+    # Fixed probe location.
+    p = Probe(Point(size / 2., 0), Point(size / 2., 1), size)
+
+    # Measure sinogram values.
+    sino = np.zeros((sx, sy))
+    for m in range(sx):
+        # print ("theta=%s" % (m * theta * 180. / np.pi))
+        for n in range(sy):
+            sino[m, n] = p.measure(phantom)
+            phantom.translate(-size, 0)
+        phantom.translate(1, 0)
+        phantom.rotate(-theta, Point(0.5, 0.5))
+    return sino
+
+
+def angleogram(sx, sy, phantom):
+    """Generates angleogram given a phantom.
+
+    Parameters
+    ----------
+    sx : int
+        Number of rotation angles.
+    sy : int 
+        Number of detection pixels (or sample translations).
+    phantom : Phantom
+    """
+    # Step size of the probe.
+    size = 1. / sy
+
+    # Fixed rotation points.
+    p1 = Point(0.0, 0.5)
+    p2 = Point(0.5, 0.5)
+
+    # Step sizes of the rotation angles.
+    alpha = np.pi / sx
+    beta = np.pi / sy
+    print (alpha, beta)
+
+    # Fixed probe location.
+    p = Probe(Point(size / 2., 0), Point(size / 2., 1), size)
+
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
+
+    # Measure angleogram values.
+    angl = np.zeros((sx, sy))
+    for m in range(sx):
+        print ("alpha=%s" % (m * alpha * 180. / np.pi))
+        for n in range(sy):
+            angl[m, n] = p.measure(phantom)
+            phantom.rotate(alpha, p1)
+        phantom.rotate(-np.pi, p1)
+        phantom.rotate(beta, p2)
+    return angl

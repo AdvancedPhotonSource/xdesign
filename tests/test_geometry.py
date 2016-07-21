@@ -50,6 +50,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from phantom.geometry import *
+from phantom.geometry import beamcirc
 from numpy.testing import assert_allclose, assert_raises
 import numpy as np
 
@@ -169,27 +170,7 @@ def test_Line_same_points():
 
 def test_Circle_area():
     circle = Circle(Point(0, 0), 1)
-    assert_allclose(circle.area(), 3.14159265359, rtol=1e-6)
-
-
-# Transformations
-
-def test_translate():
-    p = translate(Point(0, 0), 2, 3.5)
-    assert_allclose(p.x, 2, rtol=1e-6)
-    assert_allclose(p.y, 3.5, rtol=1e-6)
-
-
-def test_rotate():
-    p = rotate(Point(2, 1), np.pi / 4, Point(1, 0))
-    assert_allclose(p.x, 1, rtol=1e-6)
-    assert_allclose(p.y, 1.41421356237, rtol=1e-6)
-
-
-def test_scale():
-    p = scale(Point(1, 2), 3)
-    assert_allclose(p.x, 3, rtol=1e-6)
-    assert_allclose(p.y, 6, rtol=1e-6)
+    assert_allclose(circle.area, 3.14159265359, rtol=1e-6)
 
 
 if __name__ == '__main__':

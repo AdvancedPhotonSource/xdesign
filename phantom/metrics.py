@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 # #########################################################################
-# Copyright (c) 2015, UChicago Argonne, LLC. All rights reserved.         #
+# Copyright (c) 2016, UChicago Argonne, LLC. All rights reserved.         #
 #                                                                         #
-# Copyright 2015. UChicago Argonne, LLC. This software was produced       #
+# Copyright 2016. UChicago Argonne, LLC. This software was produced       #
 # under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
 # Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
 # U.S. Department of Energy. The U.S. Government has rights to use,       #
@@ -49,16 +49,41 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from phantom.geometry import *
-from phantom.acquisition import *
-from phantom.metrics import *
-from phantom.plot import *
-
+import numpy as np
 import logging
-logging.basicConfig()
 
-try:
-    import pkg_resources
-    __version__ = pkg_resources.working_set.require("phantom")[0].version
-except:
-    pass
+logger = logging.getLogger(__name__)
+
+
+__author__ = "Doga Gursoy"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = ['background_mask']
+
+
+def background_mask(phantom, shape):
+    """Returns the background mask.
+
+    Parameters
+    ----------
+    phantom : Phantom
+    shape : ndarray
+
+    Returns
+    -------
+    ndarray, bool
+        True if pixel belongs to (an assumed) background.
+    """
+    dx, dy = shape
+    _x = np.arange(0, 1, 1 / dx)
+    _y = np.arange(0, 1, 1 / dy)
+    px, py = np.meshgrid(_x, _y)
+
+    mask = np.zeros(shape, dtype=np.bool)
+    mask += (px - 0.5)**2 + (py - 0.5)**2 < 0.5**2
+    for m in range(phantom.population):
+        x = phantom.feature[m].center.x
+        y = phantom.feature[m].center.y
+        rad = phantom.feature[m].radius
+        mask -= (px - x)**2 + (py - y)**2 < rad**2
+    return mask

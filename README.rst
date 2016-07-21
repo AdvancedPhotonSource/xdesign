@@ -9,8 +9,8 @@ Phantom
    :target: https://travis-ci.org/tomography/phantom
    :alt: Travis CI
 
-.. image:: https://coveralls.io/repos/tomography/phantom/badge.svg?branch=master 
-   :target: https://coveralls.io/r/tomography/phantom?branch=master
+.. image:: https://coveralls.io/repos/github/tomography/phantom/badge.svg?branch=master 
+   :target: https://coveralls.io/github/tomography/phantom?branch=master
    :alt: Coveralls
    
 .. image:: https://codeclimate.com/github/tomography/phantom/badges/gpa.svg

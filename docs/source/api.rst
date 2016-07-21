@@ -9,12 +9,9 @@ API
    .. autosummary::
 
       Point
-      Circle
       Line
       Beam
-      rotate
-      translate
-      scale
-      segment
-      beamcirc
-      Registry
+      Probe
+      Circle
+      Phantom
+      sinogram
