@@ -5,6 +5,9 @@ Phantom
 configurable simulation phantoms for benchmarking tomographic 
 image reconstruction.
 
+.. DANGER::
+   Package under construction!
+
 .. toctree::
    :maxdepth: 1
 
@@ -17,14 +20,6 @@ Features
 * Configurable analytic 2D phantoms.
 * Various visualization tools for statistics.
 * Analytic projection operators.
-
-Installation
-============
-
-Have `Conda <http://continuum.io/downloads>`_ installed first,  
-then open a terminal or a command prompt window and run:
-
-    conda install -c tomography phantom
     
 Contribute
 ==========
