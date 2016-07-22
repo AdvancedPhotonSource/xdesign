@@ -53,7 +53,7 @@ from phantom.geometry import *
 from phantom.phantom import *
 from phantom.acquisition import *
 from phantom.algorithms import *
-from phantom.metrics import *
+from phantom.quality import *
 from phantom.plot import *
 
 import logging
