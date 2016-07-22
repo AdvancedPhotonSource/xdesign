@@ -51,6 +51,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 from phantom.geometry import *
+from phantom.geometry import beamcirc, rotate
 import logging
 
 logger = logging.getLogger(__name__)
@@ -59,8 +60,33 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['sinogram',
+__all__ = ['Probe',
+           'sinogram',
            'angleogram']
+
+
+class Probe(Beam):
+
+    def __init__(self, p1, p2, size=0):
+        super(Probe, self).__init__(p1, p2, size)
+
+    def translate(self, dx):
+        """Translates beam along its normal direction."""
+        vec = self.normal * dx
+        self.p1 += vec
+        self.p2 += vec
+
+    def rotate(self, theta, origin):
+        """Rotates beam around a given point."""
+        self.p1 = rotate(self.p1, theta, origin)
+        self.p2 = rotate(self.p2, theta, origin)
+
+    def measure(self, phantom):
+        """Return the probe measurement given phantom."""
+        newdata = 0
+        for m in range(phantom.population):
+            newdata += beamcirc(self, phantom.feature[m])
+        return newdata
 
 
 def sinogram(sx, sy, phantom):
@@ -72,26 +98,19 @@ def sinogram(sx, sy, phantom):
         Number of rotation angles.
     sy : int 
         Number of detection pixels (or sample translations).
-    phantom : Phantom 
+    phantom : Phantom
+
+    Returns
+    -------
+    ndarray
+        Sinogram.
     """
-    # Step size of the probe.
-    size = 1. / sy
-
-    # Step size of the rotation angle.
-    theta = np.pi / sx
-
-    # Fixed probe location.
-    p = Probe(Point(size / 2., 0), Point(size / 2., 1), size)
-
-    # Measure sinogram values.
+    scan = raster_scan(sx, sy)
     sino = np.zeros((sx, sy))
     for m in range(sx):
-        # print ("theta=%s" % (m * theta * 180. / np.pi))
+        print (m)
         for n in range(sy):
-            sino[m, n] = p.measure(phantom)
-            phantom.translate(-size, 0)
-        phantom.translate(1, 0)
-        phantom.rotate(-theta, Point(0.5, 0.5))
+            sino[m, n] = next(scan).measure(phantom)
     return sino
 
 
@@ -105,32 +124,84 @@ def angleogram(sx, sy, phantom):
     sy : int 
         Number of detection pixels (or sample translations).
     phantom : Phantom
+
+    Returns
+    -------
+    ndarray
+        Angleogram.
     """
-    # Step size of the probe.
-    size = 1. / sy
-
-    # Fixed rotation points.
-    p1 = Point(0.0, 0.5)
-    p2 = Point(0.5, 0.5)
-
-    # Step sizes of the rotation angles.
-    alpha = np.pi / sx
-    beta = np.pi / sy
-    print (alpha, beta)
-
-    # Fixed probe location.
-    p = Probe(Point(size / 2., 0), Point(size / 2., 1), size)
-
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as patches
-
-    # Measure angleogram values.
+    scan = angle_scan(sx, sy)
     angl = np.zeros((sx, sy))
     for m in range(sx):
-        print ("alpha=%s" % (m * alpha * 180. / np.pi))
+        print (m)
         for n in range(sy):
-            angl[m, n] = p.measure(phantom)
-            phantom.rotate(alpha, p1)
-        phantom.rotate(-np.pi, p1)
-        phantom.rotate(beta, p2)
+            angl[m, n] = next(scan).measure(phantom)
     return angl
+
+
+def raster_scan(sx, sy):
+    """Provides a beam list for raster-scanning.
+
+    Parameters
+    ----------
+    sx : int
+        Number of rotation angles.
+    sy : int 
+        Number of detection pixels (or sample translations).
+
+    Yields
+    ------
+    Probe
+    """
+    # Step size of the probe.
+    step = 1. / sy
+
+    # Step size of the rotation angle.
+    theta = np.pi / sx
+
+    # Fixed probe location.
+    p = Probe(Point(step / 2., -10), Point(step / 2., 10), step)
+
+    for m in range(sx):
+        for n in range(sy):
+            yield p
+            p.translate(step)
+        p.translate(-1)
+        p.rotate(theta, Point(0.5, 0.5))
+
+
+def angle_scan(sx, sy):
+    """Provides a beam list for raster-scanning.
+
+    Parameters
+    ----------
+    sx : int
+        Number of rotation angles.
+    sy : int 
+        Number of detection pixels (or sample translations).
+
+    Yields
+    ------
+    Probe
+    """
+    # Step size of the probe.
+    step = 0.1 / sy
+
+    # Fixed rotation points.
+    p1 = Point(0, 0.5)
+    p2 = Point(0.5, 0.5)
+
+    # Step size of the rotation angle.
+    beta = np.pi / (sx + 1)
+    alpha = np.pi / sy
+
+    # Fixed probe location.
+    p = Probe(Point(step / 2., -10), Point(step / 2., 10), step)
+
+    for m in range(sx):
+        for n in range(sy):
+            yield p
+            p.rotate(-alpha, p1)
+        p.rotate(np.pi, p1)
+        p1.rotate(-beta, p2)
+        p.rotate(-beta, p2)

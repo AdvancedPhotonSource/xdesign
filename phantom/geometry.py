@@ -61,9 +61,7 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['Point',
            'Circle',
            'Line',
-           'Beam',
-           'Phantom',
-           'Probe']
+           'Beam']
 
 
 class Point(object):
@@ -120,12 +118,14 @@ class Point(object):
         """Returns the distance from a point."""
         return np.hypot(self.x - point.x, self.y - point.y)
 
-    def rotate(self, theta):
-        """Rotate point."""
-        x = self.x * np.cos(theta) - self.y * np.sin(theta)
-        y = self.x * np.sin(theta) + self.y * np.cos(theta)
-        self.x = x
-        self.y = y
+    def rotate(self, theta, origin):
+        """Rotate point around a point."""
+        dx = self.x - origin.x
+        dy = self.y - origin.y
+        px = dx * np.cos(theta) - dy * np.sin(theta)
+        py = dx * np.sin(theta) + dy * np.cos(theta)
+        self.x = px + origin.x
+        self.y = py + origin.y
 
 
 class Circle(object):
@@ -173,7 +173,7 @@ class Circle(object):
 
     def rotate(self, theta, origin):
         """Rotate circle."""
-        self.center = _rotate(self.center, theta, origin)
+        self.center = rotate(self.center, theta, origin)
 
     def translate(self, dx, dy):
         """Translate circle."""
@@ -278,157 +278,7 @@ class Beam(Line):
         return super(Beam, self).__str__()
 
 
-class Phantom(object):
-    """Phantom generation class.
-
-    Attributes
-    ----------
-    shape : string
-        Shape of the phantom. Available options: circle, square.
-    population : scalar
-        Number of generated circles in the phantom.
-    density : scalar
-        Density of the circles in the phantom.
-    feature : list
-        List of circles.
-    """
-
-    def __init__(self, shape='circle'):
-        self.shape = shape
-        self.population = 0
-        self.density = 0
-        self.feature = []
-
-    def list(self):
-        for m in range(self.population):
-            print ("%s: %s" % (m, self.feature[m]))
-
-    def add(self, circle):
-        """Add a circle to the phantom.
-
-        Parameters
-        ----------
-        circle : Circle
-        """
-        self.feature.append(circle)
-        self.density += circle.area
-        self.population += 1
-
-    def remove(self):
-        """Remove last added circle from the phantom."""
-        self.population -= 1
-        self.density -= self.feature[-1].area
-        self.feature.pop()
-
-    def _random_point(self, margin=0):
-        """Generates a random point in the phantom.
-
-        Parameters
-        ----------
-        margin : scalar
-            Determines the margin value of the shape.
-            Points will not be created in the margin area.
-
-        Returns
-        -------
-        Point
-            Random point.
-        """
-        if self.shape == 'square':
-            x = np.random.uniform(margin, 1 - margin)
-            y = np.random.uniform(margin, 1 - margin)
-        elif self.shape == 'circle':
-            r = np.random.uniform(0, 0.5 - margin)
-            a = np.random.uniform(0, 2 * np.pi)
-            x = r * np.cos(a) + 0.5
-            y = r * np.sin(a) + 0.5
-        return Point(x, y)
-
-    def sprinkle(self, counts, radius, gap=0, collision=False):
-        """Sprinkles a number of circles.
-
-        Parameters
-        ----------
-        counts : int
-            Number of circles to be added.
-        gap : float, optional
-            Minimum gap between the circle boundaries.
-        collision : bool, optional
-            False if circles will be non overlapping.
-        """
-        for m in range(int(counts)):
-            center = self._random_point(radius)
-            circle = Circle(center, radius + gap)
-            if not self.collision(circle) or collision:
-                self.add(Circle(center, radius))
-
-    def collision(self, circle):
-        """Checks if a circle is collided with others."""
-        for m in range(self.population):
-            dx = self.feature[m].center.x - circle.center.x
-            dy = self.feature[m].center.y - circle.center.y
-            dr = self.feature[m].radius + circle.radius
-            if np.sqrt(dx**2 + dy**2) < dr:
-                return True
-        return False
-
-    def numpy(self):
-        """Returns the Numpy representation."""
-        arr = np.empty((self.population, 4))
-        for m in range(self.population):
-            arr[m] = [
-                self.feature[m].center.x,
-                self.feature[m].center.y,
-                self.feature[m].radius,
-                self.feature[m].value]
-        return arr
-
-    def save(self, filename):
-        """Save phantom to file."""
-        np.savetxt(filename, self.numpy(), delimiter=',')
-
-    def load(self, filename):
-        """Load phantom from file."""
-        arr = np.loadtxt(filename, delimiter=',')
-        for m in range(arr.shape[0]):
-            self.add(Circle(Point(arr[m, 0], arr[m, 1]), arr[m, 2], arr[m, 3]))
-
-    def translate(self, dx, dy):
-        """Translate phantom."""
-        for m in range(self.population):
-            self.feature[m].translate(dx, dy)
-
-    def rotate(self, theta, origin):
-        """Rotate phantom around a point."""
-        for m in range(self.population):
-            self.feature[m].rotate(theta, origin)
-
-
-class Probe(Beam):
-
-    def __init__(self, p1, p2, size=0):
-        super(Probe, self).__init__(p1, p2, size)
-
-    def translate(self, dx):
-        """Translates beam along its normal direction."""
-        vec = self.normal * dx
-        self.p1 += vec
-        self.p2 += vec
-
-    def rotate(self, theta, origin):
-        """Rotates beam around a given point."""
-        self.p1 = _rotate(self.p1, theta, origin)
-        self.p2 = _rotate(self.p2, theta, origin)
-
-    def measure(self, phantom):
-        """Return the probe measurement given phantom."""
-        newdata = 0
-        for m in range(phantom.population):
-            newdata += beamcirc(self, phantom.feature[m])
-        return newdata
-
-
-def _rotate(point, theta, origin=Point(0, 0)):
+def rotate(point, theta, origin=Point(0, 0)):
     """Rotates a point in counter-clockwise around another point.
     Parameters
     ----------
@@ -479,11 +329,11 @@ def beamcirc(beam, circle):
     Returns
     -------
     scalar
-        Area of the intersected region. 
+        Area of the intersected region.
     """
 
     # Passive coordinate transformation.
-    _center = _rotate(
+    _center = rotate(
         point=circle.center,
         theta=-np.arctan(beam.slope),
         origin=Point(0, beam.intercept))
