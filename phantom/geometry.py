@@ -403,6 +403,21 @@ class Phantom(object):
         for m in range(self.population):
             self.feature[m].rotate(theta, origin)
 
+    def discrete(self, resolution):
+        """Returns discrete representation of the phantom. #STUB
+
+        Parameters
+        ------------
+        resolution : scalar
+            The size of one pixel in real space
+
+        Returns
+        ------------
+        image : numpy.ndarray
+            The discrete representation of the phantom
+        """
+
+        return np.ndarray(shape=(256,256), dtype=float)
 
 class Probe(Beam):
 
@@ -479,7 +494,7 @@ def beamcirc(beam, circle):
     Returns
     -------
     scalar
-        Area of the intersected region. 
+        Area of the intersected region.
     """
 
     # Passive coordinate transformation.
