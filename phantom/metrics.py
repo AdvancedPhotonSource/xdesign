@@ -60,6 +60,82 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['background_mask']
 
+class ImageQuality(object):
+    """Stores information about image quality"""
+    def __init__(self, original, reconstruction):
+        self.orig = original.astype(np.float)
+        self.recon = reconstruction.astype(np.float)
+        self.qualities = []
+        self.maps = []
+        self.scales = []
+
+    def __str__(self):
+        return "QUALITY: " + str(self.qualities) + "\nSCALES: " + str(self.scales)
+
+    def __add__(self, other):
+        self.qualities += other.qualities
+        self.maps += other.maps
+        self.scale += other.scales
+
+    def add_quality(self,quality,scale,maps=None):
+        '''
+        Attributes
+        -----------
+        quality : scalar, list
+            The average quality for the image
+        map : array, list of arrays, optional
+            the local quality rating across the image
+        scale : scalar, list
+            the size scale at which the quality was calculated
+        '''
+        if type(quality) is list:
+            self.qualities += quality
+            self.scales += scale
+            if maps is None:
+                maps = [None]*len(quality)
+            self.maps += maps
+        else:
+            self.qualities.append(quality)
+            self.scales.append(scale)
+            self.maps.append(maps)
+
+    def sort(self):
+        """Sorts the qualities by scale. #STUB"""
+
+def compute_quality(reference,reconstructions,method="SSIM"):
+    """
+    Computes image quality metrics for each of the reconstructions.
+
+    Parameters
+    ---------
+    reference : array
+        the discrete reference image. In a future release, we will
+        determine the best way to compare a continuous domain to a discrete
+        reconstruction.
+    reconstructions : list of arrays
+        A list of discrete reconstructions
+    method : string, enum?, optional
+        The quality metric desired for this comparison.
+        Options include: SSIM, MSSSIM
+
+    Returns
+    ---------
+    metrics : list of ImageQuality
+    """
+    if not (type(reconstructions) is list):
+        reconstructions = [reconstructions]
+
+    dictionary = {"SSIM": _compute_ssim, "MSSIM": _compute_msssim}
+    method = dictionary[method]
+
+    metrics = []
+    for image in reconstructions:
+        IQ = ImageQuality(reference, image)
+        IQ = method(IQ)
+        metrics.append(IQ)
+
+    return metrics
+
 def background_mask(phantom, shape):
     """Returns the background mask.
 
@@ -87,7 +163,7 @@ def background_mask(phantom, shape):
         mask -= (px - x)**2 + (py - y)**2 < rad**2
     return mask
 
-def _compute_msssim(img1, img2, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03)):
+def _compute_msssim(imQual, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03)):
     '''
     Multi-scale Structural Similarity Index (MS-SSIM)
     Z. Wang, E. P. Simoncelli and A. C. Bovik, "Multi-scale structural similarity
@@ -117,8 +193,12 @@ def _compute_msssim(img1, img2, nlevels=5, filtersize=(11,11), sigma=1.2, L=255,
 
     Returns
     --------------
+    imQual : ImageQuality
 
     '''
+    img1 = imQual.orig
+    img2 = imQual.recon
+
     # CHECK INPUTS FOR VALIDITY
     assert(img1.shape == img2.shape)
     # assert that the image is larger than 11x11
@@ -135,15 +215,15 @@ def _compute_msssim(img1, img2, nlevels=5, filtersize=(11,11), sigma=1.2, L=255,
     assert(min_img_width >= max_win_width)
 
     # The relative imporance of each level as determined by human experimentation
-    weight = [0.0448 0.2856 0.3001 0.2363 0.1333]
+    weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
     lowpass_filter = np.ones((2,2))/4;
     im1 = im1.astype(np.float)
     im2 = im2.astype(np.float)
 
     for l in range(0,level):
-       [ssim[l], ssim_map[l]] = _compute_ssim(im1, im2, filtersize=filtersizes,
-                                             sigma=sigma, L=L, K=K);
+       imQual += _compute_ssim(im1, im2, filtersize=filtersize, sigma=sigma,
+                               L=L, K=K, scale=l);
        # Apply lowpass filter retain size, reflect at edges
        filtered_im1 = scipy.ndimage.filters.convolve(im1, lowpass_filter, mode='same')
        filtered_im2 = scipy.ndimage.filters.convolve(im2, lowpass_filter, mode='same')
@@ -151,8 +231,7 @@ def _compute_msssim(img1, img2, nlevels=5, filtersize=(11,11), sigma=1.2, L=255,
        im1 = filtered_im1[::2,::2];
        im2 = filtered_im2[::2,::2];
 
-
-def _compute_ssim(im1, im2, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03)):
+def _compute_ssim(imQual, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03), scale=0):
     """
     This is a modified version of SSIM based on implementation by
     Helder C. R. de Oliveira, based on the version of:
@@ -170,8 +249,7 @@ def _compute_ssim(im1, im2, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03))
 
     Attributes
     ----------
-    im1 : scalar
-    im2 : scalar
+    imQual : ImageQuality
     L : scalar, default = 255
         The dynamic range of the images. i.e 2^bitdepth-1
     filtersize : list, optional
@@ -182,13 +260,9 @@ def _compute_ssim(im1, im2, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03))
 
     Returns
     ----------
-    index : scalar
-        The mean structural similarity
-    ssim_map : Array
-        The local measures of structural Similiarity
+    imQual : ImageQuality
     """
 
-    # k0,k1 & c1,c2 depend on L (width of color map)
     c_1 = (K[0]*L)**2
     c_2 = (K[1]*L)**2
 
@@ -199,8 +273,8 @@ def _compute_ssim(im1, im2, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03))
     window /= np.sum(window)
 
     # Convert image matrices to double precision (like in the Matlab version)
-    im1 = im1.astype(np.float)
-    im2 = im2.astype(np.float)
+    im1 = imQual.orig
+    im2 = imQual.recon
 
     # TODO: Replace convolve with uniform and gaussian filtering methods because they can probably be optimized to be faster.
     # Means obtained by Gaussian filtering of inputs
@@ -246,10 +320,10 @@ def _compute_ssim(im1, im2, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03))
         index = (denominator1 != 0) & (denominator2 == 0)
         ssim_map[index] = numerator1[index] / denominator1[index]
 
-    # return MSSIM
+    # return SSIM
     index = np.mean(ssim_map)
-
-    return (index, ssim_map)
+    imQual.add_quality(index, scale, maps=ssim_map)
+    return imQual
 
 def _gauss_2d(shape=(11, 11), sigma=1.5):
     """

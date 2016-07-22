@@ -50,9 +50,10 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
-import matplotlib.pylab as plt
+import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -83,3 +84,30 @@ def plot_phantom(phantom):
 
     plt.grid('on')
     plt.show()
+
+def plot_metrics(imqual):
+    """Plots metrics of ImageQuality data
+
+    """
+    colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(imqual))))
+    for i in range(0,len(imqual)):
+        # Draw a plot of the mean quality vs scale using different colors for each reconstruction
+        plt.figure(0)
+        plt.scatter(imqual[i].scales, imqual[i].qualities,color=next(colors))
+
+        # Draw a plot of the local quality at each scale on the same figure as the original
+        plt.figure(i+1)
+        N = 2
+        plt.subplot2grid((N,N),(0,0),colspan=1,rowspan=1)
+        plt.imshow(imqual[i].recon, cmap=plt.cm.gray)
+        plt.subplot2grid((N,N),(1,0),colspan=1,rowspan=1)
+        plt.imshow(imqual[i].maps[0], cmap=plt.cm.gray)
+
+    plt.figure(0)
+    plt.ylabel('Quality')
+    plt.xlabel('Scale')
+    plt.legend([str(x) for x in range(1,len(imqual)+1)])
+
+    plt.show(block=False)
+    time.sleep(5)
+    plt.close("all")
