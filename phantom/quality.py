@@ -75,7 +75,8 @@ class ImageQuality(object):
     def __add__(self, other):
         self.qualities += other.qualities
         self.maps += other.maps
-        self.scale += other.scales
+        self.scales += other.scales
+        return self
 
     def add_quality(self,quality,scale,maps=None):
         '''
@@ -125,7 +126,7 @@ def compute_quality(reference,reconstructions,method="SSIM"):
     if not (type(reconstructions) is list):
         reconstructions = [reconstructions]
 
-    dictionary = {"SSIM": _compute_ssim, "MSSIM": _compute_msssim}
+    dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim}
     method = dictionary[method]
 
     metrics = []
@@ -208,9 +209,9 @@ def _compute_msssim(imQual, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(
     (H,W) = filtersize
     assert((H*W) > 4 and H<=M and W<=N)
     # assert that there is at least one level requested
-    assert(level > 0)
+    assert(nlevels > 0)
     # assert that the image never becomes smaller than the filter
-    min_img_width = min(M,N)/(2^(level-1))
+    min_img_width = min(M,N)/(2^(nlevels-1))
     max_win_width = max(H,W)
     assert(min_img_width >= max_win_width)
 
@@ -218,18 +219,22 @@ def _compute_msssim(imQual, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(
     weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
     lowpass_filter = np.ones((2,2))/4;
-    im1 = im1.astype(np.float)
-    im2 = im2.astype(np.float)
+    img1 = img1.astype(np.float)
+    img2 = img2.astype(np.float)
 
-    for l in range(0,level):
-       imQual += _compute_ssim(im1, im2, filtersize=filtersize, sigma=sigma,
-                               L=L, K=K, scale=l);
-       # Apply lowpass filter retain size, reflect at edges
-       filtered_im1 = scipy.ndimage.filters.convolve(im1, lowpass_filter, mode='same')
-       filtered_im2 = scipy.ndimage.filters.convolve(im2, lowpass_filter, mode='same')
-       # Downsample by factor of two using numpy slicing
-       im1 = filtered_im1[::2,::2];
-       im2 = filtered_im2[::2,::2];
+    for l in range(0,nlevels):
+        #print(img1.shape)
+        imQual += _compute_ssim(ImageQuality(img1,img2), filtersize=filtersize, sigma=sigma, L=L, K=K, scale=l);
+        if l == nlevels-1: break
+
+        # Apply lowpass filter retain size, reflect at edges
+        filtered_im1 = scipy.ndimage.filters.convolve(img1, lowpass_filter)
+        filtered_im2 = scipy.ndimage.filters.convolve(img2, lowpass_filter) # mode='same'
+        # Downsample by factor of two using numpy slicing
+        img1 = filtered_im1[::2,::2];
+        img2 = filtered_im2[::2,::2];
+
+    return imQual
 
 def _compute_ssim(imQual, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03), scale=0):
     """
@@ -273,13 +278,13 @@ def _compute_ssim(imQual, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03), s
     window /= np.sum(window)
 
     # Convert image matrices to double precision (like in the Matlab version)
-    im1 = imQual.orig
-    im2 = imQual.recon
+    img1 = imQual.orig
+    img2 = imQual.recon
 
     # TODO: Replace convolve with uniform and gaussian filtering methods because they can probably be optimized to be faster.
     # Means obtained by Gaussian filtering of inputs
-    mu_1 = scipy.ndimage.filters.convolve(im1, window)
-    mu_2 = scipy.ndimage.filters.convolve(im2, window)
+    mu_1 = scipy.ndimage.filters.convolve(img1, window)
+    mu_2 = scipy.ndimage.filters.convolve(img2, window)
 
     # Squares of means
     mu_1_sq = mu_1**2
@@ -287,9 +292,9 @@ def _compute_ssim(imQual, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03), s
     mu_1_mu_2 = mu_1 * mu_2
 
     # Squares of input matrices
-    im1_sq = im1**2
-    im2_sq = im2**2
-    im12 = im1*im2
+    im1_sq = img1**2
+    im2_sq = img2**2
+    im12 = img1*img2
 
     # Variances obtained by Gaussian filtering of inputs' squares
     sigma_1_sq = scipy.ndimage.filters.convolve(im1_sq, window)
@@ -325,7 +330,7 @@ def _compute_ssim(imQual, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03), s
     imQual.add_quality(index, scale, maps=ssim_map)
     return imQual
 
-def _gauss_2d(shape=(11, 11), sigma=1.5):
+def _gauss_2d(shape=(11,11), sigma=1.5):
     """
     Code from Stack Overflow's thread
     2D gaussian mask - should give the same result as MATLAB's
