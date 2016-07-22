@@ -21,20 +21,15 @@ Phantom
 simulation phantoms for evaluating tomographic data processing
 and image reconstruction.
 
+.. DANGER::
+   Package under construction!
+
 Features
 ========
 
 * Configurable analytic 2D phantoms.
 * Various visualization tools for statistics.
 * Analytic projection operators.
-
-Installation
-============
-
-Have `Conda <http://continuum.io/downloads>`_ installed first,  
-then open a terminal or a command prompt window and run:
-
-    conda install -c tomography phantom
     
 Contribute
 ==========
