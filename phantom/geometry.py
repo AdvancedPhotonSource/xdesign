@@ -62,8 +62,7 @@ __all__ = ['Point',
            'Circle',
            'Line',
            'Beam',
-           'Phantom',
-           'Probe']
+           'Phantom']
 
 
 class Point(object):
@@ -173,7 +172,7 @@ class Circle(object):
 
     def rotate(self, theta, origin):
         """Rotate circle."""
-        self.center = _rotate(self.center, theta, origin)
+        self.center = rotate(self.center, theta, origin)
 
     def translate(self, dx, dy):
         """Translate circle."""
@@ -419,31 +418,8 @@ class Phantom(object):
 
         return np.ndarray(shape=(256,256), dtype=float)
 
-class Probe(Beam):
 
-    def __init__(self, p1, p2, size=0):
-        super(Probe, self).__init__(p1, p2, size)
-
-    def translate(self, dx):
-        """Translates beam along its normal direction."""
-        vec = self.normal * dx
-        self.p1 += vec
-        self.p2 += vec
-
-    def rotate(self, theta, origin):
-        """Rotates beam around a given point."""
-        self.p1 = _rotate(self.p1, theta, origin)
-        self.p2 = _rotate(self.p2, theta, origin)
-
-    def measure(self, phantom):
-        """Return the probe measurement given phantom."""
-        newdata = 0
-        for m in range(phantom.population):
-            newdata += beamcirc(self, phantom.feature[m])
-        return newdata
-
-
-def _rotate(point, theta, origin=Point(0, 0)):
+def rotate(point, theta, origin=Point(0, 0)):
     """Rotates a point in counter-clockwise around another point.
     Parameters
     ----------
@@ -498,7 +474,7 @@ def beamcirc(beam, circle):
     """
 
     # Passive coordinate transformation.
-    _center = _rotate(
+    _center = rotate(
         point=circle.center,
         theta=-np.arctan(beam.slope),
         origin=Point(0, beam.intercept))

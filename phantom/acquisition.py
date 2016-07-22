@@ -51,6 +51,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 from phantom.geometry import *
+from phantom.geometry import beamcirc, rotate
 import logging
 
 logger = logging.getLogger(__name__)
@@ -59,8 +60,33 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['sinogram',
+__all__ = ['Probe',
+           'sinogram',
            'angleogram']
+
+
+class Probe(Beam):
+
+    def __init__(self, p1, p2, size=0):
+        super(Probe, self).__init__(p1, p2, size)
+
+    def translate(self, dx):
+        """Translates beam along its normal direction."""
+        vec = self.normal * dx
+        self.p1 += vec
+        self.p2 += vec
+
+    def rotate(self, theta, origin):
+        """Rotates beam around a given point."""
+        self.p1 = rotate(self.p1, theta, origin)
+        self.p2 = rotate(self.p2, theta, origin)
+
+    def measure(self, phantom):
+        """Return the probe measurement given phantom."""
+        newdata = 0
+        for m in range(phantom.population):
+            newdata += beamcirc(self, phantom.feature[m])
+        return newdata
 
 
 def sinogram(sx, sy, phantom):
