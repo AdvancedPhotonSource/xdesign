@@ -119,12 +119,14 @@ class Point(object):
         """Returns the distance from a point."""
         return np.hypot(self.x - point.x, self.y - point.y)
 
-    def rotate(self, theta):
-        """Rotate point."""
-        x = self.x * np.cos(theta) - self.y * np.sin(theta)
-        y = self.x * np.sin(theta) + self.y * np.cos(theta)
-        self.x = x
-        self.y = y
+    def rotate(self, theta, origin):
+        """Rotate point around a point."""
+        dx = self.x - origin.x
+        dy = self.y - origin.y
+        px = dx * np.cos(theta) - dy * np.sin(theta)
+        py = dx * np.sin(theta) + dy * np.cos(theta)
+        self.x = px + origin.x
+        self.y = py + origin.y
 
 
 class Circle(object):
