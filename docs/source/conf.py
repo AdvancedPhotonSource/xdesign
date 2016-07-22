@@ -318,3 +318,29 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
+
+# picked from http://read-the-docs.readthedocs.org/en/latest/faq.html
+class Mock(object):
+
+    __all__ = []
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        return Mock()
+
+    @classmethod
+    def __getattr__(cls, name):
+        if name in ('__file__', '__path__'):
+            return '/dev/null'
+        elif name == 'c_byte':
+            return 0
+        else:
+            return Mock()
+
+MOCK_MODULES = [
+    'numpy', 'scipy', 'matplotlib']
+
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = Mock()
