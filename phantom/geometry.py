@@ -277,7 +277,6 @@ class Beam(Line):
     def __str__(self):
         return super(Beam, self).__str__()
 
-
 def rotate(point, theta, origin=Point(0, 0)):
     """Rotates a point in counter-clockwise around another point.
     Parameters
