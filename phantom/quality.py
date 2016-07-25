@@ -243,7 +243,7 @@ def _calculate_FSIM(imQual):
     #plt.show(block=True)
     #print(np.min(PC1))
 
-    # Calculate the gradient map
+    # Calculate the gradient magnitude map using Scharr filters
     dx = np.array([[3.  ,0.  ,-3. ],
                    [10. ,0.  ,-10.],
                    [3.  ,0.  ,-3. ]])/16
@@ -260,13 +260,13 @@ def _calculate_FSIM(imQual):
     gradientMap2 = np.sqrt(IxY2**2 + IyY2**2)
 
     # Calculate the FSIM
-    T1 = 0.85   #fixed
-    T2 = 160.    #fixed
-    PCSimMatrix = (2 * PC1 * PC2 + T1) / (PC1**2 + PC2**2 + T1)
+    T1 = 0.85   # fixed and depends on dynamic range
+    T2 = 160    # fixed and depends on dynamic range
+    PCSimMatrix = (2 * PC1 * PC2 + T1) / (PC1**2 + PC2**2 + T1) # results range (0,1]
     gradientSimMatrix = (2*gradientMap1*gradientMap2 + T2) / (gradientMap1**2 + gradientMap2**2 + T2)
-    PCm = PC1 #np.maximum(PC1, PC2)
-    FSIMmap = gradientSimMatrix * PCSimMatrix * PCm
-    FSIM = np.sum(FSIMmap) / np.sum(PCm)
+    PCm = np.maximum(PC1, PC2)
+    FSIMmap = gradientSimMatrix * PCSimMatrix
+    FSIM = np.sum(FSIMmap * PCm) / np.sum(PCm)
 
     imQual.add_quality(FSIM, 0, maps=FSIMmap)
     return imQual
