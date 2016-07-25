@@ -218,21 +218,21 @@ def _compute_msssim(imQual, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(
     # The relative imporance of each level as determined by human experimentation
     weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
-    lowpass_filter = np.ones((2,2))/4;
+    lowpass_filter = np.ones((2,2))/4
     img1 = img1.astype(np.float)
     img2 = img2.astype(np.float)
 
     for l in range(0,nlevels):
         #print(img1.shape)
-        imQual += _compute_ssim(ImageQuality(img1,img2), filtersize=filtersize, sigma=sigma, L=L, K=K, scale=l);
+        imQual += _compute_ssim(ImageQuality(img1,img2), filtersize=filtersize, sigma=sigma, L=L, K=K, scale=l)
         if l == nlevels-1: break
 
         # Apply lowpass filter retain size, reflect at edges
         filtered_im1 = scipy.ndimage.filters.convolve(img1, lowpass_filter)
         filtered_im2 = scipy.ndimage.filters.convolve(img2, lowpass_filter) # mode='same'
         # Downsample by factor of two using numpy slicing
-        img1 = filtered_im1[::2,::2];
-        img2 = filtered_im2[::2,::2];
+        img1 = filtered_im1[::2,::2]
+        img2 = filtered_im2[::2,::2]
 
     return imQual
 
