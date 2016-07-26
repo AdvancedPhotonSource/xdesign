@@ -126,7 +126,7 @@ def compute_quality(reference,reconstructions,method="SSIM"):
     if not (type(reconstructions) is list):
         reconstructions = [reconstructions]
 
-    dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim}
+    dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim, "VIFp": _compute_vifp}
     method = dictionary[method]
 
     metrics = []
@@ -163,6 +163,104 @@ def background_mask(phantom, shape):
         rad = phantom.feature[m].radius
         mask -= (px - x)**2 + (py - y)**2 < rad**2
     return mask
+
+def _compute_vifp(imQual):
+    """ Calculates the Visual Information Fidelity (VIFp) between two images in 
+    in a multiscale pixel domain with scalar.
+    
+    -----------COPYRIGHT NOTICE STARTS WITH THIS LINE------------
+Copyright (c) 2005 The University of Texas at Austin
+All rights reserved.
+
+Permission is hereby granted, without written agreement and without license or 
+royalty fees, to use, copy, modify, and distribute this code (the source files) 
+and its documentation for any purpose, provided that the copyright notice in 
+its entirety appear in all copies of this code, and the original source of this 
+code, Laboratory for Image and Video Engineering 
+(LIVE, http://live.ece.utexas.edu) at the University of Texas at Austin 
+(UT Austin, http://www.utexas.edu), is acknowledged in any publication that 
+reports research using this code. The research is to be cited in the 
+bibliography as:
+
+H. R. Sheikh and A. C. Bovik, "Image Information and Visual Quality", IEEE 
+Transactions on Image Processing, (to appear).
+
+IN NO EVENT SHALL THE UNIVERSITY OF TEXAS AT AUSTIN BE LIABLE TO ANY PARTY FOR 
+DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF 
+THE USE OF THIS DATABASE AND ITS DOCUMENTATION, EVEN IF THE UNIVERSITY OF TEXAS
+AT AUSTIN HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+THE UNIVERSITY OF TEXAS AT AUSTIN SPECIFICALLY DISCLAIMS ANY WARRANTIES, 
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND 
+FITNESS FOR A PARTICULAR PURPOSE. THE DATABASE PROVIDED HEREUNDER IS ON AN "AS 
+IS" BASIS, AND THE UNIVERSITY OF TEXAS AT AUSTIN HAS NO OBLIGATION TO PROVIDE 
+MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+
+-----------COPYRIGHT NOTICE ENDS WITH THIS LINE------------
+    
+    Parameters
+    -----------
+    
+    Returns
+    -----------
+    
+    """
+    ref = imQual.orig
+    dist = imQual.recon
+    
+    sigmaN_sq = 2 # used to tune response
+    eps = 1e-10
+
+    vifmap = []
+    vifp = []
+    scales = range(0, 4)
+    for scale in scales:
+       
+        # what the hell is this? N = 2, 3, 5, 9, 17 TODO: @ Daniel
+        N = 2**(4-scale) + 1
+        sd = N/5.0 # array([ 0.4,  0.6,  1. ,  1.8,  3.4])
+
+        # Downsampling
+        if (scale > 0):
+            ref = scipy.ndimage.gaussian_filter(ref, sd)
+            dist = scipy.ndimage.gaussian_filter(dist, sd)
+            ref = ref[::2, ::2]
+            dist = dist[::2, ::2]
+        
+        # TODO: @Daniel convolving with a low pass 11x11 normalized gaussian
+        mu1 = scipy.ndimage.gaussian_filter(ref, sd)
+        mu2 = scipy.ndimage.gaussian_filter(dist, sd)
+        
+        sigma1_sq = scipy.ndimage.gaussian_filter((ref-mu1)**2,         sd)
+        sigma2_sq = scipy.ndimage.gaussian_filter((dist-mu2)**2,        sd)
+        sigma12   = scipy.ndimage.gaussian_filter((ref-mu1)*(dist-mu2), sd)
+        
+        g = sigma12 / (sigma1_sq + eps)
+        sigmav_sq = sigma2_sq - g * sigma12
+        
+        # cleaning data
+#        g[sigma1_sq<eps] = 0
+#        sigmav_sq[sigma1_sq<eps] = sigma2_sq[sigma1_sq<eps]
+#        sigma1_sq[sigma1_sq<eps] = 0
+#        
+#        g[sigma2_sq<eps] = 0
+#        sv_sq[sigma2_sq<eps] = 0
+#        
+#        sv_sq[g<0] = sigma2_sq[g<0]
+#        g[g<0] = 0
+#        sv_sq[sv_sq<=eps] = eps
+        
+        # Calculate VIF
+        numator = np.log2(1 + g**2 * sigma1_sq / (sigmav_sq + sigmaN_sq))
+        denator = np.sum(np.log2(1 + sigma1_sq / sigmaN_sq))
+        
+        vifmap.append(numator/denator)
+        
+        vifp.append(np.sum(vifmap[-1]))
+        
+    imQual.add_quality(vifp,scales,maps=vifmap)
+    
+    return imQual
 
 def _compute_msssim(imQual, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03)):
     '''
