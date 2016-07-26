@@ -218,12 +218,12 @@ MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
        
         # what the hell is this? N = 2, 3, 5, 9, 17 TODO: @ Daniel
         N = 2**(4-scale) + 1
-        sd = N/5.0 # array([ 0.4,  0.6,  1. ,  1.8,  3.4])
+        sd = 1.2 #N/5.0 # array([ 0.4,  0.6,  1. ,  1.8,  3.4])
 
         # Downsampling
         if (scale > 0):
-            ref = scipy.ndimage.gaussian_filter(ref, sd)
-            dist = scipy.ndimage.gaussian_filter(dist, sd)
+            ref = scipy.ndimage.uniform_filter(ref, 2)
+            dist = scipy.ndimage.uniform_filter(dist, 2)
             ref = ref[::2, ::2]
             dist = dist[::2, ::2]
         
