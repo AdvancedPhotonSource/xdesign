@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['background_mask']
+__all__ = ['ImageQuality','background_mask','compute_quality']
 
 class ImageQuality(object):
     """Stores information about image quality"""
