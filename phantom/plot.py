@@ -101,13 +101,13 @@ def plot_metrics(imqual):
         N = len(imqual[i].maps)+1;
         p = _pyramid(N)
         plt.subplot2grid((p[0][0],p[0][0]),p[0][1],colspan=p[0][2],rowspan=p[0][2])
-        plt.imshow(imqual[i].recon, cmap=plt.cm.viridis)
+        plt.imshow(imqual[i].recon, cmap=plt.cm.viridis, interpolation="none")
         plt.colorbar()
         plt.title("Reconstruction")
         v = np.linspace(0, 0.1, 1, endpoint=True)
         for j in range(1,N):
             plt.subplot2grid((p[j][0],p[j][0]),p[j][1],colspan=p[j][2],rowspan=p[j][2])
-            plt.imshow(imqual[i].maps[j-1], cmap=plt.cm.viridis)
+            plt.imshow(imqual[i].maps[j-1], cmap=plt.cm.viridis, interpolation="none")
             plt.colorbar()
             plt.title("Local quality at scale " + str(j-1))
 
