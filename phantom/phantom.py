@@ -188,7 +188,7 @@ class Phantom(object):
         for m in range(self.population):
             self.feature[m].rotate(theta, origin)
 
-    def discrete(self, size, bitdepth=8, ratio=8):
+    def discrete(self, size, bitdepth=8, ratio=8, uniform=True):
         """Returns discrete representation of the phantom.
 
         Parameters
@@ -204,7 +204,10 @@ class Phantom(object):
             then averaging and downsampling. This parameter controls how many 
             pixels in the larger representation are averaged for the final 
             representation. e.g. if ratio = 8, then the final pixel values 
-            are the average of 64 pixels. 
+            are the average of 64 pixels.
+        uniform : boolean, optional
+            When set to False, changes the way pixels are averaged from a 
+            uniform weights to gaussian weights.
         
         Returns
         ------------
@@ -222,8 +225,8 @@ class Phantom(object):
             x = self.feature[m].center.x
             y = self.feature[m].center.y
             rad = self.feature[m].radius
-            dens = 1; # placeholder for when shapes have varying density
-            image += ((px - x)**2 + (py - y)**2 < rad**2) * dens
+            val = self.feature[m].value
+            image += ((px - x)**2 + (py - y)**2 < rad**2) * val
                 
 #        import matplotlib.pylab as plt
 #        plt.imshow(image, cmap=plt.cm.viridis)
@@ -231,7 +234,10 @@ class Phantom(object):
 #        plt.show(block=False)
         
         # Resample down to the desired size
-        image = scipy.ndimage.uniform_filter(image,ratio)
+        if uniform:
+            image = scipy.ndimage.uniform_filter(image,ratio)
+        else:
+            image = scipy.ndimage.gaussian_filter(image,ratio/4.)
         image = image[::ratio,::ratio]
 
 #        print(image.shape)
