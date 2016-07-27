@@ -72,7 +72,7 @@ def plot_phantom(phantom):
     phantom : Phantom
     """
     fig = plt.figure(figsize=(8, 8), facecolor='w')
-    a = fig.add_subplot(111)
+    a = fig.add_subplot(111, aspect='equal')
 
     # Draw all circles in the phantom.
     for m in range(phantom.population):
@@ -83,6 +83,7 @@ def plot_phantom(phantom):
         a.add_patch(circle)
 
     plt.grid('on')
+    plt.gca().invert_yaxis()
     plt.show()
 
 def plot_metrics(imqual):
@@ -100,11 +101,14 @@ def plot_metrics(imqual):
         N = len(imqual[i].maps)+1;
         p = _pyramid(N)
         plt.subplot2grid((p[0][0],p[0][0]),p[0][1],colspan=p[0][2],rowspan=p[0][2])
-        plt.imshow(imqual[i].recon, cmap=plt.cm.gray)
+        plt.imshow(imqual[i].recon, cmap=plt.cm.viridis)
+        plt.colorbar()
         plt.title("Reconstruction")
+        v = np.linspace(0, 0.1, 1, endpoint=True)
         for j in range(1,N):
             plt.subplot2grid((p[j][0],p[j][0]),p[j][1],colspan=p[j][2],rowspan=p[j][2])
-            plt.imshow(imqual[i].maps[j-1], cmap=plt.cm.gray)
+            plt.imshow(imqual[i].maps[j-1], cmap=plt.cm.viridis)
+            plt.colorbar()
             plt.title("Local quality at scale " + str(j-1))
 
     plt.figure(0)
@@ -132,7 +136,6 @@ def _pyramid(N):
         location of a particular axies, and span is the size of a paricular
         axies.
     """
-    #print(N)
     L = round(N/float(3)) # the number of levels in the pyramid
     W = int(2**L) # grid size of the pyramid
 
