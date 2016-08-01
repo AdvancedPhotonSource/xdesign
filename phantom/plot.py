@@ -109,7 +109,7 @@ def plot_metrics(imqual):
             plt.subplot2grid((p[j][0],p[j][0]),p[j][1],colspan=p[j][2],rowspan=p[j][2])
             plt.imshow(imqual[i].maps[j-1], cmap=plt.cm.viridis, interpolation="none")
             plt.colorbar()
-            plt.title("Local quality at scale " + str(j-1))
+            plt.title("Quality at sigma = " + str(imqual[i].scales[j-1]))
 
     plt.figure(0)
     plt.ylabel('Quality')
