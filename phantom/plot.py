@@ -50,9 +50,10 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
-import matplotlib.pylab as plt
+import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['plot_phantom']
+__all__ = ['plot_phantom','plot_metrics']
 
 
 def plot_phantom(phantom):
@@ -71,7 +72,7 @@ def plot_phantom(phantom):
     phantom : Phantom
     """
     fig = plt.figure(figsize=(8, 8), facecolor='w')
-    a = fig.add_subplot(111)
+    a = fig.add_subplot(111, aspect='equal')
 
     # Draw all circles in the phantom.
     for m in range(phantom.population):
@@ -82,4 +83,78 @@ def plot_phantom(phantom):
         a.add_patch(circle)
 
     plt.grid('on')
+    plt.gca().invert_yaxis()
     plt.show()
+
+def plot_metrics(imqual):
+    """Plots metrics of ImageQuality data
+
+    """
+    colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(imqual))))
+    for i in range(0,len(imqual)):
+        # Draw a plot of the mean quality vs scale using different colors for each reconstruction
+        plt.figure(0)
+        plt.scatter(imqual[i].scales, imqual[i].qualities,color=next(colors))
+
+        # Draw a plot of the local quality at each scale on the same figure as the original
+        plt.figure(i+1)
+        N = len(imqual[i].maps)+1;
+        p = _pyramid(N)
+        plt.subplot2grid((p[0][0],p[0][0]),p[0][1],colspan=p[0][2],rowspan=p[0][2])
+        plt.imshow(imqual[i].recon, cmap=plt.cm.viridis, interpolation="none")
+        plt.colorbar()
+        plt.title("Reconstruction")
+        v = np.linspace(0, 0.1, 1, endpoint=True)
+        for j in range(1,N):
+            plt.subplot2grid((p[j][0],p[j][0]),p[j][1],colspan=p[j][2],rowspan=p[j][2])
+            plt.imshow(imqual[i].maps[j-1], cmap=plt.cm.viridis, interpolation="none")
+            plt.colorbar()
+            plt.title("Local quality at scale " + str(j-1))
+
+    plt.figure(0)
+    plt.ylabel('Quality')
+    plt.xlabel('Scale')
+    plt.ylim([0,1])
+    plt.legend([str(x) for x in range(1,len(imqual)+1)])
+    plt.title("Comparison of Reconstruction Methods")
+
+    plt.show(block=True)
+
+def _pyramid(N):
+    """Generates the corner positions, grid size, and column/row spans for a pyramid image.
+
+    Parameters
+    --------------
+    N : int
+        the total number of images in the pyramid.
+
+    Returns
+    -------------
+    params : list of lists
+        Contains the params for subplot2grid for each of the N images in the
+        pyramid. [W,corner,span] W is the total grid size, corner is the
+        location of a particular axies, and span is the size of a paricular
+        axies.
+    """
+    L = round(N/float(3)) # the number of levels in the pyramid
+    W = int(2**L) # grid size of the pyramid
+
+    params = [p%3 for p in range(0,N)]
+    lcorner = [0,0] # the min corner of this level
+    for n in range(0,N):
+        l = int(n/3) # pyramid level
+        span = int(W/(2**(l+1))) # span of the in number of grid spaces
+        corner = list(lcorner) # the min corner of this tile
+
+        if params[n] == 0:
+            lcorner[0] += span
+            lcorner[1] += span
+        elif params[n] == 2:
+            corner[0] = lcorner[0] - span
+        elif params[n] == 1:
+            corner[1] = lcorner[1] - span
+
+        params[n] = [W,corner,span]
+        #print(params[n])
+
+    return params
