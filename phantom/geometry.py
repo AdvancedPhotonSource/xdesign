@@ -64,8 +64,62 @@ __all__ = ['Point',
            'Beam']
 
 
-class Point(object):
-    """Point in 2-D Cartesian space saf.
+class Feature(object):
+
+    """Base feature class."""
+
+    def __init__(self):
+        pass
+
+    @property
+    def equation(self):
+        """Analytical equation of the feature."""
+        raise NotImplementedError
+
+    @property
+    def list(self):
+        """Return list representation."""
+        raise NotImplementedError
+
+    @property
+    def numpy(self):
+        """Return Numpy representation."""
+        raise NotImplementedError
+
+    @property
+    def area(self):
+        """Return the area of the feature."""
+        raise NotImplementedError
+
+    @property
+    def circumference(self):
+        """Return the circumference of the feature."""
+        raise NotImplementedError
+
+    def translate(self, dx, dy):
+        """Translate feature."""
+        raise NotImplementedError
+
+    def rotate(self, theta, point):
+        """Rotate feature around a point."""
+        raise NotImplementedError
+
+    def scale(self, val):
+        """Scale feature."""
+        raise NotImplementedError
+
+    def collision(self, feature):
+        """Check if feature collides with another feature."""
+        raise NotImplementedError
+
+    def distance(self, feature):
+        """Return the closest distance between features."""
+        raise NotImplementedError
+
+
+class Point(Feature):
+
+    """Point in 2-D cartesian space.
 
     Attributes
     ----------
@@ -74,115 +128,143 @@ class Point(object):
     """
 
     def __init__(self, x, y):
+        super(Point, self).__init__()
         self.x = float(x)
         self.y = float(y)
 
-    def __str__(self):
-        return "(%s, %s)" % (self.x, self.y)
-
-    def __eq__(self, other):
-        return self.x == other.x and self.y == other.y
+    def __eq__(self, point):
+        return (self.x, self.y) == (point.x, point.y)
 
     def __hash__(self):
         return hash((self.x, self.y))
 
-    def __add__(self, other):
+    def __add__(self, point):
         """Addition."""
-        return Point(self.x + other.x, self.y + other.y)
+        return Point(self.x + point.x, self.y + point.y)
 
-    def __sub__(self, other):
+    def __sub__(self, point):
         """Subtraction."""
-        return Point(self.x - other.x, self.y - other.y)
+        return Point(self.x - point.x, self.y - point.y)
 
     def __mul__(self, c):
         """Scalar multiplication."""
         return Point(c * self.x, c * self.y)
 
     @property
-    def norm(self):
-        """Returns the norm of the point."""
-        return np.hypot(self.x, self.y)
-        self.y = self.x * np.sin(theta) + self.y * np.cos(theta)
+    def equation(self):
+        return "(%s, %s)" % (self.x, self.y)
 
     @property
     def list(self):
-        """Returns the point's list representation."""
+        """Return list representation."""
         return [self.x, self.y]
 
     @property
     def numpy(self):
-        """Returns the Numpy representation."""
+        """Return Numpy representation."""
         return np.array([self.x, self.y])
 
-    def distance(self, point):
-        """Returns the distance from a point."""
-        return np.hypot(self.x - point.x, self.y - point.y)
+    @property
+    def area(self):
+        return 0
 
-    def rotate(self, theta, origin):
-        """Rotate point around a point."""
-        dx = self.x - origin.x
-        dy = self.y - origin.y
+    @property
+    def circumference(self):
+        return 0
+
+    @property
+    def norm(self):
+        """Return the norm of the point."""
+        return np.hypot(self.x, self.y)
+
+    def translate(self, dx, dy):
+        """Translate."""
+        self.x += dx
+        self.y += dy
+
+    def rotate(self, theta, point=None):
+        """Rotate around a point."""
+        if point is None:
+            point = Point(0, 0)
+        dx = self.x - point.x
+        dy = self.y - point.y
         px = dx * np.cos(theta) - dy * np.sin(theta)
         py = dx * np.sin(theta) + dy * np.cos(theta)
-        self.x = px + origin.x
-        self.y = py + origin.y
+        self.x = px + point.x
+        self.y = py + point.y
+
+    def distance(self, point):
+        """Return the distance from a point."""
+        return np.hypot(self.x - point.x, self.y - point.y)
 
 
-class Circle(object):
-    """Circle in 2-D Cartesian space.
+class Circle(Feature):
+
+    """Circle in 2-D cartesian space.
 
     Attributes
     ----------
     center : Point
-        Center point of the circle.
-    radius : scalar, optional
+        Defines the center point of the circle.
+    radius : scalar
         Radius of the circle.
     """
 
     def __init__(self, center, radius, value=1):
+        super(Circle, self).__init__()
         self.center = center
         self.radius = float(radius)
         self.value = float(value)
 
-    def __str__(self):
-        return "%s, %s, %s" % (self.center, self.radius, self.value)
-
-    def __mul__(self, c):
-        """Expand circle."""
-        return Circle(self.center, c * self.radius)
+    def __eq__(self, circle):
+        return (self.x, self.y, self.radius, self.value) == (circle.x, circle.y, circle.radius, circle.value)
 
     @property
     def equation(self):
-        """Returns circle's analytical equation."""
+        """Return analytical equation."""
         return "(x-%s)^2 + (y-%s)^2 = %s^2" % (self.center.x, self.center.y, self.radius)
 
     @property
+    def list(self):
+        """Return list representation."""
+        return [self.center.x, self.center.y, self.radius, self.value]
+
+    @property
+    def numpy(self):
+        """Return Numpy representation."""
+        return np.array(self.list)
+
+    @property
     def area(self):
-        """Returns circle's area."""
+        """Return area."""
         return np.pi * self.radius**2
 
     @property
     def circumference(self):
-        """Returns circle's circumference."""
+        """Return circumference."""
         return 2 * np.pi * self.radius
 
     @property
     def diameter(self):
-        """Returns circle's diameter."""
+        """Return diameter."""
         return 2 * self.radius
 
-    def rotate(self, theta, origin):
-        """Rotate circle."""
-        self.center = rotate(self.center, theta, origin)
-
     def translate(self, dx, dy):
-        """Translate circle."""
-        self.center.x += dx
-        self.center.y += dy
+        """Translate."""
+        self.center = translate(self.center, dx, dy)
+
+    def rotate(self, theta, point=Point(0, 0)):
+        """Rotate around a point."""
+        self.center = rotate(self.center, theta, point)
+
+    def scale(self, val):
+        """Scale."""
+        self.rad *= val
 
 
-class Line(object):
-    """Line in 2-D Cartesian space.
+class Line(Feature):
+
+    """Line in 2-D cartesian space.
 
     It is defined by two distinct points.
 
@@ -193,13 +275,14 @@ class Line(object):
     """
 
     def __init__(self, p1, p2):
+        super(Line, self).__init__()
         if p1 == p2:
             raise ValueError('Requires two unique points.')
         self.p1 = p1
         self.p2 = p2
 
-    def __str__(self):
-        return "%s, %s, %s" % (self.p1, self.p2)
+    def __eq__(self, line):
+        return (self.slope, self.yintercept) == (line.slope, line.yintercept)
 
     @property
     def vertical(self):
@@ -219,15 +302,23 @@ class Line(object):
 
     @property
     def slope(self):
-        """Returns the slope of the line."""
+        """Return the slope of the line."""
         if self.vertical:
             return np.inf
         else:
             return (self.p2.y - self.p1.y) / (self.p2.x - self.p1.x)
 
     @property
-    def intercept(self):
-        """Returns the intercept point with y-axis."""
+    def xintercept(self):
+        """Return the x-intercept."""
+        if self.horizontal:
+            return 0.
+        else:
+            return self.p1.x - 1 / self.slope * self.p1.y
+
+    @property
+    def yintercept(self):
+        """Return the y-intercept."""
         if self.vertical:
             return 0.
         else:
@@ -235,14 +326,24 @@ class Line(object):
 
     @property
     def equation(self):
-        """Returns line equation."""
+        """Return line equation."""
         if self.vertical:
             return "x = %s" % self.p1.x
-        return "y = %sx + %s" % (self.slope, self.intercept)
+        return "y = %sx + %s" % (self.slope, self.yintercept)
+
+    @property
+    def list(self):
+        """Return list representation."""
+        return [self.p1.x, self.p1.y, self.p2.x, self.p2.y]
+
+    @property
+    def numpy(self):
+        """Return Numpy representation."""
+        return np.array(self.list)
 
     @property
     def tangent(self):
-        """Returns unit tangent vector."""
+        """Return unit tangent vector."""
         length = self.p1.distance(self.p2)
         dx = (self.p1.x - self.p2.x) / length
         dy = (self.p1.y - self.p2.y) / length
@@ -250,15 +351,26 @@ class Line(object):
 
     @property
     def normal(self):
-        """Returns unit normal vector."""
+        """Return unit normal vector."""
         length = self.p1.distance(self.p2)
         dx = (self.p1.x - self.p2.x) / length
         dy = (self.p1.y - self.p2.y) / length
         return Point(-dy, dx)
 
+    def translate(self, dx, dy):
+        """Translate."""
+        self.p1 = translate(self.p1, dx, dy)
+        self.p2 = translate(self.p2, dx, dy)
+
+    def rotate(self, theta, point=Point(0, 0)):
+        """Rotate around a point."""
+        self.p1 = rotate(self.p1, theta, point)
+        self.p2 = rotate(self.p2, theta, point)
+
 
 class Beam(Line):
-    """Beam (thick line) in 2-D Cartesian space.
+
+    """Beam (thick line) in 2-D cartesian space.
 
     It is defined by two distinct points.
 
@@ -277,7 +389,8 @@ class Beam(Line):
     def __str__(self):
         return super(Beam, self).__str__()
 
-def rotate(point, theta, origin=Point(0, 0)):
+
+def rotate(point, theta, origin):
     """Rotates a point in counter-clockwise around another point.
     Parameters
     ----------
@@ -285,7 +398,7 @@ def rotate(point, theta, origin=Point(0, 0)):
         An arbitrary point.
     theta : scalar
         Rotation angle in radians.
-    origin : Point, optional
+    origin : Point
         The origin of rotation axis.
     Returns
     -------
@@ -297,6 +410,12 @@ def rotate(point, theta, origin=Point(0, 0)):
     px = dx * np.cos(theta) - dy * np.sin(theta)
     py = dx * np.sin(theta) + dy * np.cos(theta)
     return Point(px + origin.x, py + origin.y)
+
+
+def translate(point, dx, dy):
+    """Translate point."""
+    point.x += dx
+    point.y += dy
 
 
 def segment(circle, x):
@@ -335,13 +454,13 @@ def beamcirc(beam, circle):
     _center = rotate(
         point=circle.center,
         theta=-np.arctan(beam.slope),
-        origin=Point(0, beam.intercept))
+        origin=Point(0, beam.yintercept))
 
     # Correction if line is vertical to x-axis.
     if beam.vertical:
         dy = beam.p1.x
     else:
-        dy = -beam.intercept
+        dy = -beam.yintercept
 
     # Calculate the area deending on how the beam intersects the circle.
     p1 = _center.y - beam.size / 2. + dy
