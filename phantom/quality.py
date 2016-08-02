@@ -105,7 +105,7 @@ class ImageQuality(object):
         """Sorts the qualities by scale. #STUB"""
         warnings.warn("ImageQuality.sort is not yet implmemented.")
 
-def compute_quality(reference,reconstructions,method="MSSSIM"):
+def compute_quality(reference,reconstructions,method="MSSSIM", L=1):
     """
     Computes image quality metrics for each of the reconstructions.
 
@@ -117,9 +117,12 @@ def compute_quality(reference,reconstructions,method="MSSSIM"):
         reconstruction.
     reconstructions : list of arrays
         A list of discrete reconstructions
-    method : string, enum?, optional
+    method : string, optional
         The quality metric desired for this comparison.
         Options include: SSIM, MSSSIM
+    L : scalar
+        The dynamic range of the data. This value is 1 for float representations
+        and 2^bitdepth for integer representations.
 
     Returns
     ---------
@@ -134,7 +137,7 @@ def compute_quality(reference,reconstructions,method="MSSSIM"):
     metrics = []
     for image in reconstructions:
         IQ = ImageQuality(reference, image)
-        IQ = method(IQ)
+        IQ = method(IQ, L=L)
         metrics.append(IQ)
 
     return metrics
@@ -166,7 +169,7 @@ def background_mask(phantom, shape):
         mask -= (px - x)**2 + (py - y)**2 < rad**2
     return mask
 
-def _compute_msssim(imQual, nlevels=5, sigma=0.5, L=255, K=(0.01,0.03)):
+def _compute_msssim(imQual, nlevels=5, sigma=0.5, L=1, K=(0.01,0.03)):
     '''
     Multi-scale Structural Similarity Index (MS-SSIM)
     Z. Wang, E. P. Simoncelli and A. C. Bovik, "Multi-scale structural similarity
@@ -183,8 +186,9 @@ def _compute_msssim(imQual, nlevels=5, sigma=0.5, L=255, K=(0.01,0.03)):
     sigma : float
         Sets the standard deviation of the gaussian filter. This setting
         determines the minimum scale at which quality is assessed.
-    L : int
-        The color depth of the images. L = 2^bidepth - 1
+    L : scalar
+        The dynamic range of the data. This value is 1 for float representations
+        and 2^bitdepth for integer representations.
     K : 2-tuple
         A list of two constants which help prevent division by zero.
 
@@ -221,7 +225,7 @@ def _compute_msssim(imQual, nlevels=5, sigma=0.5, L=255, K=(0.01,0.03)):
 
     return imQual
 
-def _compute_ssim(imQual, sigma=0.5, L=255, K=(0.01,0.03), scale=None):
+def _compute_ssim(imQual, sigma=0.5, L=1, K=(0.01,0.03), scale=None):
     """
     This is a modified version of SSIM based on implementation by
     Helder C. R. de Oliveira, based on the version of:
@@ -240,8 +244,9 @@ def _compute_ssim(imQual, sigma=0.5, L=255, K=(0.01,0.03), scale=None):
     Attributes
     ----------
     imQual : ImageQuality
-    L : scalar, optional
-        The dynamic range of the images. i.e 2^bitdepth-1
+    L : scalar
+        The dynamic range of the data. This value is 1 for float representations
+        and 2^bitdepth for integer representations.
     sigma : list, optional
         The standard deviation of the gaussian filter.
     Returns
