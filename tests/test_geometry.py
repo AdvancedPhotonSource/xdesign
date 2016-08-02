@@ -147,9 +147,9 @@ def test_Line_slope_vertical():
     assert_allclose(line.slope, np.inf, rtol=1e-6)
 
 
-def test_Line_intercept_vertical():
+def test_Line_yintercept_vertical():
     line = Line(Point(0, -1), Point(0, 1))
-    assert_allclose(line.intercept, 0, rtol=1e-6)
+    assert_allclose(line.yintercept, 0, rtol=1e-6)
 
 
 def test_Line_slope():
@@ -157,9 +157,9 @@ def test_Line_slope():
     assert_allclose(line.slope, 1, rtol=1e-6)
 
 
-def test_Line_intercept():
+def test_Line_yintercept():
     line = Line(Point(-1, 0), Point(1, 2))
-    assert_allclose(line.intercept, 1, rtol=1e-6)
+    assert_allclose(line.yintercept, 1, rtol=1e-6)
 
 
 def test_Line_same_points():

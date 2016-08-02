@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['plot_phantom']
+__all__ = ['plot_phantom','plot_metrics']
 
 
 def plot_phantom(phantom):

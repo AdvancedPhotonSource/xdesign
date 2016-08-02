@@ -71,42 +71,50 @@ class Phantom(object):
     shape : string
         Shape of the phantom. Available options: circle, square.
     population : scalar
-        Number of generated circles in the phantom.
-    density : scalar
-        Density of the circles in the phantom.
+        Number of generated features in the phantom.
+    area : scalar
+        Area of the features in the phantom.
     feature : list
-        List of circles.
+        List of features.
     """
 
     def __init__(self, shape='circle'):
         self.shape = shape
         self.population = 0
-        self.density = 0
+        self.area = 0
         self.feature = []
 
+    @property
     def list(self):
         for m in range(self.population):
-            print ("%s: %s" % (m, self.feature[m]))
+            print (self.feature[m].list)
 
-    def add(self, circle):
-        """Add a circle to the phantom.
+    @property
+    def density(self):
+        if self.shape == 'square':
+            return self.area
+        elif self.shape == 'circle':
+            return self.area / (np.pi * 0.5 * 0.5)
+
+    def add(self, feature):
+        """Add a feature to the phantom.
 
         Parameters
         ----------
-        circle : Circle
+        feature : Feature
         """
-        self.feature.append(circle)
-        self.density += circle.area
+        self.feature.append(feature)
+        self.area += feature.area
         self.population += 1
 
-    def remove(self):
-        """Remove last added circle from the phantom."""
+    def pop(self):
+        """Pop last added feature from the phantom."""
         self.population -= 1
-        self.density -= self.feature[-1].area
+        self.area -= self.feature[-1].area
         self.feature.pop()
 
     def _random_point(self, margin=0):
-        """Generates a random point in the phantom.
+        """Generate a random point in the phantom.
 
         Parameters
         ----------
@@ -130,16 +138,16 @@ class Phantom(object):
         return Point(x, y)
 
     def sprinkle(self, counts, radius, gap=0, collision=False):
-        """Sprinkles a number of circles.
+        """Sprinkle a number of circles.
 
         Parameters
         ----------
         counts : int
             Number of circles to be added.
         gap : float, optional
-            Minimum gap between the circle boundaries.
+            Minimum distance between circle boundaries.
         collision : bool, optional
-            False if circles will be non overlapping.
+            True if circles are allowed to overlap.
         """
         for m in range(int(counts)):
             center = self._random_point(radius)
@@ -148,7 +156,7 @@ class Phantom(object):
                 self.add(Circle(center, radius))
 
     def collision(self, circle):
-        """Checks if a circle is collided with others."""
+        """Check if a circle is collided with another circle."""
         for m in range(self.population):
             dx = self.feature[m].center.x - circle.center.x
             dy = self.feature[m].center.y - circle.center.y
@@ -183,7 +191,7 @@ class Phantom(object):
         for m in range(self.population):
             self.feature[m].translate(dx, dy)
 
-    def rotate(self, theta, origin):
+    def rotate(self, theta, origin=Point(0, 0)):
         """Rotate phantom around a point."""
         for m in range(self.population):
             self.feature[m].rotate(theta, origin)
