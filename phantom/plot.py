@@ -103,7 +103,7 @@ def plot_metrics(imqual):
         p = _pyramid(N)
         plt.subplot2grid((p[0][0], p[0][0]), p[0][1], colspan=p[0][2],
                          rowspan=p[0][2])
-        plt.imshow(imqual[i].recon, cmap=plt.cm.viridis,
+        plt.imshow(imqual[i].recon, cmap=plt.cm.inferno,
                    interpolation="none", aspect='equal')
         plt.colorbar()
         plt.title("Reconstruction")
