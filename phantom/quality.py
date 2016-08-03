@@ -304,7 +304,7 @@ def _compute_ssim(imQual, sigma=0.5, L=1, K=(0.01,0.03), scale=None):
 
         ssim_map[index] = (numerator1[index] * numerator2[index]) / (denominator1[index] * denominator2[index])
         index = (denominator1 != 0) & (denominator2 == 0)
-        ssim_map[index] = numerator1[index] / denominator1[index]
+        ssim_map[index] = (numerator1[index] / denominator1[index])**4
 
     # return SSIM
     index = np.mean(ssim_map)
