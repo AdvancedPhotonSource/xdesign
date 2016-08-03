@@ -169,7 +169,7 @@ def background_mask(phantom, shape):
         mask -= (px - x)**2 + (py - y)**2 < rad**2
     return mask
 
-def _compute_vifp(imQual, L=None):
+def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
     """ Calculates the Visual Information Fidelity (VIFp) between two images in
     in a multiscale pixel domain with scalar.
 
@@ -215,29 +215,21 @@ def _compute_vifp(imQual, L=None):
     sigmaN_sq = 2 # used to tune response
     eps = 1e-10
 
-    vifmap = []
-    vifp = []
-    scales = range(0, 4)
-    for scale in scales:
-
-        # what the hell is this? N = 2, 3, 5, 9, 17 TODO: @ Daniel
-        N = 2**(4-scale) + 1
-        sd = 1.2 #N/5.0 # array([ 0.4,  0.6,  1. ,  1.8,  3.4])
-
+    for level in range(0, nlevels):
         # Downsampling
-        if (scale > 0):
+        if (level > 0):
             ref = scipy.ndimage.uniform_filter(ref, 2)
             dist = scipy.ndimage.uniform_filter(dist, 2)
             ref = ref[::2, ::2]
             dist = dist[::2, ::2]
 
         # TODO: @Daniel convolving with a low pass 11x11 normalized gaussian
-        mu1 = scipy.ndimage.gaussian_filter(ref, sd)
-        mu2 = scipy.ndimage.gaussian_filter(dist, sd)
+        mu1 = scipy.ndimage.gaussian_filter(ref, sigma)
+        mu2 = scipy.ndimage.gaussian_filter(dist, sigma)
 
-        sigma1_sq = scipy.ndimage.gaussian_filter((ref-mu1)**2,         sd)
-        sigma2_sq = scipy.ndimage.gaussian_filter((dist-mu2)**2,        sd)
-        sigma12   = scipy.ndimage.gaussian_filter((ref-mu1)*(dist-mu2), sd)
+        sigma1_sq = scipy.ndimage.gaussian_filter((ref-mu1)**2,         sigma)
+        sigma2_sq = scipy.ndimage.gaussian_filter((dist-mu2)**2,        sigma)
+        sigma12   = scipy.ndimage.gaussian_filter((ref-mu1)*(dist-mu2), sigma)
 
         g = sigma12 / (sigma1_sq + eps)
         sigmav_sq = sigma2_sq - g * sigma12
@@ -246,15 +238,17 @@ def _compute_vifp(imQual, L=None):
         numator = np.log2(1 + g**2 * sigma1_sq / (sigmav_sq + sigmaN_sq))
         denator = np.sum(np.log2(1 + sigma1_sq / sigmaN_sq))
 
-        vifmap.append(numator/denator)
+        vifmap = numator/denator
+        vifp = np.sum(vifmap)
+        # Normalize the map because we want values between 1 and 0
+        vifmap *= vifmap.size
 
-        vifp.append(np.sum(vifmap[-1]))
-
-    imQual.add_quality(vifp,scales,maps=vifmap)
+        scale = sigma*2**level
+        imQual.add_quality(vifp,scale,maps=vifmap)
 
     return imQual
 
-def _compute_msssim(imQual, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03)):
+def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01,0.03)):
     '''
     Multi-scale Structural Similarity Index (MS-SSIM)
     Z. Wang, E. P. Simoncelli and A. C. Bovik, "Multi-scale structural similarity
@@ -310,7 +304,7 @@ def _compute_msssim(imQual, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(
 
     return imQual
 
-def _compute_ssim(imQual, sigma=0.5, L=1, K=(0.01,0.03), scale=None):
+def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01,0.03), scale=None):
     """
     This is a modified version of SSIM based on implementation by
     Helder C. R. de Oliveira, based on the version of:
