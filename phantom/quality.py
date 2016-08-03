@@ -52,13 +52,14 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 import scipy.ndimage
 import logging
+import warnings
 
 logger = logging.getLogger(__name__)
 
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['background_mask']
+__all__ = ['ImageQuality','background_mask','compute_quality']
 
 class ImageQuality(object):
     """Stores information about image quality"""
@@ -102,8 +103,9 @@ class ImageQuality(object):
 
     def sort(self):
         """Sorts the qualities by scale. #STUB"""
+        warnings.warn("ImageQuality.sort is not yet implmemented.")
 
-def compute_quality(reference,reconstructions,method="SSIM"):
+def compute_quality(reference,reconstructions,method="MSSSIM", L=1):
     """
     Computes image quality metrics for each of the reconstructions.
 
@@ -115,9 +117,12 @@ def compute_quality(reference,reconstructions,method="SSIM"):
         reconstruction.
     reconstructions : list of arrays
         A list of discrete reconstructions
-    method : string, enum?, optional
+    method : string, optional
         The quality metric desired for this comparison.
         Options include: SSIM, MSSSIM
+    L : scalar
+        The dynamic range of the data. This value is 1 for float representations
+        and 2^bitdepth for integer representations.
 
     Returns
     ---------
@@ -132,7 +137,7 @@ def compute_quality(reference,reconstructions,method="SSIM"):
     metrics = []
     for image in reconstructions:
         IQ = ImageQuality(reference, image)
-        IQ = method(IQ)
+        IQ = method(IQ, L=L)
         metrics.append(IQ)
 
     return metrics
@@ -164,50 +169,49 @@ def background_mask(phantom, shape):
         mask -= (px - x)**2 + (py - y)**2 < rad**2
     return mask
 
-def _compute_vifp(imQual):
-    """ Calculates the Visual Information Fidelity (VIFp) between two images in 
+def _compute_vifp(imQual, L=None):
+    """ Calculates the Visual Information Fidelity (VIFp) between two images in
     in a multiscale pixel domain with scalar.
-    
+
     -----------COPYRIGHT NOTICE STARTS WITH THIS LINE------------
-Copyright (c) 2005 The University of Texas at Austin
-All rights reserved.
+    Copyright (c) 2005 The University of Texas at Austin
+    All rights reserved.
 
-Permission is hereby granted, without written agreement and without license or 
-royalty fees, to use, copy, modify, and distribute this code (the source files) 
-and its documentation for any purpose, provided that the copyright notice in 
-its entirety appear in all copies of this code, and the original source of this 
-code, Laboratory for Image and Video Engineering 
-(LIVE, http://live.ece.utexas.edu) at the University of Texas at Austin 
-(UT Austin, http://www.utexas.edu), is acknowledged in any publication that 
-reports research using this code. The research is to be cited in the 
-bibliography as:
+    Permission is hereby granted, without written agreement and without license or
+    royalty fees, to use, copy, modify, and distribute this code (the source files)
+    and its documentation for any purpose, provided that the copyright notice in
+    its entirety appear in all copies of this code, and the original source of this
+    code, Laboratory for Image and Video Engineering
+    (LIVE, http://live.ece.utexas.edu) at the University of Texas at Austin
+    (UT Austin, http://www.utexas.edu), is acknowledged in any publication that
+    reports research using this code. The research is to be cited in the
+    bibliography as:
 
-H. R. Sheikh and A. C. Bovik, "Image Information and Visual Quality", IEEE 
-Transactions on Image Processing, (to appear).
+    H. R. Sheikh and A. C. Bovik, "Image Information and Visual Quality", IEEE
+    Transactions on Image Processing, (to appear).
 
-IN NO EVENT SHALL THE UNIVERSITY OF TEXAS AT AUSTIN BE LIABLE TO ANY PARTY FOR 
-DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF 
-THE USE OF THIS DATABASE AND ITS DOCUMENTATION, EVEN IF THE UNIVERSITY OF TEXAS
-AT AUSTIN HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+    IN NO EVENT SHALL THE UNIVERSITY OF TEXAS AT AUSTIN BE LIABLE TO ANY PARTY FOR
+    DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF
+    THE USE OF THIS DATABASE AND ITS DOCUMENTATION, EVEN IF THE UNIVERSITY OF TEXAS
+    AT AUSTIN HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-THE UNIVERSITY OF TEXAS AT AUSTIN SPECIFICALLY DISCLAIMS ANY WARRANTIES, 
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND 
-FITNESS FOR A PARTICULAR PURPOSE. THE DATABASE PROVIDED HEREUNDER IS ON AN "AS 
-IS" BASIS, AND THE UNIVERSITY OF TEXAS AT AUSTIN HAS NO OBLIGATION TO PROVIDE 
-MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+    THE UNIVERSITY OF TEXAS AT AUSTIN SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+    INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+    FITNESS FOR A PARTICULAR PURPOSE. THE DATABASE PROVIDED HEREUNDER IS ON AN "AS
+    IS" BASIS, AND THE UNIVERSITY OF TEXAS AT AUSTIN HAS NO OBLIGATION TO PROVIDE
+    MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+    -----------COPYRIGHT NOTICE ENDS WITH THIS LINE------------
 
------------COPYRIGHT NOTICE ENDS WITH THIS LINE------------
-    
     Parameters
     -----------
-    
+
     Returns
     -----------
-    
+
     """
     ref = imQual.orig
     dist = imQual.recon
-    
+
     sigmaN_sq = 2 # used to tune response
     eps = 1e-10
 
@@ -215,7 +219,7 @@ MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
     vifp = []
     scales = range(0, 4)
     for scale in scales:
-       
+
         # what the hell is this? N = 2, 3, 5, 9, 17 TODO: @ Daniel
         N = 2**(4-scale) + 1
         sd = 1.2 #N/5.0 # array([ 0.4,  0.6,  1. ,  1.8,  3.4])
@@ -226,40 +230,28 @@ MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
             dist = scipy.ndimage.uniform_filter(dist, 2)
             ref = ref[::2, ::2]
             dist = dist[::2, ::2]
-        
+
         # TODO: @Daniel convolving with a low pass 11x11 normalized gaussian
         mu1 = scipy.ndimage.gaussian_filter(ref, sd)
         mu2 = scipy.ndimage.gaussian_filter(dist, sd)
-        
+
         sigma1_sq = scipy.ndimage.gaussian_filter((ref-mu1)**2,         sd)
         sigma2_sq = scipy.ndimage.gaussian_filter((dist-mu2)**2,        sd)
         sigma12   = scipy.ndimage.gaussian_filter((ref-mu1)*(dist-mu2), sd)
-        
+
         g = sigma12 / (sigma1_sq + eps)
         sigmav_sq = sigma2_sq - g * sigma12
-        
-        # cleaning data
-#        g[sigma1_sq<eps] = 0
-#        sigmav_sq[sigma1_sq<eps] = sigma2_sq[sigma1_sq<eps]
-#        sigma1_sq[sigma1_sq<eps] = 0
-#        
-#        g[sigma2_sq<eps] = 0
-#        sv_sq[sigma2_sq<eps] = 0
-#        
-#        sv_sq[g<0] = sigma2_sq[g<0]
-#        g[g<0] = 0
-#        sv_sq[sv_sq<=eps] = eps
-        
+
         # Calculate VIF
         numator = np.log2(1 + g**2 * sigma1_sq / (sigmav_sq + sigmaN_sq))
         denator = np.sum(np.log2(1 + sigma1_sq / sigmaN_sq))
-        
+
         vifmap.append(numator/denator)
-        
+
         vifp.append(np.sum(vifmap[-1]))
-        
+
     imQual.add_quality(vifp,scales,maps=vifmap)
-    
+
     return imQual
 
 def _compute_msssim(imQual, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03)):
@@ -273,20 +265,15 @@ def _compute_msssim(imQual, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(
 
     Parameters
     -------------
-    img1 : ndarray
-    img2 : ndarray
-        img1 and img2 are refrence and distorted images. The order doesn't
-        matter because the SSIM index is symmetric.
+    imQual : ImageQuality
     nlevels : int
         The max number of levels to analyze
-    filtersize : 2-tuple
-        Sets the smallest scale at which local quality is calculated. Subsquent
-        filters are larger.
     sigma : float
-        Sets the standard deviation of the gaussian filter. Set this value to
-        None if you want to use a box filter.
-    L : int
-        The color depth of the images. L = 2^bidepth - 1
+        Sets the standard deviation of the gaussian filter. This setting
+        determines the minimum scale at which quality is assessed.
+    L : scalar
+        The dynamic range of the data. This value is 1 for float representations
+        and 2^bitdepth for integer representations.
     K : 2-tuple
         A list of two constants which help prevent division by zero.
 
@@ -299,42 +286,31 @@ def _compute_msssim(imQual, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(
     img2 = imQual.recon
 
     # CHECK INPUTS FOR VALIDITY
-    assert(img1.shape == img2.shape)
-    # assert that the image is larger than 11x11
-    (M,N) = img1.shape
-    assert(M >= 11 and N >= 11)
-    # assert that the window is smaller than the image and larger than 2x2
-    (H,W) = filtersize
-    assert((H*W) > 4 and H<=M and W<=N)
     # assert that there is at least one level requested
     assert(nlevels > 0)
     # assert that the image never becomes smaller than the filter
-    min_img_width = min(M,N)/(2^(nlevels-1))
-    max_win_width = max(H,W)
-    assert(min_img_width >= max_win_width)
+    (M,N) = img1.shape
+    min_img_width = min(M,N)/(2**(nlevels-1))
+    max_filter_width = sigma*2
+    assert(min_img_width >= max_filter_width)
 
     # The relative imporance of each level as determined by human experimentation
-    weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
-
-    lowpass_filter = np.ones((2,2))/4;
-    img1 = img1.astype(np.float)
-    img2 = img2.astype(np.float)
+    #weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
     for l in range(0,nlevels):
-        #print(img1.shape)
-        imQual += _compute_ssim(ImageQuality(img1,img2), filtersize=filtersize, sigma=sigma, L=L, K=K, scale=l);
+        imQual += _compute_ssim(ImageQuality(img1,img2), sigma=sigma, L=L, K=K, scale=sigma*2**l);
         if l == nlevels-1: break
 
         # Apply lowpass filter retain size, reflect at edges
-        filtered_im1 = scipy.ndimage.filters.convolve(img1, lowpass_filter)
-        filtered_im2 = scipy.ndimage.filters.convolve(img2, lowpass_filter) # mode='same'
+        filtered_im1 = scipy.ndimage.filters.uniform_filter(img1, size=2)
+        filtered_im2 = scipy.ndimage.filters.uniform_filter(img2, size=2)
         # Downsample by factor of two using numpy slicing
         img1 = filtered_im1[::2,::2];
         img2 = filtered_im2[::2,::2];
 
     return imQual
 
-def _compute_ssim(imQual, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03), scale=0):
+def _compute_ssim(imQual, sigma=0.5, L=1, K=(0.01,0.03), scale=None):
     """
     This is a modified version of SSIM based on implementation by
     Helder C. R. de Oliveira, based on the version of:
@@ -353,36 +329,28 @@ def _compute_ssim(imQual, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03), s
     Attributes
     ----------
     imQual : ImageQuality
-    L : scalar, default = 255
-        The dynamic range of the images. i.e 2^bitdepth-1
-    filtersize : list, optional
-        The dimensions of the filter to use.
+    L : scalar
+        The dynamic range of the data. This value is 1 for float representations
+        and 2^bitdepth for integer representations.
     sigma : list, optional
-        The standard deviation of the gaussian filter. If not specified,
-        means are calculated using uniform square filters.
-
+        The standard deviation of the gaussian filter.
     Returns
     ----------
     imQual : ImageQuality
     """
+    if scale == None:
+        scale = sigma
 
     c_1 = (K[0]*L)**2
     c_2 = (K[1]*L)**2
-
-    window = np.ones(filtersize)
-    if sigma is not None:
-        window = _gauss_2d(filtersize, sigma)
-    # Normalization
-    window /= np.sum(window)
 
     # Convert image matrices to double precision (like in the Matlab version)
     img1 = imQual.orig
     img2 = imQual.recon
 
-    # TODO: Replace convolve with uniform and gaussian filtering methods because they can probably be optimized to be faster.
     # Means obtained by Gaussian filtering of inputs
-    mu_1 = scipy.ndimage.filters.convolve(img1, window)
-    mu_2 = scipy.ndimage.filters.convolve(img2, window)
+    mu_1 = scipy.ndimage.filters.gaussian_filter(img1, sigma)
+    mu_2 = scipy.ndimage.filters.gaussian_filter(img2, sigma)
 
     # Squares of means
     mu_1_sq = mu_1**2
@@ -395,11 +363,11 @@ def _compute_ssim(imQual, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03), s
     im12 = img1*img2
 
     # Variances obtained by Gaussian filtering of inputs' squares
-    sigma_1_sq = scipy.ndimage.filters.convolve(im1_sq, window)
-    sigma_2_sq = scipy.ndimage.filters.convolve(im2_sq, window)
+    sigma_1_sq = scipy.ndimage.filters.gaussian_filter(im1_sq, sigma)
+    sigma_2_sq = scipy.ndimage.filters.gaussian_filter(im2_sq, sigma)
 
     # Covariance
-    sigma_12 = scipy.ndimage.filters.convolve(im12, window)
+    sigma_12 = scipy.ndimage.filters.gaussian_filter(im12, sigma)
 
     # Centered squares of variances
     sigma_1_sq -= mu_1_sq
@@ -421,24 +389,9 @@ def _compute_ssim(imQual, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03), s
 
         ssim_map[index] = (numerator1[index] * numerator2[index]) / (denominator1[index] * denominator2[index])
         index = (denominator1 != 0) & (denominator2 == 0)
-        ssim_map[index] = numerator1[index] / denominator1[index]
+        ssim_map[index] = (numerator1[index] / denominator1[index])**4
 
     # return SSIM
     index = np.mean(ssim_map)
     imQual.add_quality(index, scale, maps=ssim_map)
     return imQual
-
-def _gauss_2d(shape=(11,11), sigma=1.5):
-    """
-    Code from Stack Overflow's thread
-    2D gaussian mask - should give the same result as MATLAB's
-    fspecial('gaussian',[shape],[sigma])
-    """
-    m, n = [(ss-1.)/2. for ss in shape]
-    y, x = np.ogrid[-m:m+1, -n:n+1]
-    h = np.exp(-(x*x + y*y) / (2.*sigma*sigma))
-    h[h < np.finfo(h.dtype).eps*h.max()] = 0
-    sumh = h.sum()
-    if sumh != 0:
-        h /= sumh
-    return h

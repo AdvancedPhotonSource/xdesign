@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['plot_phantom']
+__all__ = ['plot_phantom','plot_metrics']
 
 
 def plot_phantom(phantom):
@@ -72,7 +72,7 @@ def plot_phantom(phantom):
     phantom : Phantom
     """
     fig = plt.figure(figsize=(8, 8), facecolor='w')
-    a = fig.add_subplot(111)
+    a = fig.add_subplot(111, aspect='equal')
 
     # Draw all circles in the phantom.
     for m in range(phantom.population):
@@ -83,7 +83,8 @@ def plot_phantom(phantom):
         a.add_patch(circle)
 
     plt.grid('on')
-    plt.show()
+    plt.gca().invert_yaxis()
+    plt.show(block=False)
 
 def plot_metrics(imqual):
     """Plots metrics of ImageQuality data
@@ -91,22 +92,48 @@ def plot_metrics(imqual):
     """
     colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(imqual))))
     for i in range(0,len(imqual)):
-        # Draw a plot of the mean quality vs scale using different colors for each reconstruction
+        # Draw a plot of the mean quality vs scale using different colors for
+        # each reconstruction.
         plt.figure(0)
         plt.scatter(imqual[i].scales, imqual[i].qualities,color=next(colors))
 
-        # Draw a plot of the local quality at each scale on the same figure as the original
-        plt.figure(i+1)
+        # Plot the reconstruction
+        f = plt.figure(i+1)
         N = len(imqual[i].maps)+1;
         p = _pyramid(N)
-        plt.subplot2grid((p[0][0],p[0][0]),p[0][1],colspan=p[0][2],rowspan=p[0][2])
-        plt.imshow(imqual[i].recon, cmap=plt.cm.gray)
+        plt.subplot2grid((p[0][0], p[0][0]), p[0][1], colspan=p[0][2],
+                         rowspan=p[0][2])
+        plt.imshow(imqual[i].recon, cmap=plt.cm.inferno,
+                   interpolation="none", aspect='equal')
+        plt.colorbar()
         plt.title("Reconstruction")
-        for j in range(1,N):
-            plt.subplot2grid((p[j][0],p[j][0]),p[j][1],colspan=p[j][2],rowspan=p[j][2])
-            plt.imshow(imqual[i].maps[j-1], cmap=plt.cm.gray)
-            plt.title("Local quality at scale " + str(j-1))
 
+        lo = 1. # Determine the min local quality for all the scales
+        for m in imqual[i].maps:
+            lo = min(lo,np.min(m))
+
+        # Draw a plot of the local quality at each scale.
+        for j in range(1,N):
+            plt.subplot2grid((p[j][0], p[j][0]), p[j][1], colspan=p[j][2],
+                             rowspan=p[j][2])
+            im = plt.imshow(imqual[i].maps[j-1], cmap=plt.cm.viridis, vmin=lo,
+                            vmax=1, interpolation="none", aspect='equal')
+            #plt.colorbar()
+            plt.annotate(r'$\sigma$ =' + str(imqual[i].scales[j-1]),
+                         xy=(0.05, 0.05), xycoords='axes fraction',
+                         weight='heavy')
+
+        # plot one colorbar to the right of these images.
+        f.subplots_adjust(right=0.8)
+        cbar_ax = f.add_axes([0.85, 0.15, 0.05, 0.7])
+        f.colorbar(im, cax=cbar_ax)
+
+        '''
+        plt.subplot(121)
+        plt.imshow(imqual[i].orig, cmap=plt.cm.viridis, vmin=0, vmax=1,
+                   interpolation="none", aspect='equal')
+        plt.title("Ideal")
+        '''
     plt.figure(0)
     plt.ylabel('Quality')
     plt.xlabel('Scale')
@@ -132,7 +159,6 @@ def _pyramid(N):
         location of a particular axies, and span is the size of a paricular
         axies.
     """
-    #print(N)
     L = round(N/float(3)) # the number of levels in the pyramid
     W = int(2**L) # grid size of the pyramid
 
