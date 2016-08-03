@@ -59,7 +59,70 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['ImageQuality','background_mask','compute_quality']
+__all__ = ['ImageQuality','probability_mask','compute_quality']
+
+
+def probability_mask(phantom, size, ratio=8, uniform=True):
+    """Returns the probability mask for each phase in the phantom.
+
+    Parameters
+    ------------
+    size : scalar
+        The side length in pixels of the resulting square image.
+    ratio : scalar, optional
+        The discretization works by drawing the shapes in a larger space
+        then averaging and downsampling. This parameter controls how many
+        pixels in the larger representation are averaged for the final
+        representation. e.g. if ratio = 8, then the final pixel values
+        are the average of 64 pixels.
+    uniform : boolean, optional
+        When set to False, changes the way pixels are averaged from a
+        uniform weights to gaussian weights.
+
+    Returns
+    ------------
+    image : list of numpy.ndarray
+        A list of float masks for each phase in the phantom.
+    """
+    # sort the shapes in the phantom by attenuation values
+    phantom.sort()
+
+    # Make a higher resolution grid to sample the continuous space
+    _x = np.arange(0, 1, 1 / size / ratio)
+    _y = np.arange(0, 1, 1 / size / ratio)
+    px, py = np.meshgrid(_x, _y)
+
+    # generate a separate mask for each phase
+    masks = []
+    masks.append(np.zeros((size*ratio,size*ratio), dtype=np.float))
+
+    # Draw the shapes to the higher resolution grid
+    image = np.zeros((size*ratio,size*ratio), dtype=np.float)
+    for m in range(phantom.population):
+        x = phantom.feature[m].center.x
+        y = phantom.feature[m].center.y
+        rad = phantom.feature[m].radius
+        val = phantom.feature[m].value
+        image += ((px - x)**2 + (py - y)**2 < rad**2)
+        masks[0] += ((px - x)**2 + (py - y)**2 < rad**2)
+
+        if m+1 >= phantom.population or phantom.feature[m+1].value != val:
+            # Resample down to the desired size
+            if uniform:
+                image = scipy.ndimage.uniform_filter(image,ratio)
+            else:
+                image = scipy.ndimage.gaussian_filter(image,ratio/4.)
+            masks.append(image[::ratio,::ratio])
+            image = np.zeros((size*ratio,size*ratio), dtype=np.float)
+
+    # Resample and invert background mask
+    if uniform:
+        masks[0] = scipy.ndimage.uniform_filter(masks[0],ratio)
+    else:
+        masks[0] = scipy.ndimage.gaussian_filter(masks[0],ratio/4.)
+    masks[0] = 1 - masks[0][::ratio,::ratio]
+
+    return masks
 
 class ImageQuality(object):
     """Stores information about image quality"""
@@ -141,33 +204,6 @@ def compute_quality(reference,reconstructions,method="MSSSIM", L=1):
         metrics.append(IQ)
 
     return metrics
-
-def background_mask(phantom, shape):
-    """Returns the background mask.
-
-    Parameters
-    ----------
-    phantom : Phantom
-    shape : ndarray
-
-    Returns
-    -------
-    ndarray, bool
-        True if pixel belongs to (an assumed) background.
-    """
-    dx, dy = shape
-    _x = np.arange(0, 1, 1 / dx)
-    _y = np.arange(0, 1, 1 / dy)
-    px, py = np.meshgrid(_x, _y)
-
-    mask = np.zeros(shape, dtype=np.bool)
-    mask += (px - 0.5)**2 + (py - 0.5)**2 < 0.5**2
-    for m in range(phantom.population):
-        x = phantom.feature[m].center.x
-        y = phantom.feature[m].center.y
-        rad = phantom.feature[m].radius
-        mask -= (px - x)**2 + (py - y)**2 < rad**2
-    return mask
 
 def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
     """ Calculates the Visual Information Fidelity (VIFp) between two images in
