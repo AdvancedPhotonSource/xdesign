@@ -63,12 +63,13 @@ __all__ = ['ImageQuality','background_mask','compute_quality']
 
 class ImageQuality(object):
     """Stores information about image quality"""
-    def __init__(self, original, reconstruction):
+    def __init__(self, original, reconstruction, method=''):
         self.orig = original.astype(np.float)
         self.recon = reconstruction.astype(np.float)
         self.qualities = []
         self.maps = []
         self.scales = []
+        self.method = method
 
     def __str__(self):
         return "QUALITY: " + str(self.qualities) + "\nSCALES: " + str(self.scales)
@@ -132,12 +133,12 @@ def compute_quality(reference,reconstructions,method="MSSSIM", L=1):
         reconstructions = [reconstructions]
 
     dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim, "VIFp": _compute_vifp}
-    method = dictionary[method]
+    method_func = dictionary[method]
 
     metrics = []
     for image in reconstructions:
-        IQ = ImageQuality(reference, image)
-        IQ = method(IQ, L=L)
+        IQ = ImageQuality(reference, image, method)
+        IQ = method_func(IQ, L=L)
         metrics.append(IQ)
 
     return metrics
