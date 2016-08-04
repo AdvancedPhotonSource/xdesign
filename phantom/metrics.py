@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['ImageQuality','probability_mask','compute_quality']
+__all__ = ['ImageQuality','probability_mask','compute_quality', 'compute_histograms']
 
 
 def probability_mask(phantom, size, ratio=8, uniform=True):
@@ -123,6 +123,40 @@ def probability_mask(phantom, size, ratio=8, uniform=True):
     masks[0] = 1 - masks[0][::ratio,::ratio]
 
     return masks
+
+import matplotlib.pyplot as plt
+def compute_histograms(image, masks, strict=True):
+    """Computes the probability density histograms for the pixel intensity under each mask.
+
+    Parameters
+    --------------
+    image : ndarray
+    masks : list of ndarrays
+    strict : boolean
+
+    Returns
+    ----------
+    """
+    hgrams = []
+    for m in masks:
+        assert(image.shape == m.shape)
+        # convert probability mask to boolean mask
+        if strict:
+            m = image[m >= 1]
+        else:
+            m = image[m > 0]
+        #h = np.histogram(m, bins='auto', density=True)
+        hgrams.append(m)
+
+    plt.figure()
+    plt.hist(hgrams, bins=100, normed=True, stacked=False)
+    plt.legend(['0','0.25','0.5','1'])
+    plt.show()
+
+def compute_cov(ref,def,masks):
+    """
+    """
+    
 
 class ImageQuality(object):
     """Stores information about image quality"""
