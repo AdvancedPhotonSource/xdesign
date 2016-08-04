@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['ImageQuality','probability_mask','compute_quality', 'compute_histograms']
+__all__ = ['ImageQuality','probability_mask','compute_quality', 'compute_histograms', 'compute_PCC']
 
 
 def probability_mask(phantom, size, ratio=8, uniform=True):
@@ -125,38 +125,96 @@ def probability_mask(phantom, size, ratio=8, uniform=True):
     return masks
 
 import matplotlib.pyplot as plt
-def compute_histograms(image, masks, strict=True):
-    """Computes the probability density histograms for the pixel intensity under each mask.
+def compute_histograms(A, B, masks=None, strict=True):
+    """Plots the normalized histograms for the pixel intensity under each
+    mask.
 
     Parameters
     --------------
-    image : ndarray
-    masks : list of ndarrays
+    A,B : ndarray
+        Two images for comparing histograms.
+    masks : list of ndarrays, float, optional
+        If supplied, the data under each mask is plotted separately.
     strict : boolean
-
-    Returns
-    ----------
+        If true, the mask takes values >= only. If false, the mask takes all
+        values > 0.
     """
     hgrams = []
-    for m in masks:
-        assert(image.shape == m.shape)
-        # convert probability mask to boolean mask
-        if strict:
-            m = image[m >= 1]
-        else:
-            m = image[m > 0]
-        #h = np.histogram(m, bins='auto', density=True)
-        hgrams.append(m)
+    if masks == None:
+        hgrams.append(A)
+        hgrams.append(B)
+        labels = ['A','B']
+    else:
+        labels = []
+        i = 0
+        for m in masks:
+            assert(A.shape == m.shape)
+            assert(B.shape == m.shape)
+            # convert probability mask to boolean mask
+            if strict:
+                mA = A[m >= 1]
+                mB = B[m >= 1]
+            else:
+                mA = A[m > 0]
+                mB = B[m > 0]
+            #h = np.histogram(m, bins='auto', density=True)
+            hgrams.append(mA)
+            labels.append('A'+str(i))
+            hgrams.append(mB)
+            labels.append('B'+str(i))
+            i += 1
 
     plt.figure()
-    plt.hist(hgrams, bins=100, normed=True, stacked=False)
-    plt.legend(['0','0.25','0.5','1'])
+    # autobins feature doesn't work because one of the groups is all zeros?
+    plt.hist(hgrams, bins=25, normed=True, stacked=False)
+    plt.legend(labels)
     plt.show()
 
-def compute_cov(ref,def,masks):
+def compute_PCC(A, B, masks=None):
+    """ Computes the Pearson product-moment correlation coefficients (PCC) for
+    the two images.
+
+    Parameters
+    -------------
+    A,B : ndarray
+        The two images to be compared
+    masks : list of ndarrays, optional
+        If supplied, the data under each mask is computed separately.
+
+    Returns
+    ----------------
+    covariances : array, list of arrays
+    """
+    covariances = []
+    if masks == None:
+        data = np.vstack((np.ravel(A),np.ravel(B)))
+        return np.corrcoef(data)
+
+    for m in masks:
+        weights = m[m>0]
+        masked_B = B[m>0]
+        masked_A = A[m>0]
+        data = np.vstack((masked_A,masked_B))
+        #covariances.append(np.cov(data,aweights=weights))
+        covariances.append(np.corrcoef(data))
+
+    return covariances
+
+from scipy.stats import norm
+def compute_pdf(A, B, masks):
     """
     """
-    
+    # generate the pdf or pmf for each of the phases
+    pdfs = []
+    for m in masks:
+        mu, std = norm.fit(np.ravel(A[m>0.5]))
+        
+
+    # for each pixel in the reconstruction
+
+        # determine the probability that it belongs to its correct phase
+        # use range value +/- epsilon for pdf and actual value for pmf
+
 
 class ImageQuality(object):
     """Stores information about image quality"""
