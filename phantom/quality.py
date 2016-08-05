@@ -183,7 +183,7 @@ def background_mask(phantom, shape):
 
 from phasepack import phasecongmono as _phasecongmono
 import matplotlib.pyplot as plt
-def _calculate_FSIM(imQual, L=None):
+def _calculate_FSIM(imQual, nlevels=5, nwavelets=16, L=None):
     """
     FSIM Index with automatic downsampling, Version 1.0
     Copyright(c) 2010 Lin ZHANG, Lei Zhang, Xuanqin Mou and David Zhang
@@ -230,50 +230,58 @@ def _calculate_FSIM(imQual, L=None):
 
     Y1 = imQual.orig
     Y2 = imQual.recon
-    [rows, cols] = Y1.shape
 
-    # Downsample the image
-    minDimension = min(rows,cols)
-    F = max(1,round(minDimension / 256))
+    # CHECK INPUTS FOR VALIDITY
+    # assert that there is at least one level requested
+    assert(nlevels > 0)
+    # assert that the image never becomes smaller than the filter
+    (M,N) = Y1.shape
+    min_img_width = min(M,N)/(2**(nlevels-1))
+    max_filter_width = 1.2*2
+    assert(min_img_width >= max_filter_width)
 
-    aveY1 = scipy.ndimage.filters.uniform_filter(Y1,size=F)
-    aveY2 = scipy.ndimage.filters.uniform_filter(Y2,size=F)
-    Y1 = aveY1[::F,::F]
-    Y2 = aveY2[::F,::F]
+    for scale in range(0,nlevels):
+        # sigma = 1.2 is approximately correct because the width of the scharr
+        # and min wavelet filter (phase congruency filter) is 3.
+        sigma = 1.2*2**scale
 
-    # Calculate the phase congruency maps
-    [PC1,Orient1,ft1,T1] = _phasecongmono(Y1)
-    [PC2,Orient2,ft2,T2] = _phasecongmono(Y2)
-    #plt.imshow(PC1,cmap=plt.cm.gray)
-    #plt.show(block=True)
-    #print(np.min(PC1))
+        F = 2 # Downsample the image
+        aveY1 = scipy.ndimage.filters.uniform_filter(Y1,size=F)
+        aveY2 = scipy.ndimage.filters.uniform_filter(Y2,size=F)
+        Y1 = aveY1[::F,::F]
+        Y2 = aveY2[::F,::F]
 
-    # Calculate the gradient magnitude map using Scharr filters
-    dx = np.array([[3.  ,0.  ,-3. ],
-                   [10. ,0.  ,-10.],
-                   [3.  ,0.  ,-3. ]])/16
-    dy = np.array([[3.  ,10. ,3.  ],
-                   [0.  ,0.  ,0.  ],
-                   [-3. ,-10.,-3. ]])/16
+        # Calculate the phase congruency maps
+        [PC1,Orient1,ft1,T1] = _phasecongmono(Y1, nscale=nwavelets)
+        [PC2,Orient2,ft2,T2] = _phasecongmono(Y2, nscale=nwavelets)
 
-    IxY1 = scipy.ndimage.filters.convolve(Y1, dx)
-    IyY1 = scipy.ndimage.filters.convolve(Y1, dy)
-    gradientMap1 = np.sqrt(IxY1**2 + IyY1**2)
+        # Calculate the gradient magnitude map using Scharr filters
+        dx = np.array([[3.  ,0.  ,-3. ],
+                       [10. ,0.  ,-10.],
+                       [3.  ,0.  ,-3. ]])/16
+        dy = np.array([[3.  ,10. ,3.  ],
+                       [0.  ,0.  ,0.  ],
+                       [-3. ,-10.,-3. ]])/16
 
-    IxY2 = scipy.ndimage.filters.convolve(Y2, dx)
-    IyY2 = scipy.ndimage.filters.convolve(Y2, dy)
-    gradientMap2 = np.sqrt(IxY2**2 + IyY2**2)
+        IxY1 = scipy.ndimage.filters.convolve(Y1, dx)
+        IyY1 = scipy.ndimage.filters.convolve(Y1, dy)
+        gradientMap1 = np.sqrt(IxY1**2 + IyY1**2)
 
-    # Calculate the FSIM
-    T1 = 0.85   # fixed and depends on dynamic range
-    T2 = 160    # fixed and depends on dynamic range
-    PCSimMatrix = (2 * PC1 * PC2 + T1) / (PC1**2 + PC2**2 + T1) # results range (0,1]
-    gradientSimMatrix = (2*gradientMap1*gradientMap2 + T2) / (gradientMap1**2 + gradientMap2**2 + T2)
-    PCm = np.maximum(PC1, PC2)
-    FSIMmap = gradientSimMatrix * PCSimMatrix
-    FSIM = np.sum(FSIMmap * PCm) / np.sum(PCm)
+        IxY2 = scipy.ndimage.filters.convolve(Y2, dx)
+        IyY2 = scipy.ndimage.filters.convolve(Y2, dy)
+        gradientMap2 = np.sqrt(IxY2**2 + IyY2**2)
 
-    imQual.add_quality(FSIM, 0, maps=FSIMmap)
+        # Calculate the FSIM
+        T1 = 0.85   # fixed and depends on dynamic range of PC values
+        T2 = 160    # fixed and depends on dynamic range of GM values
+        PCSimMatrix = (2 * PC1 * PC2 + T1) / (PC1**2 + PC2**2 + T1)
+        gradientSimMatrix = (2*gradientMap1*gradientMap2 + T2)
+                            / (gradientMap1**2 + gradientMap2**2 + T2)
+        PCm = np.maximum(PC1, PC2)
+        FSIMmap = gradientSimMatrix * PCSimMatrix
+        FSIM = np.sum(FSIMmap * PCm) / np.sum(PCm)
+        imQual.add_quality(FSIM, sigma, maps=FSIMmap)
+
     return imQual
 
 def _compute_msssim(imQual, nlevels=5, filtersize=(11,11), sigma=1.2, L=255, K=(0.01,0.03)):
