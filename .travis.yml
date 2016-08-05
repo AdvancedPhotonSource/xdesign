@@ -24,8 +24,8 @@ before_install:
   - conda install anaconda-client
 
 install:
-  - sudo pip install phasepack
   - conda install python=$TRAVIS_PYTHON_VERSION nose six numpy scipy matplotlib python-coveralls pil
+  - pip install phasepack
   - conda info -a
   - python setup.py build_ext --inplace
 
