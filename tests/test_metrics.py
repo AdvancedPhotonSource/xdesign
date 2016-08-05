@@ -17,12 +17,11 @@ def test_SSIM_same_image_is_unity():
 
 def test_compute_quality_cameraman():
     img1 = scipy.ndimage.imread("tests/cameraman.png") # original
-    img2 = scipy.ndimage.imread("tests/cameraman_SP.png") # salt and pepper
-    img3 = scipy.ndimage.imread("tests/cameraman_H.png") # half mising
-    img4 = scipy.ndimage.imread("tests/cameraman_mixed.png")
+    img4 = scipy.ndimage.imread("tests/cameraman_mixed1.png")
     # salt and pepper, gaussian noise, square? smoothing filter, guassian filter
-    metrics = compute_quality(img1,[img2,img3,img4],method="VIFp", L=256)
-    metrics = compute_quality(img1,[img2,img3,img4],method="FSIM", L=256)
-    metrics = compute_quality(img1,[img2,img3,img4],method="MSSSIM", L=256)
-
+    metrics = compute_quality(img1,[img4],method="VIFp", L=256)
+    plot_metrics(metrics)
+    metrics = compute_quality(img1,[img4],method="FSIM", L=256)
+    plot_metrics(metrics)
+    metrics = compute_quality(img1,[img4],method="MSSSIM", L=256)
     plot_metrics(metrics)
