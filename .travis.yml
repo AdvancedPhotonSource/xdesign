@@ -25,7 +25,7 @@ before_install:
 
 install:
   - conda install python=$TRAVIS_PYTHON_VERSION nose six numpy scipy matplotlib python-coveralls
-  - pip install phasepack pyfftw==0.9.2
+  - pip install phasepack
   - conda info -a
   - python setup.py build_ext --inplace
 
