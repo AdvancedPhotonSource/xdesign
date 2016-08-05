@@ -143,7 +143,8 @@ def compute_quality(reference,reconstructions,method="MSSSIM", L=1):
     if not (type(reconstructions) is list):
         reconstructions = [reconstructions]
 
-    dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim, "VIFp": _compute_vifp, "FSIM": _calculate_FSIM}
+    dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim,
+                  "VIFp": _compute_vifp, "FSIM": _calculate_FSIM}
     method_func = dictionary[method]
 
     metrics = []
@@ -353,8 +354,8 @@ def _calculate_FSIM(imQual, nlevels=5, nwavelets=16, L=None):
         T1 = 0.85   # fixed and depends on dynamic range of PC values
         T2 = 160    # fixed and depends on dynamic range of GM values
         PCSimMatrix = (2 * PC1 * PC2 + T1) / (PC1**2 + PC2**2 + T1)
-        gradientSimMatrix = (2*gradientMap1*gradientMap2 + T2)
-                            / (gradientMap1**2 + gradientMap2**2 + T2)
+        gradientSimMatrix = ((2*gradientMap1*gradientMap2 + T2)
+                            / (gradientMap1**2 + gradientMap2**2 + T2))
         PCm = np.maximum(PC1, PC2)
         FSIMmap = gradientSimMatrix * PCSimMatrix
         FSIM = np.sum(FSIMmap * PCm) / np.sum(PCm)
@@ -408,7 +409,8 @@ def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01,0.03)):
     #weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
     for l in range(0,nlevels):
-        imQual += _compute_ssim(ImageQuality(img1,img2), sigma=sigma, L=L, K=K, scale=sigma*2**l);
+        imQual += _compute_ssim(ImageQuality(img1,img2), sigma=sigma, L=L, K=K,
+                                scale=sigma*2**l);
         if l == nlevels-1: break
 
         # Apply lowpass filter retain size, reflect at edges
@@ -487,7 +489,8 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01,0.03), scale=None):
     sigma_12 -= mu_1_mu_2
 
     if (c_1 > 0) & (c_2 > 0):
-        ssim_map = ((2*mu_1_mu_2 + c_1) * (2*sigma_12 + c_2)) / ((mu_1_sq + mu_2_sq + c_1) * (sigma_1_sq + sigma_2_sq + c_2))
+        ssim_map = (((2*mu_1_mu_2 + c_1) * (2*sigma_12 + c_2))
+                 / ((mu_1_sq + mu_2_sq + c_1) * (sigma_1_sq + sigma_2_sq + c_2)))
     else:
         numerator1 = 2 * mu_1_mu_2 + c_1
         numerator2 = 2 * sigma_12 + c_2
@@ -499,7 +502,8 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01,0.03), scale=None):
 
         index = (denominator1 * denominator2 > 0)
 
-        ssim_map[index] = (numerator1[index] * numerator2[index]) / (denominator1[index] * denominator2[index])
+        ssim_map[index] = ((numerator1[index] * numerator2[index])
+                        / (denominator1[index] * denominator2[index]))
         index = (denominator1 != 0) & (denominator2 == 0)
         ssim_map[index] = (numerator1[index] / denominator1[index])**4
 
