@@ -20,7 +20,6 @@ requirements:
     - six
     - matplotlib
     - phasepack
-    - pil
 
 test:
   # Python imports
