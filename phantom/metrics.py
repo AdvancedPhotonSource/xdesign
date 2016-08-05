@@ -59,8 +59,8 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['ImageQuality','probability_mask','compute_quality', 'compute_histograms', 'compute_PCC']
-
+__all__ = ['ImageQuality','probability_mask','compute_quality','compute_PCC',
+            'compute_likeness','compute_background_ttest']
 
 def probability_mask(phantom, size, ratio=8, uniform=True):
     """Returns the probability mask for each phase in the phantom.
@@ -124,52 +124,6 @@ def probability_mask(phantom, size, ratio=8, uniform=True):
 
     return masks
 
-import matplotlib.pyplot as plt
-def compute_histograms(A, B, masks=None, strict=True):
-    """Plots the normalized histograms for the pixel intensity under each
-    mask.
-
-    Parameters
-    --------------
-    A,B : ndarray
-        Two images for comparing histograms.
-    masks : list of ndarrays, float, optional
-        If supplied, the data under each mask is plotted separately.
-    strict : boolean
-        If true, the mask takes values >= only. If false, the mask takes all
-        values > 0.
-    """
-    hgrams = []
-    if masks == None:
-        hgrams.append(A)
-        hgrams.append(B)
-        labels = ['A','B']
-    else:
-        labels = []
-        i = 0
-        for m in masks:
-            assert(A.shape == m.shape)
-            assert(B.shape == m.shape)
-            # convert probability mask to boolean mask
-            if strict:
-                mA = A[m >= 1]
-                mB = B[m >= 1]
-            else:
-                mA = A[m > 0]
-                mB = B[m > 0]
-            #h = np.histogram(m, bins='auto', density=True)
-            hgrams.append(mA)
-            labels.append('A'+str(i))
-            hgrams.append(mB)
-            labels.append('B'+str(i))
-            i += 1
-
-    plt.figure()
-    # autobins feature doesn't work because one of the groups is all zeros?
-    plt.hist(hgrams, bins=25, normed=True, stacked=False)
-    plt.legend(labels)
-    plt.show()
-
 def compute_PCC(A, B, masks=None):
     """ Computes the Pearson product-moment correlation coefficients (PCC) for
     the two images.
@@ -200,21 +154,63 @@ def compute_PCC(A, B, masks=None):
 
     return covariances
 
-from scipy.stats import norm
-def compute_pdf(A, B, masks):
-    """
+from scipy.stats import norm, exponnorm, expon, ttest_ind
+def compute_likeness(A, B, masks):
+    """ Predicts the likelihood that each pixel in B belongs to a phase based
+    on the histogram of A.
+
+    Parameters
+    ------------
+    A : ndarray
+    B : ndarray
+    masks : list of ndarrays
+
+    Returns
+    --------------
+    likelihoods : list of ndarrays
     """
     # generate the pdf or pmf for each of the phases
     pdfs = []
     for m in masks:
-        mu, std = norm.fit(np.ravel(A[m>0.5]))
-        
+        K, mu, std = exponnorm.fit(np.ravel(A[m>0]))
+        print((K,mu,std))
+        # for each reconstruciton, plot the likelihood that this phase generates that pixel
+        pdfs.append(exponnorm.pdf(B,K,mu,std))
 
-    # for each pixel in the reconstruction
+    # determine the probability that it belongs to its correct phase
+    pdfs_total = sum(pdfs)
+    return pdfs / pdfs_total
 
-        # determine the probability that it belongs to its correct phase
-        # use range value +/- epsilon for pdf and actual value for pmf
+def compute_background_ttest(image, masks):
+    """Determines whether the background has significantly different luminance
+    than the other phases.
 
+    Parameters
+    -------------
+    image : ndarray
+
+    masks : list of ndarrays
+        Masks for the background and any other phases. Does not autogenerate
+        the non-background mask because maybe you want to compare only two phases.
+
+    Returns
+    ----------
+    tstat : scalar
+    pvalue : scalar
+    """
+
+    # separate the background
+    background = image[masks[0]>0]
+    # combine non-background masks
+    other = False
+    for i in range(1,len(masks)):
+        other = np.logical_or(other,masks[i]>0)
+    other = image[other]
+
+    tstat, pvalue = ttest_ind(background, other, axis=None, equal_var=False)
+    #print([tstat,pvalue])
+
+    return tstat, pvalue
 
 class ImageQuality(object):
     """Stores information about image quality"""
