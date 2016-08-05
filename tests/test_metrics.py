@@ -20,8 +20,8 @@ def test_compute_quality_cameraman():
     img4 = scipy.ndimage.imread("tests/cameraman_mixed1.png")
     # salt and pepper, gaussian noise, square? smoothing filter, guassian filter
     metrics = compute_quality(img1,[img4],method="VIFp", L=256)
-    plot_metrics(metrics)
+    #plot_metrics(metrics)
     metrics = compute_quality(img1,[img4],method="FSIM", L=256)
-    plot_metrics(metrics)
+    #plot_metrics(metrics)
     metrics = compute_quality(img1,[img4],method="MSSSIM", L=256)
-    plot_metrics(metrics)
+    #plot_metrics(metrics)
