@@ -4,3 +4,5 @@ six
 numpy
 scipy
 matplotlib
+phasepack
+pil
