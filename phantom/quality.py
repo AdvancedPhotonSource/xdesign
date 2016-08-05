@@ -62,10 +62,21 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['ImageQuality','background_mask','compute_quality']
 
 class ImageQuality(object):
-    """Stores information about image quality"""
+    """Stores information about image quality
+
+    Attributes
+    ----------------
+    orig : numpy.ndarray
+    recon : numpy.ndarray
+    qualities : list of scalars
+    maps : list of numpy.ndarray
+    scales : list of scalars
+    """
     def __init__(self, original, reconstruction, method=''):
         self.orig = original.astype(np.float)
         self.recon = reconstruction.astype(np.float)
+        assert(self.orig.shape == self.recon.shape)
+        assert(self.orig.ndim == 2)
         self.qualities = []
         self.maps = []
         self.scales = []
@@ -82,7 +93,7 @@ class ImageQuality(object):
 
     def add_quality(self,quality,scale,maps=None):
         '''
-        Attributes
+        Parameters
         -----------
         quality : scalar, list
             The average quality for the image
@@ -132,7 +143,7 @@ def compute_quality(reference,reconstructions,method="MSSSIM", L=1):
     if not (type(reconstructions) is list):
         reconstructions = [reconstructions]
 
-    dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim, "VIFp": _compute_vifp}
+    dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim, "VIFp": _compute_vifp, "FSIM": _calculate_FSIM}
     method_func = dictionary[method]
 
     metrics = []
@@ -249,14 +260,118 @@ def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
 
     return imQual
 
+from phasepack import phasecongmono as _phasecongmono
+def _calculate_FSIM(imQual, nlevels=5, nwavelets=16, L=None):
+    """
+    FSIM Index with automatic downsampling, Version 1.0
+    Copyright(c) 2010 Lin ZHANG, Lei Zhang, Xuanqin Mou and David Zhang
+    All Rights Reserved.
+    ----------------------------------------------------------------------
+    Permission to use, copy, or modify this software and its documentation
+    for educational and research purposes only and without fee is here
+    granted, provided that this copyright notice and the original authors'
+    names appear on all copies and supporting documentation. This program
+    shall not be used, rewritten, or adapted as the basis of a commercial
+    software or hardware product without first obtaining permission of the
+    authors. The authors make no representations about the suitability of
+    this software for any purpose. It is provided "as is" without express
+    or implied warranty.
+    ----------------------------------------------------------------------
+    Lin Zhang, Lei Zhang, Xuanqin Mou, and David Zhang,"FSIM: a feature
+    similarity index for image qualtiy assessment", IEEE Transactions on Image
+    Processing, vol. 20, no. 8, pp. 2378-2386, 2011.
+
+    ----------------------------------------------------------------------
+    An implementation of the algorithm for calculating the Feature SIMilarity
+    (FSIM) index was ported to Python.
+
+    Parameters
+    --------------------------
+    imQual : ImageQuality
+    imageRef : numpy.ndarray
+        the first image being compared
+    imageDis : numpy.ndarray
+        the second image being compared. Given 2 test images img1 and img2.
+        For gray-scale images, their dynamic range should be 0-255. For
+        colorful images, the dynamic range of each color channel should be
+        0-255.
+
+    Returns
+    ------------------
+    FSIM : scalar
+        the similarty score calculated using FSIM algorithm. FSIM only
+        considers the luminance component of images. For colorful images,
+        convert to grayscale first.
+    FSIMmap : numpy.ndarray
+        local similarity score
+    """
+
+    Y1 = imQual.orig
+    Y2 = imQual.recon
+
+    # CHECK INPUTS FOR VALIDITY
+    # assert that there is at least one level requested
+    assert(nlevels > 0)
+    # assert that the image never becomes smaller than the filter
+    (M,N) = Y1.shape
+    min_img_width = min(M,N)/(2**(nlevels-1))
+    max_filter_width = 1.2*2
+    assert(min_img_width >= max_filter_width)
+
+    for scale in range(0,nlevels):
+        # sigma = 1.2 is approximately correct because the width of the scharr
+        # and min wavelet filter (phase congruency filter) is 3.
+        sigma = 1.2*2**scale
+
+        F = 2 # Downsample the image
+        aveY1 = scipy.ndimage.filters.uniform_filter(Y1,size=F)
+        aveY2 = scipy.ndimage.filters.uniform_filter(Y2,size=F)
+        Y1 = aveY1[::F,::F]
+        Y2 = aveY2[::F,::F]
+
+        # Calculate the phase congruency maps
+        [PC1,Orient1,ft1,T1] = _phasecongmono(Y1, nscale=nwavelets)
+        [PC2,Orient2,ft2,T2] = _phasecongmono(Y2, nscale=nwavelets)
+
+        # Calculate the gradient magnitude map using Scharr filters
+        dx = np.array([[3.  ,0.  ,-3. ],
+                       [10. ,0.  ,-10.],
+                       [3.  ,0.  ,-3. ]])/16
+        dy = np.array([[3.  ,10. ,3.  ],
+                       [0.  ,0.  ,0.  ],
+                       [-3. ,-10.,-3. ]])/16
+
+        IxY1 = scipy.ndimage.filters.convolve(Y1, dx)
+        IyY1 = scipy.ndimage.filters.convolve(Y1, dy)
+        gradientMap1 = np.sqrt(IxY1**2 + IyY1**2)
+
+        IxY2 = scipy.ndimage.filters.convolve(Y2, dx)
+        IyY2 = scipy.ndimage.filters.convolve(Y2, dy)
+        gradientMap2 = np.sqrt(IxY2**2 + IyY2**2)
+
+        # Calculate the FSIM
+        T1 = 0.85   # fixed and depends on dynamic range of PC values
+        T2 = 160    # fixed and depends on dynamic range of GM values
+        PCSimMatrix = (2 * PC1 * PC2 + T1) / (PC1**2 + PC2**2 + T1)
+        gradientSimMatrix = (2*gradientMap1*gradientMap2 + T2)
+                            / (gradientMap1**2 + gradientMap2**2 + T2)
+        PCm = np.maximum(PC1, PC2)
+        FSIMmap = gradientSimMatrix * PCSimMatrix
+        FSIM = np.sum(FSIMmap * PCm) / np.sum(PCm)
+        imQual.add_quality(FSIM, sigma, maps=FSIMmap)
+
+    return imQual
+
 def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01,0.03)):
     '''
+    An implementation of the Multi-Scale Structural SIMilarity index (MS-SSIM).
+
+    References
+    -------------
     Multi-scale Structural Similarity Index (MS-SSIM)
     Z. Wang, E. P. Simoncelli and A. C. Bovik, "Multi-scale structural similarity
     for image quality assessment," Invited Paper, IEEE Asilomar Conference on
     Signals, Systems and Computers, Nov. 2003
-
-    Paper can be found at: https://ece.uwaterloo.ca/~z70wang/publications/msssim.pdf
 
     Parameters
     -------------
@@ -275,7 +390,7 @@ def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01,0.03)):
     Returns
     --------------
     imQual : ImageQuality
-
+        A struct used to organize image quality information.
     '''
     img1 = imQual.orig
     img2 = imQual.recon
@@ -300,26 +415,27 @@ def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01,0.03)):
         filtered_im1 = scipy.ndimage.filters.uniform_filter(img1, size=2)
         filtered_im2 = scipy.ndimage.filters.uniform_filter(img2, size=2)
         # Downsample by factor of two using numpy slicing
-        img1 = filtered_im1[::2,::2];
-        img2 = filtered_im2[::2,::2];
+        img1 = filtered_im1[::2,::2]
+        img2 = filtered_im2[::2,::2]
 
     return imQual
 
 def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01,0.03), scale=None):
     """
-    This is a modified version of SSIM based on implementation by
-    Helder C. R. de Oliveira, based on the version of:
-    Antoine Vacavant, ISIT lab, antoine.vacavant@iut.u-clermont1.fr,
+    A modified version of the Structural SIMilarity index (SSIM) based on an
+    implementation by Helder C. R. de Oliveira, based on the implementation by
+    Antoine Vacavant, ISIT lab, antoine.vacavant@iut.u-clermont1.fr
     http://isit.u-clermont1.fr/~anvacava
 
-    References:
-        [1] Z. Wang, A. C. Bovik, H. R. Sheikh and E. P. Simoncelli.
-        Image quality assessment: From error visibility to structural similarity.
-        IEEE Transactions on Image Processing, 13(4):600--612, 2004.
+    References
+    -------------
+    Z. Wang, A. C. Bovik, H. R. Sheikh and E. P. Simoncelli. Image quality
+    assessment: From error visibility to structural similarity. IEEE
+    Transactions on Image Processing, 13(4):600--612, 2004.
 
-        [2] Z. Wang and A. C. Bovik.
-        Mean squared error: Love it or leave it? - A new look at signal fidelity measures.
-        IEEE Signal Processing Magazine, 26(1):98--117, 2009.
+    Z. Wang and A. C. Bovik. Mean squared error: Love it or leave it? - A new
+    look at signal fidelity measures. IEEE Signal Processing Magazine,
+    26(1):98--117, 2009.
 
     Attributes
     ----------
@@ -332,6 +448,7 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01,0.03), scale=None):
     Returns
     ----------
     imQual : ImageQuality
+        A struct used to organize image quality information.
     """
     if scale == None:
         scale = sigma
