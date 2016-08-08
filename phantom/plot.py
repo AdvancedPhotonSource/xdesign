@@ -169,6 +169,7 @@ def plot_metrics(imqual):
         f.subplots_adjust(right=0.8)
         cbar_ax = f.add_axes([0.85, 0.15, 0.05, 0.7])
         f.colorbar(im, cax=cbar_ax)
+        plt.title(imqual[i].method)
 
         '''
         plt.subplot(121)
