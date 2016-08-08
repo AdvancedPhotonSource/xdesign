@@ -52,8 +52,7 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import logging
-import time
+import logging, time, string
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +60,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['plot_phantom','plot_metrics']
+__all__ = ['plot_phantom','plot_metrics', 'plot_histograms']
 
 
 def plot_phantom(phantom):
@@ -85,6 +84,49 @@ def plot_phantom(phantom):
     plt.grid('on')
     plt.gca().invert_yaxis()
     plt.show(block=False)
+
+def plot_histograms(images, masks=None, thresh=0.025):
+    """Plots the normalized histograms for the pixel intensity under each
+    mask.
+
+    Parameters
+    --------------
+    images : list of ndarrays, ndarray
+        image(s) for comparing histograms.
+    masks : list of ndarrays, float, optional
+        If supplied, the data under each mask is plotted separately.
+    strict : boolean
+        If true, the mask takes values >= only. If false, the mask takes all
+        values > 0.
+    """
+    if type(images) is not list:
+        images = [images]
+
+    hgrams = [] # holds histograms before plotting
+    labels = [] # holds legend labels for plotting
+    abet = string.ascii_uppercase
+
+    if masks == None:
+        for i in range(len(images)):
+            hgrams.append(image[i])
+            labels.append(abet[i])
+    else:
+        for i in range(len(masks)):
+            for j in range(len(images)):
+                m = masks[i]
+                A = images[j]
+                assert(A.shape == m.shape)
+                # convert probability mask to boolean mask
+                mA = A[m >= thresh]
+                #h = np.histogram(m, bins='auto', density=True)
+                hgrams.append(mA)
+                labels.append(abet[j]+str(i))
+
+    plt.figure()
+    # autobins feature doesn't work because one of the groups is all zeros?
+    plt.hist(hgrams, bins=25, normed=True, stacked=False)
+    plt.legend(labels)
+    plt.show()
 
 def plot_metrics(imqual):
     """Plots metrics of ImageQuality data
