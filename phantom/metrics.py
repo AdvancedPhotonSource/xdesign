@@ -84,17 +84,13 @@ def probability_mask(phantom, size, ratio=8, uniform=True):
     image : list of numpy.ndarray
         A list of float masks for each phase in the phantom.
     """
-    # sort the shapes in the phantom by attenuation values
-    phantom.sort()
 
     # Make a higher resolution grid to sample the continuous space
     _x = np.arange(0, 1, 1 / size / ratio)
     _y = np.arange(0, 1, 1 / size / ratio)
     px, py = np.meshgrid(_x, _y)
 
-    # generate a separate mask for each phase
-    masks = []
-    masks.append(np.zeros((size*ratio,size*ratio), dtype=np.float))
+    phases = {0} # tracks what values exist in this phantom
 
     # Draw the shapes to the higher resolution grid
     image = np.zeros((size*ratio,size*ratio), dtype=np.float)
@@ -103,24 +99,31 @@ def probability_mask(phantom, size, ratio=8, uniform=True):
         y = phantom.feature[m].center.y
         rad = phantom.feature[m].radius
         val = phantom.feature[m].value
-        image += ((px - x)**2 + (py - y)**2 < rad**2)
-        masks[0] += ((px - x)**2 + (py - y)**2 < rad**2)
+        image *= ((px - x)**2 + (py - y)**2 >= rad**2)
+        image += ((px - x)**2 + (py - y)**2 < rad**2) * val
 
-        if m+1 >= phantom.population or phantom.feature[m+1].value != val:
-            # Resample down to the desired size
-            if uniform:
-                image = scipy.ndimage.uniform_filter(image,ratio)
-            else:
-                image = scipy.ndimage.gaussian_filter(image,ratio/4.)
-            masks.append(image[::ratio,::ratio])
-            image = np.zeros((size*ratio,size*ratio), dtype=np.float)
+        # collect a list of the unique values in the phantom
+        phases = phases | {val}
 
-    # Resample and invert background mask
-    if uniform:
-        masks[0] = scipy.ndimage.uniform_filter(masks[0],ratio)
-    else:
-        masks[0] = scipy.ndimage.gaussian_filter(masks[0],ratio/4.)
-    masks[0] = 1 - masks[0][::ratio,::ratio]
+    # generate a separate mask for each phase
+    masks = []
+    phases = list(phases)
+    phases.sort()
+    for m in range(0,len(phases)):
+        masks.append(0)
+
+        # First make a boolean array for each value,
+        val = phases[m]
+        masks[m] = (image == val).astype(float)
+
+        # then use a uniform filter to calculate the local percentage for each
+        # phase.
+        if uniform:
+            masks[m] = scipy.ndimage.uniform_filter(masks[m],ratio)
+        else:
+            masks[m] = scipy.ndimage.gaussian_filter(masks[m],ratio/4.)
+        # Resample
+        masks[m] = masks[m][::ratio,::ratio]
 
     return masks
 
