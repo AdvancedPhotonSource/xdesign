@@ -52,39 +52,109 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 import logging
 from phantom.phantom import *
+from phantom.geometry import *
 
 logger = logging.getLogger(__name__)
 
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['WoodComposite']
+__all__ = ['HyperbolicConcentric', 'Soil', 'Foam']
 
-class WoodComposite(Phantom):
-    """Wood composite generator class. Creates a random phantom representing a
-    wood composite.
-
-    It's a large square shape.
-    Then there's the periodic void spaces in the middle.
-    pits scatter the thin edges and stuff
-
-    Attributes
-    -------------
-    porosity : scalar
-
-    type : string, optional
-        Available options 'earlywood' or 'latewood'
-
+## Elements and Mixtures - Not Implemented
+class Element(Circle):
     """
-    def __init__(self, shape='square'):
-        super(Material, self).__init__(shape=shape)
+    """
+    def __init__(self, MeV=1):
+        # calculate the value based on the photon energy
+        super(Element, self).__init__()
 
+    @property
+    def attenuation():
+        raise NotImplementedError
+
+    def set_beam_energy():
+        raise NotImplementedError
+
+## Microstructures
+class HyperbolicConcentric(Phantom):
+    """Generates a standard test pattern based on the ISO 12233:2014 standard.
+    It is a series of cocentric alternating black and white circles whose radii
+    are changing at a parabolic rate.
+    """
+    def __init__(self, min_width=0.05):
+        """
+        Attributes
+        -------------
+        radii : list
+            The list of radii of the circles
+        widths : list
+            The list of the widths of the bands
+        """
+        super(HyperbolicConcentric, self).__init__(shape='circle')
+        center = Point(0.5,0.5)
+        exponent = 1.0/2
+        Nmax_rings = 512
+
+        radii = [0]
+        widths = [min_width]
+        for ring in range(1,Nmax_rings):
+            radius = min_width*np.power(ring,exponent)
+            if radius > 0.5:
+                break
+
+            self.append(Circle(center,radius, value=ring%2))
+            # record information about the rings
+            widths.append(radius-radii[-1])
+            radii.append(radius)
+
+        self.reverse() # smaller circles on top
+        self.radii = radii
+        self.widths = widths
+
+class DynamicRange(Phantom):
+    """"""
+    def __init__(self):
+        super(DynamicRange, self).__init__(shape='square')
+
+class Soil(Phantom):
+    """Generates a phantom with structure similar to soil.
+
+    References
+    -----------
+    Schlüter, S., Sheppard, A., Brown, K., & Wildenschild, D. (2014). Image
+    processing of multiphase images obtained via X‐ray microtomography: a
+    review. Water Resources Research, 50(4), 3615-3639.
+    """
+    def __init__(self, porosity=0.412):
+        super(Soil, self).__init__(shape='circle')
+        self.sprinkle(30, [0.1,0.03], 0, value=1, max_density=1-porosity)
+        # use overlap to approximate area opening transform because opening is not discrete
+        self.sprinkle(50, 0.02, -0.01, value=.25)
+        background = Circle(Point(0.5,0.5),0.5, value=0.5)
+        self.insert(0,background)
+
+class Foam(Phantom):
+    """Generates a phantom with structure similar to foam."""
+    def __init__(self):
+        super(Foam, self).__init__(shape='circle')
+        self.sprinkle(300, [0.07,0.01], 0.001, value=0)
+        background = Circle(Point(0.5,0.5), 0.5, value=1)
+        self.insert(0,background)
+
+## Microstructures - Not Implemented
 class Metal(Phantom):
+    def __init__(self, shape='square'):
+        raise NotImplementedError
 
 class SoftBiomaterial(Phantom):
-
-class HardBiomaterial(Phantom):
+    def __init__(self, shape='square'):
+        raise NotImplementedError
 
 class Electronics(Phantom):
+    def __init__(self, shape='square'):
+        raise NotImplementedError
 
 class FiberComposite(Phantom):
+    def __init__(self, shape='square'):
+        raise NotImplementedError

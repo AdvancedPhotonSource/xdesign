@@ -240,10 +240,9 @@ class Phantom(object):
             returned as integers, and depths greater than 32 are returned as
             floats.
         ratio : scalar, optional
-            The discretization works by drawing the shapes in a larger space
-            then averaging and downsampling. This parameter controls how many
-            pixels in the larger representation are averaged for the final
-            representation. e.g. if ratio = 8, then the final pixel values
+            The discretization works by supersampling. This parameter controls
+            how many pixels in the larger representation are averaged for the
+            final representation. e.g. if ratio = 8, then the final pixel values
             are the average of 64 pixels.
         uniform : boolean, optional
             When set to False, changes the way pixels are averaged from a
