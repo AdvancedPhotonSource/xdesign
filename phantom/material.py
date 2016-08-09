@@ -93,17 +93,17 @@ class HyperbolicConcentric(Phantom):
         """
         super(HyperbolicConcentric, self).__init__(shape='circle')
         center = Point(0.5,0.5)
-        exponent = 1.0/2
+        exponent = 1/2
         Nmax_rings = 512
 
         radii = [0]
         widths = [min_width]
-        for ring in range(1,Nmax_rings):
+        for ring in range(0,Nmax_rings):
             radius = min_width*np.power(ring,exponent)
-            if radius > 0.5:
+            if radius > 0.5 and ring%2 == 1:
                 break
 
-            self.append(Circle(center,radius, value=ring%2))
+            self.append(Circle(center,radius, value=(-1.)**(ring%2)))
             # record information about the rings
             widths.append(radius-radii[-1])
             radii.append(radius)
@@ -128,9 +128,9 @@ class Soil(Phantom):
     """
     def __init__(self, porosity=0.412):
         super(Soil, self).__init__(shape='circle')
-        self.sprinkle(30, [0.1,0.03], 0, value=1, max_density=1-porosity)
+        self.sprinkle(30, [0.1,0.03], 0, value=0.5, max_density=1-porosity)
         # use overlap to approximate area opening transform because opening is not discrete
-        self.sprinkle(50, 0.02, -0.01, value=.25)
+        self.sprinkle(50, 0.02, 0.01, value=-.25)
         background = Circle(Point(0.5,0.5),0.5, value=0.5)
         self.insert(0,background)
 
@@ -138,7 +138,7 @@ class Foam(Phantom):
     """Generates a phantom with structure similar to foam."""
     def __init__(self):
         super(Foam, self).__init__(shape='circle')
-        self.sprinkle(300, [0.07,0.01], 0.001, value=0)
+        self.sprinkle(300, [0.07,0.01], 0.001, value=-1)
         background = Circle(Point(0.5,0.5), 0.5, value=1)
         self.insert(0,background)
 

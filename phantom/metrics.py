@@ -84,6 +84,7 @@ def probability_mask(phantom, size, ratio=8, uniform=True):
     image : list of numpy.ndarray
         A list of float masks for each phase in the phantom.
     """
+    raise NotImplementedError
 
     # Make a higher resolution grid to sample the continuous space
     _x = np.arange(0, 1, 1 / size / ratio)
@@ -99,7 +100,7 @@ def probability_mask(phantom, size, ratio=8, uniform=True):
         y = phantom.feature[m].center.y
         rad = phantom.feature[m].radius
         val = phantom.feature[m].value
-        image *= ((px - x)**2 + (py - y)**2 >= rad**2)
+        #image *= ((px - x)**2 + (py - y)**2 >= rad**2) # partial overlap support
         image += ((px - x)**2 + (py - y)**2 < rad**2) * val
 
         # collect a list of the unique values in the phantom

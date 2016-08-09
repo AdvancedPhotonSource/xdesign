@@ -164,6 +164,8 @@ class Phantom(object):
         if not isinstance(radius,list):
             radius = [radius,radius]
         assert(len(radius)==2 and radius[0] >= radius[1] and radius[1] > 0)
+        if gap < 0:
+            raise NotImplementedError # Support for partially overlapping features is not yet supported in the aquisition module
 
         collision = False
         if radius[0] + gap < 0: # prevents defining circles with negative radius
@@ -228,8 +230,8 @@ class Phantom(object):
             self.append(Circle(Point(arr[m, 0], arr[m, 1]), arr[m, 2], arr[m, 3]))
 
     def discrete(self, size, bitdepth=32, ratio=8, uniform=True):
-        """Returns discrete representation of the phantom. Draws the shapes in
-        the order they are listed in self.feature.
+        """Returns discrete representation of the phantom. The values of
+        overlapping shapes are additive.
 
         Parameters
         ------------
@@ -270,7 +272,7 @@ class Phantom(object):
             y = self.feature[m].center.y
             rad = self.feature[m].radius
             val = self.feature[m].value
-            image *= ((px - x)**2 + (py - y)**2 >= rad**2)
+            # image *= ((px - x)**2 + (py - y)**2 >= rad**2) # support for partial overlap
             image += ((px - x)**2 + (py - y)**2 < rad**2) * val
 
         # Resample down to the desired size
