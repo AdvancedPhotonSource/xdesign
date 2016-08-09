@@ -77,13 +77,22 @@ class Phantom(object):
     feature : list
         List of features.
     """
-
+    # OPERATOR OVERLOADS
     def __init__(self, shape='circle'):
+        assert(shape=='circle' or shape=='square')
         self.shape = shape
         self.population = 0
         self.area = 0
         self.feature = []
 
+    def __add__(self, other):
+        assert(type(other) is Phantom)
+        self.population += other.population
+        self.area += other.area
+        self.feature += other.feature
+        return self
+
+    # PROPERTIES
     @property
     def list(self):
         for m in range(self.population):
@@ -96,24 +105,28 @@ class Phantom(object):
         elif self.shape == 'circle':
             return self.area / (np.pi * 0.5 * 0.5)
 
-    def add(self, feature):
-        """Add a feature to the phantom.
-
-        Parameters
-        ----------
-        feature : Feature
-        """
+    # FEATURE LIST MANIPULATION
+    def append(self, feature):
+        """Add a feature to the top of the phantom."""
+        assert(type(feature) is Feature)
         self.feature.append(feature)
         self.area += feature.area
         self.population += 1
 
-    def pop(self):
-        """Pop last added feature from the phantom."""
+    def pop(self, i=-1):
+        """Pop i-th feature from the phantom."""
         self.population -= 1
-        self.area -= self.feature[-1].area
-        self.feature.pop()
+        self.area -= self.feature[i].area
+        return self.feature.pop(i)
 
-    def sort(self, param="value"):
+    def insert(self, i, feature):
+        """Insert a feature at a given depth."""
+        assert(type(feature) is Feature)
+        self.feature.insert(i,feature)
+        self.area += feature.area
+        self.population += 1
+
+    def sort(self, param="value", reverse=False):
         """Sorts the features by value or size"""
         if param == "value":
             key=lambda circle: circle.value
@@ -122,60 +135,67 @@ class Phantom(object):
         else:
             warnings.warn("Can't sort by " + param)
             return
-        self.feature = sorted(self.feature,key=key)
+        self.feature = sorted(self.feature,key=key,reverse=reverse)
 
-    def _random_point(self, margin=0):
-        """Generate a random point in the phantom.
+    def reverse():
+        """Reverse the features of the phantom"""
+        self.feature.reverse()
 
-        Parameters
-        ----------
-        margin : scalar
-            Determines the margin value of the shape.
-            Points will not be created in the margin area.
-
-        Returns
-        -------
-        Point
-            Random point.
-        """
-        if self.shape == 'square':
-            x = np.random.uniform(margin, 1 - margin)
-            y = np.random.uniform(margin, 1 - margin)
-        elif self.shape == 'circle':
-            r = np.random.uniform(0, 0.5 - margin)
-            a = np.random.uniform(0, 2 * np.pi)
-            x = r * np.cos(a) + 0.5
-            y = r * np.sin(a) + 0.5
-        return Point(x, y)
-
-    def sprinkle(self, counts, radius, gap=0, collision=False, value=1):
+    def sprinkle(self, counts, radius, gap=0, region=None, value=1):
         """Sprinkle a number of circles.
 
         Parameters
         ----------
         counts : int
-            Number of circles to be added.
+            The number of circles to be added.
+        radius : scalar
+            The radius of the circles to be added.
         gap : float, optional
-            Minimum distance between circle boundaries.
-        collision : bool, optional
-            True if circles are allowed to overlap.
+            The minimum distance between circle boundaries.
+            A negative value allows overlapping edges.
+        region : Feature
+            The circles are confined to this shape. None if the circles are
+            allowed anywhere.
+        value : scalar
+            A value passed to the value parameter of the circles.
+
         """
-        for m in range(int(counts)):
-            center = self._random_point(radius)
+        assert(counts >= 0)
+        assert(radius > 0)
+        if gap < -radius: # prevents defining circles with negative radius
+            collision = True
+
+        kTERM_CRIT = 200 # how many tries to add a new circle before quitting
+        n_tries = 0 # number of attempts to add a new circle
+        n_added = 0 # number of circles successfully added
+
+        while n_tries < kTERM_CRIT and n_added < counts :
+            center = self._random_point(radius, region=region)
             circle = Circle(center, radius + gap)
-            if not self.collision(circle) or collision:
+
+            if not self._collision(circle):
                 self.add(Circle(center, radius, value=value))
+                n_added += 1
+                n_tries = 0
 
-    def collision(self, circle):
-        """Check if a circle is collided with another circle."""
+            n_tries += 1
+
+        assert(n_added <= counts)
+        if n_added < counts:
+            print("Unable to add all the circles.")
+
+    # GEOMETRIC TRANSFORMATIONS
+    def translate(self, dx, dy):
+        """Translate phantom."""
         for m in range(self.population):
-            dx = self.feature[m].center.x - circle.center.x
-            dy = self.feature[m].center.y - circle.center.y
-            dr = self.feature[m].radius + circle.radius
-            if np.sqrt(dx**2 + dy**2) < dr:
-                return True
-        return False
+            self.feature[m].translate(dx, dy)
 
+    def rotate(self, theta, origin=Point(0, 0)):
+        """Rotate phantom around a point."""
+        for m in range(self.population):
+            self.feature[m].rotate(theta, origin)
+
+    # IMPORT AND EXPORT
     def numpy(self):
         """Returns the Numpy representation."""
         arr = np.empty((self.population, 4))
@@ -197,18 +217,9 @@ class Phantom(object):
         for m in range(arr.shape[0]):
             self.add(Circle(Point(arr[m, 0], arr[m, 1]), arr[m, 2], arr[m, 3]))
 
-    def translate(self, dx, dy):
-        """Translate phantom."""
-        for m in range(self.population):
-            self.feature[m].translate(dx, dy)
-
-    def rotate(self, theta, origin=Point(0, 0)):
-        """Rotate phantom around a point."""
-        for m in range(self.population):
-            self.feature[m].rotate(theta, origin)
-
     def discrete(self, size, bitdepth=32, ratio=8, uniform=True):
-        """Returns discrete representation of the phantom.
+        """Returns discrete representation of the phantom. Draws the shapes in
+        the order they are listed in self.feature.
 
         Parameters
         ------------
@@ -233,22 +244,24 @@ class Phantom(object):
         image : numpy.ndarray
             The discrete representation of the phantom.
         """
-        error = 1./ratio**2
-        warnings.warn("Discrete conversion is approximate. " +
-                      "True values will be within " + str(error) + " %")
+        #error = 1./ratio**2
+        #warnings.warn("Discrete conversion is approximate. " +
+        #              "True values will be within " + str(error) + " %")
 
         # Make a higher resolution grid to sample the continuous space
         _x = np.arange(0, 1, 1 / size / ratio)
         _y = np.arange(0, 1, 1 / size / ratio)
         px, py = np.meshgrid(_x, _y)
 
-        # Draw the shapes at the higher resolution
+        # Draw the shapes at the higher resolution. The order in which shapes
+        # are drawn is preserved.
         image = np.zeros((size*ratio,size*ratio), dtype=np.float)
         for m in range(self.population):
             x = self.feature[m].center.x
             y = self.feature[m].center.y
             rad = self.feature[m].radius
             val = self.feature[m].value
+            image *= ((px - x)**2 + (py - y)**2 >= rad**2)
             image += ((px - x)**2 + (py - y)**2 < rad**2) * val
 
         # Resample down to the desired size
@@ -264,3 +277,51 @@ class Phantom(object):
             image = image.astype(int)
 
         return image
+
+    # PRIVATE METHODS
+    def _random_point(self, margin=0, region=None):
+        """Generate a random point in the given region.
+
+        Parameters
+        ----------
+        margin : scalar
+            Determines the margin value of the shape.
+            Points will not be created in the margin area.
+        region : Feature, optional
+            Determines where the point will be generated. None assumes it can
+            be generated anywhere in the 1x1 phantom.
+
+        Returns
+        -------
+        Point
+            Random point.
+        """
+        if type(region) is Feature:
+            radius = region.radius
+            center = region.center
+        elif region is None:
+            radius = 0.5
+            center = Point(0.5,0.5)
+        else:
+            assert(False) # Region is invalid
+
+        if self.shape == 'square':
+            x = np.random.uniform(margin - radius, radius - margin) + center.x
+            y = np.random.uniform(margin - radius, radius - margin) + center.y
+        elif self.shape == 'circle':
+            r = np.random.uniform(0, radius - margin)
+            a = np.random.uniform(0, 2 * np.pi)
+            x = r * np.cos(a) + center.x
+            y = r * np.sin(a) + center.y
+        return Point(x, y)
+
+    def _collision(self, circle):
+        """Check if a circle is collided with another circle."""
+        assert(type(circle) is Circle)
+        for m in range(self.population):
+            dx = self.feature[m].center.x - circle.center.x
+            dy = self.feature[m].center.y - circle.center.y
+            dr = self.feature[m].radius + circle.radius
+            if np.sqrt(dx**2 + dy**2) < dr:
+                return True
+        return False
