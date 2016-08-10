@@ -84,7 +84,6 @@ def probability_mask(phantom, size, ratio=8, uniform=True):
     image : list of numpy.ndarray
         A list of float masks for each phase in the phantom.
     """
-    raise NotImplementedError
 
     # Make a higher resolution grid to sample the continuous space
     _x = np.arange(0, 1, 1 / size / ratio)

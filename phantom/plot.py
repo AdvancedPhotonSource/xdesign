@@ -108,7 +108,7 @@ def plot_histograms(images, masks=None, thresh=0.025):
 
     if masks == None:
         for i in range(len(images)):
-            hgrams.append(image[i])
+            hgrams.append(images[i])
             labels.append(abet[i])
     else:
         for i in range(len(masks)):

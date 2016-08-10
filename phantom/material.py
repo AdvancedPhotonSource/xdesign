@@ -116,8 +116,8 @@ class HyperbolicConcentric(Phantom):
 class DynamicRange(Phantom):
     """Generates a random placement of circles for determining dynamic range.
     """
-    def __init__(self, steps=70, jitter=True):
-        super(DynamicRange, self).__init__(shape='square')
+    def __init__(self, steps=70, jitter=True, shape='square'):
+        super(DynamicRange, self).__init__(shape=shape)
 
         # determine the size and and spacing of the circles around the box.
         spacing = 1./np.ceil(np.sqrt(steps))
