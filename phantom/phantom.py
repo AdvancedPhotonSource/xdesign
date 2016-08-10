@@ -193,8 +193,7 @@ class Phantom(object):
             n_tries += 1
 
         assert(n_added <= counts)
-        if n_added < counts:
-            print("Unable to append all the circles.")
+        return n_added == counts
 
     # GEOMETRIC TRANSFORMATIONS
     def translate(self, dx, dy):

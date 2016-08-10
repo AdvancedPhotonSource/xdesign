@@ -299,7 +299,7 @@ def compute_quality(reference,reconstructions,method="MSSSIM", L=1):
         reconstructions = [reconstructions]
 
     dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim,
-                  "VIFp": _compute_vifp, "FSIM": _calculate_FSIM}
+                  "VIFp": _compute_vifp, "FSIM": _compute_fsim}
     method_func = dictionary[method]
 
     metrics = []
@@ -390,7 +390,7 @@ def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
     return imQual
 
 from phasepack import phasecongmono as _phasecongmono
-def _calculate_FSIM(imQual, nlevels=5, nwavelets=16, L=None):
+def _compute_fsim(imQual, nlevels=5, nwavelets=16, L=None):
     """
     FSIM Index with automatic downsampling, Version 1.0
     Copyright(c) 2010 Lin ZHANG, Lei Zhang, Xuanqin Mou and David Zhang

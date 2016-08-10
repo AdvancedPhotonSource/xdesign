@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['HyperbolicConcentric', 'Soil', 'Foam']
+__all__ = ['HyperbolicConcentric', 'DynamicRange','Soil', 'Foam']
 
 ## Elements and Mixtures - Not Implemented
 class Element(Circle):
@@ -80,7 +80,8 @@ class Element(Circle):
 class HyperbolicConcentric(Phantom):
     """Generates a standard test pattern based on the ISO 12233:2014 standard.
     It is a series of cocentric alternating black and white circles whose radii
-    are changing at a parabolic rate.
+    are changing at a parabolic rate. These lines whose spacing covers a range
+    scales can be used to quanitify the Modulation Transfer Function (MTF).
     """
     def __init__(self, min_width=0.05):
         """
@@ -113,9 +114,35 @@ class HyperbolicConcentric(Phantom):
         self.widths = widths
 
 class DynamicRange(Phantom):
-    """"""
-    def __init__(self):
+    """Generates a random placement of circles for determining dynamic range.
+    """
+    def __init__(self, steps=70, jitter=True):
         super(DynamicRange, self).__init__(shape='square')
+
+        # determine the size and and spacing of the circles around the box.
+        spacing = 1./np.ceil(np.sqrt(steps))
+        radius = spacing/4
+
+        if jitter:
+            # generate grid
+            _x = np.arange(0, 1, spacing) + spacing/2
+            px, py, = np.meshgrid(_x, _x)
+            px = np.ravel(px)
+            py = np.ravel(py)
+
+            # calculate jitters
+            jitters = 2*radius*(np.random.rand(2,steps)-0.5)
+
+            # place the circles
+            colors = np.arange(1/steps,1+1/steps,1/steps)
+            np.random.shuffle(colors)
+            for i in range(0,steps):
+                center = Point(px[i]+jitters[0,i],py[i]+jitters[1,i])
+                self.append(Circle(center,radius,value=colors[i]))
+        else:
+            # completely random
+            for i in range(1,steps+1):
+                self.sprinkle(1,radius,gap=radius*0.9,value=i/steps)
 
 class Soil(Phantom):
     """Generates a phantom with structure similar to soil.
