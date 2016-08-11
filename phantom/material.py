@@ -165,7 +165,7 @@ class Foam(Phantom):
     """Generates a phantom with structure similar to foam."""
     def __init__(self):
         super(Foam, self).__init__(shape='circle')
-        self.sprinkle(300, [0.07,0.01], 0.001, value=-1)
+        self.sprinkle(300, [0.05,0.01], 0, value=-1)
         background = Circle(Point(0.5,0.5), 0.5, value=1)
         self.insert(0,background)
 
