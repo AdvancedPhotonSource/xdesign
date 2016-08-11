@@ -83,7 +83,7 @@ class HyperbolicConcentric(Phantom):
     are changing at a parabolic rate. These lines whose spacing covers a range
     scales can be used to quanitify the Modulation Transfer Function (MTF).
     """
-    def __init__(self, min_width=0.05):
+    def __init__(self, min_width=0.1,exponent=1/2):
         """
         Attributes
         -------------
@@ -94,14 +94,14 @@ class HyperbolicConcentric(Phantom):
         """
         super(HyperbolicConcentric, self).__init__(shape='circle')
         center = Point(0.5,0.5)
-        exponent = 1/2
+        #exponent = 1/2
         Nmax_rings = 512
 
         radii = [0]
         widths = [min_width]
         for ring in range(0,Nmax_rings):
-            radius = min_width*np.power(ring,exponent)
-            if radius > 0.5 and ring%2 == 1:
+            radius = min_width*np.power(ring+1,exponent)
+            if radius > 0.5 and ring%2:
                 break
 
             self.append(Circle(center,radius, value=(-1.)**(ring%2)))

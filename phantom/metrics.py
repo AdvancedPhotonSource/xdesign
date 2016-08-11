@@ -60,7 +60,67 @@ __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['ImageQuality','probability_mask','compute_quality','compute_PCC',
-            'compute_likeness','compute_background_ttest']
+            'compute_likeness','compute_background_ttest', 'compute_mtf']
+
+from phantom.material import HyperbolicConcentric
+import matplotlib.pyplot as plt
+def compute_mtf(phantom,image):
+    """Approximates the modulation tranfer function using the
+    HyperbolicCocentric phantom. Calculates the MTF from the modulation depth
+    at each edge on the line from (0.5,0.5) to (0.5,1). MTF = (hi-lo)/(hi+lo)
+
+    This method rapidly becomes inaccurate at small wavelenths because the
+    measurement gets out of phase with the waves due to rounding error. It should
+    be replaced with a method that fits a decaying damped cylindrical sine
+    function. 
+
+    Parameters
+    ---------------
+    phantom : HyperbolicConcentric
+        Predefined phantom of cocentric rings whose widths decay parabolically.
+    image : ndarray
+        The reconstruction of the above phantom.
+
+    Returns
+    --------------
+    wavelength : list
+        wavelenth in the scale of the original phantom
+    MTF : list
+        MTF values
+    """
+    assert(isinstance(phantom,HyperbolicConcentric))
+
+    center = int(image.shape[0]/2) # assume square shape
+    radii = np.array(phantom.radii) * image.shape[0]
+    widths = np.array(phantom.widths) * image.shape[0]
+
+    #plt.figure()
+    #plt.plot(image[int(center),:])
+    #plt.show(block=True)
+
+    MTF = []
+    for i in range(1,len(widths)-1):
+        # Locate the edge between rings in the discrete reconstruction.
+        mid = int(center + radii[i]) # middle of edge
+        rig = int(mid + widths[i+1]) # right boundary
+        lef = int(mid - widths[i+1]) # left boundary
+        # print(lef,mid,rig)
+
+        # Stop when the waves are below the size of a pixel
+        if rig == mid or lef == mid:
+            break
+
+        # Calculate MTF at the edge
+        hi = np.sum(image[center,lef:mid])
+        lo = np.sum(image[center,mid:rig])
+        MTF.append(abs(hi-lo)/(hi+lo))
+
+        #plt.figure()
+        #plt.plot(image[int(center),int(lef):int(rig)])
+        #plt.show(block=True)
+
+    wavelength = phantom.widths[1:-1]
+    return wavelength, MTF
 
 def probability_mask(phantom, size, ratio=8, uniform=True):
     """Returns the probability mask for each phase in the phantom.
