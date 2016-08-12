@@ -81,15 +81,18 @@ class Probe(Beam):
         self.p1 = rotate(self.p1, theta, origin)
         self.p2 = rotate(self.p2, theta, origin)
 
-    def measure(self, phantom):
-        """Return the probe measurement given phantom."""
+    def measure(self, phantom, noise=False):
+        """Return the probe measurement given phantom. When noise is > 0,
+        poisson noise is added to the returned measurement."""
         newdata = 0
         for m in range(phantom.population):
             newdata += beamcirc(self, phantom.feature[m]) * phantom.feature[m].value
+        if noise > 0:
+            newdata += newdata*noise*np.random.poisson(1)
         return newdata
 
 
-def sinogram(sx, sy, phantom):
+def sinogram(sx, sy, phantom, noise=False):
     """Generates sinogram given a phantom.
 
     Parameters
@@ -110,11 +113,11 @@ def sinogram(sx, sy, phantom):
     for m in range(sx):
         print (m)
         for n in range(sy):
-            sino[m, n] = next(scan).measure(phantom)
+            sino[m, n] = next(scan).measure(phantom, noise)
     return sino
 
 
-def angleogram(sx, sy, phantom):
+def angleogram(sx, sy, phantom, noise=False):
     """Generates angleogram given a phantom.
 
     Parameters
@@ -135,7 +138,7 @@ def angleogram(sx, sy, phantom):
     for m in range(sx):
         print (m)
         for n in range(sy):
-            angl[m, n] = next(scan).measure(phantom)
+            angl[m, n] = next(scan).measure(phantom, noise)
     return angl
 
 
