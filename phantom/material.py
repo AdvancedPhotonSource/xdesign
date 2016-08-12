@@ -56,10 +56,10 @@ from phantom.geometry import *
 
 logger = logging.getLogger(__name__)
 
-__author__ = "Doga Gursoy"
+__author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['HyperbolicConcentric', 'DynamicRange','Soil', 'Foam']
+__all__ = ['HyperbolicConcentric', 'DynamicRange','Soil', 'Foam', 'NoiseBlank']
 
 ## Elements and Mixtures - Not Implemented
 class Element(Circle):
@@ -143,6 +143,13 @@ class DynamicRange(Phantom):
             # completely random
             for i in range(1,steps+1):
                 self.sprinkle(1,radius,gap=radius*0.9,value=i/steps)
+
+class UnitCircle(Phantom):
+    """Generates a phantom with a single circle of radius 0.4 for the purpose of
+    measuring the nose power spectrum."""
+    def __init__(self, value=1):
+        super(NoiseBlank, self).__init__()
+        self.append(Circle(Point(0.5,0.5),0.5,value=value))
 
 class Soil(Phantom):
     """Generates a phantom with structure similar to soil.
