@@ -85,7 +85,7 @@ class Probe(Beam):
         """Return the probe measurement given phantom."""
         newdata = 0
         for m in range(phantom.population):
-            newdata += beamcirc(self, phantom.feature[m])
+            newdata += beamcirc(self, phantom.feature[m]) * phantom.feature[m].value
         return newdata
 
 
@@ -96,7 +96,7 @@ def sinogram(sx, sy, phantom):
     ----------
     sx : int
         Number of rotation angles.
-    sy : int 
+    sy : int
         Number of detection pixels (or sample translations).
     phantom : Phantom
 
@@ -121,7 +121,7 @@ def angleogram(sx, sy, phantom):
     ----------
     sx : int
         Number of rotation angles.
-    sy : int 
+    sy : int
         Number of detection pixels (or sample translations).
     phantom : Phantom
 
@@ -146,7 +146,7 @@ def raster_scan(sx, sy):
     ----------
     sx : int
         Number of rotation angles.
-    sy : int 
+    sy : int
         Number of detection pixels (or sample translations).
 
     Yields
@@ -177,7 +177,7 @@ def angle_scan(sx, sy):
     ----------
     sx : int
         Number of rotation angles.
-    sy : int 
+    sy : int
         Number of detection pixels (or sample translations).
 
     Yields
