@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['HyperbolicConcentric', 'DynamicRange','Soil', 'Foam', 'NoiseBlank']
+__all__ = ['HyperbolicConcentric', 'DynamicRange','Soil', 'Foam', 'UnitCircle']
 
 ## Elements and Mixtures - Not Implemented
 class Element(Circle):
@@ -116,12 +116,15 @@ class HyperbolicConcentric(Phantom):
 class DynamicRange(Phantom):
     """Generates a random placement of circles for determining dynamic range.
     """
-    def __init__(self, steps=70, jitter=True, shape='square'):
+    def __init__(self, steps=10, jitter=True, shape='square'):
         super(DynamicRange, self).__init__(shape=shape)
 
         # determine the size and and spacing of the circles around the box.
         spacing = 1./np.ceil(np.sqrt(steps))
         radius = spacing/4
+
+        colors = [2**j for j in range(0,steps)]
+        np.random.shuffle(colors)
 
         if jitter:
             # generate grid
@@ -134,21 +137,19 @@ class DynamicRange(Phantom):
             jitters = 2*radius*(np.random.rand(2,steps)-0.5)
 
             # place the circles
-            colors = np.arange(1/steps,1+1/steps,1/steps)
-            np.random.shuffle(colors)
             for i in range(0,steps):
                 center = Point(px[i]+jitters[0,i],py[i]+jitters[1,i])
                 self.append(Circle(center,radius,value=colors[i]))
         else:
             # completely random
-            for i in range(1,steps+1):
-                self.sprinkle(1,radius,gap=radius*0.9,value=i/steps)
+            for i in range(0,steps):
+                self.sprinkle(1,radius,gap=radius*0.9,value=colors[i])
 
 class UnitCircle(Phantom):
     """Generates a phantom with a single circle of radius 0.4 for the purpose of
     measuring the nose power spectrum."""
     def __init__(self, value=1):
-        super(NoiseBlank, self).__init__()
+        super(UnitCircle, self).__init__()
         self.append(Circle(Point(0.5,0.5),0.5,value=value))
 
 class Soil(Phantom):

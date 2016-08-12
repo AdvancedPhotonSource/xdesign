@@ -60,7 +60,7 @@ __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['ImageQuality','probability_mask','compute_quality','compute_PCC',
-            'compute_likeness','compute_background_ttest', 'compute_mtf']
+            'compute_likeness','compute_background_ttest', 'compute_mtf', 'compute_nps']
 
 from phantom.material import HyperbolicConcentric
 import matplotlib.pyplot as plt
@@ -72,7 +72,7 @@ def compute_mtf(phantom,image):
     This method rapidly becomes inaccurate at small wavelenths because the
     measurement gets out of phase with the waves due to rounding error. It should
     be replaced with a method that fits a decaying damped cylindrical sine
-    function. 
+    function.
 
     Parameters
     ---------------
@@ -121,6 +121,75 @@ def compute_mtf(phantom,image):
 
     wavelength = phantom.widths[1:-1]
     return wavelength, MTF
+
+def compute_nps(image, plot_type='frequency'):
+    '''Calculates the noise power spectrum from a unit circle image. The peak
+    at low spatial frequency is probably due to aliasing. Invesigation into
+    supressing this peak is necessary.
+
+    Parameters
+    ---------------
+    images : ndarray
+        The unit circle reconstrucitons to evaluate for noise.
+    plot_type : string
+        'histogram' returns a plot binned by radial coordinate wavenumber
+        'frequency' returns a wavenumber vs wavenumber plot
+    '''
+    resolution = image.shape[0] # [pixels/length]
+    # cut out uniform region (square circumscribed by unit circle)
+    i_half = image.shape[0]/2 # half unit circle
+    s_half = int(i_half/np.sqrt(2)) # half of the square inside the circle
+    i_half = int(i_half)
+    unif_region = image[i_half-s_half:i_half+s_half,i_half-s_half:i_half+s_half]
+
+    # zero-mean normalization
+    unif_region = unif_region-np.mean(unif_region)
+
+    # 2D fourier-transform
+    unif_region = np.fft.fftshift(np.fft.fft2(unif_region))
+    # squared modulus / squared complex norm
+    NPS = np.abs((unif_region))**2 # [attenuation^2]
+
+    # Calculate axis labels
+    # TODO@dgursoy is this frequency scaling correct?
+    x = y = (np.arange(0,unif_region.shape[0]) / (unif_region.shape[0]) - 0.5 ) / resolution;
+    X, Y = np.meshgrid(x, y)
+
+    if plot_type == 'histogram':
+        # calculate polar coordinates for each position
+        R = np.sqrt(X**2 + Y**2)
+        # Theta = nothing; we are averaging radial contours
+
+        n_bins = 1e2
+        bin_size = np.max(R)/n_bins
+        bins = np.arange(0.0,np.max(R),bin_size)
+
+        counts = np.zeros(bins.shape)
+        for i in range(0,bins.size):
+            if i < bins.size - 1:
+                mask = np.bitwise_and(bins[i]<=R, R<bins[i+1])
+            else:
+                mask = R>=bins[i]
+            # average all the counts for equal radii
+            if 0 < np.sum(mask): # some bins may be empty
+                counts[i] = np.mean(NPS[mask])
+
+        plt.figure()
+        plt.bar(bins, counts, width=bin_size)
+        plt.xlabel('wavenumber [1/length]')
+        plt.ylabel('value^2')
+        plt.show(block=False)
+        return bins, counts
+
+    elif plot_type == 'frequency':
+        plt.figure()
+        plt.contourf(X,Y,NPS,cmap='inferno')
+        plt.xlabel('wavenumber [1/length]')
+        plt.ylabel('wavenumber [1/length]')
+        plt.axis('equal')
+        plt.colorbar()
+        plt.show(block=False)
+        return NPS, X, Y
 
 def probability_mask(phantom, size, ratio=8, uniform=True):
     """Returns the probability mask for each phase in the phantom.
