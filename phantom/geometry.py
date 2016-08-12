@@ -61,7 +61,8 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['Point',
            'Circle',
            'Line',
-           'Beam']
+           'Beam',
+           'Feature']
 
 
 class Feature(object):

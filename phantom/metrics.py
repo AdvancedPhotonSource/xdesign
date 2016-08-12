@@ -59,7 +59,161 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['ImageQuality','background_mask','compute_quality']
+__all__ = ['ImageQuality','probability_mask','compute_quality','compute_PCC',
+            'compute_likeness','compute_background_ttest']
+
+def probability_mask(phantom, size, ratio=8, uniform=True):
+    """Returns the probability mask for each phase in the phantom.
+
+    Parameters
+    ------------
+    size : scalar
+        The side length in pixels of the resulting square image.
+    ratio : scalar, optional
+        The discretization works by drawing the shapes in a larger space
+        then averaging and downsampling. This parameter controls how many
+        pixels in the larger representation are averaged for the final
+        representation. e.g. if ratio = 8, then the final pixel values
+        are the average of 64 pixels.
+    uniform : boolean, optional
+        When set to False, changes the way pixels are averaged from a
+        uniform weights to gaussian weights.
+
+    Returns
+    ------------
+    image : list of numpy.ndarray
+        A list of float masks for each phase in the phantom.
+    """
+
+    # Make a higher resolution grid to sample the continuous space
+    _x = np.arange(0, 1, 1 / size / ratio)
+    _y = np.arange(0, 1, 1 / size / ratio)
+    px, py = np.meshgrid(_x, _y)
+
+    phases = {0} # tracks what values exist in this phantom
+
+    # Draw the shapes to the higher resolution grid
+    image = np.zeros((size*ratio,size*ratio), dtype=np.float)
+    for m in range(phantom.population):
+        x = phantom.feature[m].center.x
+        y = phantom.feature[m].center.y
+        rad = phantom.feature[m].radius
+        val = phantom.feature[m].value
+        #image *= ((px - x)**2 + (py - y)**2 >= rad**2) # partial overlap support
+        image += ((px - x)**2 + (py - y)**2 < rad**2) * val
+
+        # collect a list of the unique values in the phantom
+        phases = phases | {val}
+
+    # generate a separate mask for each phase
+    masks = []
+    phases = list(phases)
+    phases.sort()
+    for m in range(0,len(phases)):
+        masks.append(0)
+
+        # First make a boolean array for each value,
+        val = phases[m]
+        masks[m] = (image == val).astype(float)
+
+        # then use a uniform filter to calculate the local percentage for each
+        # phase.
+        if uniform:
+            masks[m] = scipy.ndimage.uniform_filter(masks[m],ratio)
+        else:
+            masks[m] = scipy.ndimage.gaussian_filter(masks[m],ratio/4.)
+        # Resample
+        masks[m] = masks[m][::ratio,::ratio]
+
+    return masks
+
+def compute_PCC(A, B, masks=None):
+    """ Computes the Pearson product-moment correlation coefficients (PCC) for
+    the two images.
+
+    Parameters
+    -------------
+    A,B : ndarray
+        The two images to be compared
+    masks : list of ndarrays, optional
+        If supplied, the data under each mask is computed separately.
+
+    Returns
+    ----------------
+    covariances : array, list of arrays
+    """
+    covariances = []
+    if masks == None:
+        data = np.vstack((np.ravel(A),np.ravel(B)))
+        return np.corrcoef(data)
+
+    for m in masks:
+        weights = m[m>0]
+        masked_B = B[m>0]
+        masked_A = A[m>0]
+        data = np.vstack((masked_A,masked_B))
+        #covariances.append(np.cov(data,aweights=weights))
+        covariances.append(np.corrcoef(data))
+
+    return covariances
+
+from scipy.stats import norm, exponnorm, expon, ttest_ind
+def compute_likeness(A, B, masks):
+    """ Predicts the likelihood that each pixel in B belongs to a phase based
+    on the histogram of A.
+
+    Parameters
+    ------------
+    A : ndarray
+    B : ndarray
+    masks : list of ndarrays
+
+    Returns
+    --------------
+    likelihoods : list of ndarrays
+    """
+    # generate the pdf or pmf for each of the phases
+    pdfs = []
+    for m in masks:
+        K, mu, std = exponnorm.fit(np.ravel(A[m>0]))
+        print((K,mu,std))
+        # for each reconstruciton, plot the likelihood that this phase generates that pixel
+        pdfs.append(exponnorm.pdf(B,K,mu,std))
+
+    # determine the probability that it belongs to its correct phase
+    pdfs_total = sum(pdfs)
+    return pdfs / pdfs_total
+
+def compute_background_ttest(image, masks):
+    """Determines whether the background has significantly different luminance
+    than the other phases.
+
+    Parameters
+    -------------
+    image : ndarray
+
+    masks : list of ndarrays
+        Masks for the background and any other phases. Does not autogenerate
+        the non-background mask because maybe you want to compare only two phases.
+
+    Returns
+    ----------
+    tstat : scalar
+    pvalue : scalar
+    """
+
+    # separate the background
+    background = image[masks[0]>0]
+    # combine non-background masks
+    other = False
+    for i in range(1,len(masks)):
+        other = np.logical_or(other,masks[i]>0)
+    other = image[other]
+
+    tstat, pvalue = ttest_ind(background, other, axis=None, equal_var=False)
+    #print([tstat,pvalue])
+
+    return tstat, pvalue
 
 class ImageQuality(object):
     """Stores information about image quality
@@ -144,7 +298,7 @@ def compute_quality(reference,reconstructions,method="MSSSIM", L=1):
         reconstructions = [reconstructions]
 
     dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim,
-                  "VIFp": _compute_vifp, "FSIM": _calculate_FSIM}
+                  "VIFp": _compute_vifp, "FSIM": _compute_fsim}
     method_func = dictionary[method]
 
     metrics = []
@@ -154,33 +308,6 @@ def compute_quality(reference,reconstructions,method="MSSSIM", L=1):
         metrics.append(IQ)
 
     return metrics
-
-def background_mask(phantom, shape):
-    """Returns the background mask.
-
-    Parameters
-    ----------
-    phantom : Phantom
-    shape : ndarray
-
-    Returns
-    -------
-    ndarray, bool
-        True if pixel belongs to (an assumed) background.
-    """
-    dx, dy = shape
-    _x = np.arange(0, 1, 1 / dx)
-    _y = np.arange(0, 1, 1 / dy)
-    px, py = np.meshgrid(_x, _y)
-
-    mask = np.zeros(shape, dtype=np.bool)
-    mask += (px - 0.5)**2 + (py - 0.5)**2 < 0.5**2
-    for m in range(phantom.population):
-        x = phantom.feature[m].center.x
-        y = phantom.feature[m].center.y
-        rad = phantom.feature[m].radius
-        mask -= (px - x)**2 + (py - y)**2 < rad**2
-    return mask
 
 def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
     """ Calculates the Visual Information Fidelity (VIFp) between two images in
@@ -262,7 +389,7 @@ def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
     return imQual
 
 from phasepack import phasecongmono as _phasecongmono
-def _calculate_FSIM(imQual, nlevels=5, nwavelets=16, L=None):
+def _compute_fsim(imQual, nlevels=5, nwavelets=16, L=None):
     """
     FSIM Index with automatic downsampling, Version 1.0
     Copyright(c) 2010 Lin ZHANG, Lei Zhang, Xuanqin Mou and David Zhang
