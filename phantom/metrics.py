@@ -123,7 +123,7 @@ def compute_mtf2(phantom,image):
     return wavelength, MTF
 
 from phantom.material import UnitCircle
-def compute_mtf(phantom,image):
+def compute_mtf(phantom,image,Ntheta=4):
     ''' Uses method described in Friedman et al to calculate the MTF.
 
     Parameters
@@ -162,8 +162,8 @@ def compute_mtf(phantom,image):
     # Normalize the data to [0,1)
     x_circle = np.mean(image[R<phantom.feature[0].radius - 0.01])
     x_air = np.mean(image[R>phantom.feature[0].radius + 0.01])
-    print(x_air)
-    print(x_circle)
+    #print(x_air)
+    #print(x_circle)
     image = (image - x_air) / (x_circle - x_air)
     image[image < 0] = 0
     image[image > 1] = 1
@@ -172,7 +172,7 @@ def compute_mtf(phantom,image):
     R_bins = np.arange(0,np.max(R),R_bin_width)
     #print(R_bins)
 
-    Th_bin_width = 2*np.pi/4 # [radians]
+    Th_bin_width = 2*np.pi/Ntheta # [radians]
     Th_bins = np.arange(-Th_bin_width/2,2*np.pi-Th_bin_width/2,Th_bin_width)
     Th[Th < -Th_bin_width/2] = 2*np.pi + Th[Th < -Th_bin_width/2]
     #print(Th_bins)
@@ -234,10 +234,12 @@ def compute_mtf(phantom,image):
     plt.figure()
     for i in range(0,MTF.shape[0]):
         plt.plot(faxis,MTF[i,:])
-    plt.xlabel('spatial frequency (length^{-1})');
-    plt.ylabel('MTF_r')
+    plt.xlabel('spatial frequency [1/length]');
+    plt.ylabel('Radial MTF')
     plt.axis([0, np.max(faxis), 0, 1])
-    plt.legend(Th_bins/np.pi)
+    a = (Th_bins + Th_bin_width/2)/np.pi
+    plt.legend(['$'+ str(n) + ' \pi$' for n in a])
+
     plt.show(block=True)
     return faxis, MTF
 
