@@ -59,11 +59,12 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['HyperbolicConcentric', 'DynamicRange','Soil', 'Foam', 'UnitCircle']
+__all__ = ['HyperbolicConcentric','DynamicRange','UnitCircle','Soil','Foam']
 
 ## Elements and Mixtures - Not Implemented
 class Element(Circle):
-    """
+    """Placeholder for class which uses NIST data to automatically calculate
+    attenuation values for features based on beam energy.
     """
     def __init__(self, MeV=1):
         # calculate the value based on the photon energy
@@ -78,10 +79,9 @@ class Element(Circle):
 
 ## Microstructures
 class HyperbolicConcentric(Phantom):
-    """Generates a standard test pattern based on the ISO 12233:2014 standard.
-    It is a series of cocentric alternating black and white circles whose radii
-    are changing at a parabolic rate. These lines whose spacing covers a range
-    scales can be used to quanitify the Modulation Transfer Function (MTF).
+    """Generates a series of cocentric alternating black and white circles whose
+    radii are changing at a parabolic rate. These lines whose spacing covers a
+    range scales can be used to estimate the Modulation Transfer Function (MTF).
     """
     def __init__(self, min_width=0.1,exponent=1/2):
         """
@@ -114,7 +114,17 @@ class HyperbolicConcentric(Phantom):
         self.widths = widths
 
 class DynamicRange(Phantom):
-    """Generates a random placement of circles for determining dynamic range.
+    """Generates a phantom of randomly placed circles for determining dynamic
+    range.
+
+    Parameters
+    -------------
+    steps : scalar, optional
+        The orders of magnitude (base 2) that the colors of the circles cover.
+    jitter : bool, optional
+        True : circles are placed in a jittered grid
+        False : circles are randomly placed
+    shape : string, optional
     """
     def __init__(self, steps=10, jitter=True, shape='square'):
         super(DynamicRange, self).__init__(shape=shape)
@@ -143,14 +153,15 @@ class DynamicRange(Phantom):
         else:
             # completely random
             for i in range(0,steps):
-                self.sprinkle(1,radius,gap=radius*0.9,value=colors[i])
+                if 1 > self.sprinkle(1,radius,gap=radius*0.9,value=colors[i]):
+                    None
+                    #TODO: ensure that all circles are placed
 
 class UnitCircle(Phantom):
-    """Generates a phantom with a single circle of radius 0.4 for the purpose of
-    measuring the nose power spectrum."""
-    def __init__(self, value=1, radius=0.5):
+    """Generates a phantom with a single circle in its center."""
+    def __init__(self, radius=0.5, value=1):
         super(UnitCircle, self).__init__()
-        self.append(Circle(Point(0.5,0.5),radius,value=value))
+        self.append(Circle(Point(0.5,0.5),radius,value))
 
 class Soil(Phantom):
     """Generates a phantom with structure similar to soil.
@@ -165,7 +176,7 @@ class Soil(Phantom):
         super(Soil, self).__init__(shape='circle')
         self.sprinkle(30, [0.1,0.03], 0, value=0.5, max_density=1-porosity)
         # use overlap to approximate area opening transform because opening is not discrete
-        self.sprinkle(50, 0.02, 0.01, value=-.25)
+        self.sprinkle(100, 0.02, 0.01, value=-.25)
         background = Circle(Point(0.5,0.5),0.5, value=0.5)
         self.insert(0,background)
 

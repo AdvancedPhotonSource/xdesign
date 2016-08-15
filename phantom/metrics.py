@@ -241,7 +241,7 @@ def compute_mtf(phantom,image):
     plt.show(block=True)
     return faxis, MTF
 
-def compute_nps(image, plot_type='frequency'):
+def compute_nps(phantom, image, plot_type='frequency'):
     '''Calculates the noise power spectrum from a unit circle image. The peak
     at low spatial frequency is probably due to aliasing. Invesigation into
     supressing this peak is necessary.
@@ -264,9 +264,8 @@ def compute_nps(image, plot_type='frequency'):
     '''
     resolution = image.shape[0] # [pixels/length]
     # cut out uniform region (square circumscribed by unit circle)
-    i_half = image.shape[0]/2 # half unit circle
-    s_half = int(i_half/np.sqrt(2)) # half of the square inside the circle
-    i_half = int(i_half)
+    i_half = int(image.shape[0]/2) # half image
+    s_half = int(image.shape[0]*phantom.feature[0].radius/np.sqrt(2)) # half of the square inside the circle
     unif_region = image[i_half-s_half:i_half+s_half,i_half-s_half:i_half+s_half]
 
     # zero-mean normalization
@@ -305,7 +304,7 @@ def compute_nps(image, plot_type='frequency'):
         plt.bar(bins, counts, width=bin_size)
         plt.xlabel('wavenumber [1/length]')
         plt.ylabel('value^2')
-        title('Noise Power Spectrum')
+        plt.title('Noise Power Spectrum')
         plt.show(block=False)
         return bins, counts
 
@@ -316,7 +315,7 @@ def compute_nps(image, plot_type='frequency'):
         plt.ylabel('wavenumber [1/length]')
         plt.axis('equal')
         plt.colorbar()
-        title('Noise Power Spectrum')
+        plt.title('Noise Power Spectrum')
         plt.show(block=False)
         return NPS, X, Y
 

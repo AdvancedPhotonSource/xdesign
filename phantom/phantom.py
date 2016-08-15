@@ -159,6 +159,10 @@ class Phantom(object):
         value : scalar, optional
             A value passed to the value parameter of the circles.
 
+        Returns
+        ----------
+        counts : scalar
+            The number of circles successfully added.
         """
         assert(counts >= 0)
         if not isinstance(radius,list):
