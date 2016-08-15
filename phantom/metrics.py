@@ -64,7 +64,7 @@ __all__ = ['ImageQuality','probability_mask','compute_quality','compute_PCC',
 
 from phantom.material import HyperbolicConcentric
 import matplotlib.pyplot as plt
-def compute_mtf(phantom,image):
+def compute_mtf2(phantom,image):
     """Approximates the modulation tranfer function using the
     HyperbolicCocentric phantom. Calculates the MTF from the modulation depth
     at each edge on the line from (0.5,0.5) to (0.5,1). MTF = (hi-lo)/(hi+lo)
@@ -122,10 +122,137 @@ def compute_mtf(phantom,image):
     wavelength = phantom.widths[1:-1]
     return wavelength, MTF
 
+from phantom.material import UnitCircle
+def compute_mtf(phantom,image):
+    ''' Uses method described in Friedman et al to calculate the MTF.
+
+    Parameters
+    ---------------
+    phantom : UnitCircle
+        Predefined phantom with single circle whose radius is less than 0.5.
+    image : ndarray
+        The reconstruction of the above phantom.
+
+    Returns
+    --------------
+    wavenumber : ndarray
+        wavelenth in the scale of the original phantom
+    MTF : ndarray
+        MTF values
+
+    References
+    ---------------
+    S. N. Friedman, G. S. K. Fung, J. H. Siewerdsen, and B. M. W. Tsui.  "A
+    simple approach to measure computed tomography (CT) modulation transfer
+    function (MTF) and noise-power spectrum (NPS) using the American College
+    of Radiology (ACR) accreditation phantom," Med. Phys. 40, 051907-1 -
+    051907-9 (2013). http://dx.doi.org/10.1118/1.4800795
+    '''
+    assert(isinstance(phantom,UnitCircle))
+    assert(phantom.feature[0].radius < 0.5)
+
+    # convert pixel coordinates to length coordinates
+    x = y = (np.arange(0,image.shape[0]) / image.shape[0] - 0.5 );
+    X, Y = np.meshgrid(x, y)
+    # calculate polar coordinates for each position
+    R = np.sqrt(X**2 + Y**2)
+    Th = np.arctan2(Y,X)
+    #print(x)
+
+    # Normalize the data to [0,1)
+    x_circle = np.mean(image[R<phantom.feature[0].radius - 0.01])
+    x_air = np.mean(image[R>phantom.feature[0].radius + 0.01])
+    print(x_air)
+    print(x_circle)
+    image = (image - x_air) / (x_circle - x_air)
+    image[image < 0] = 0
+    image[image > 1] = 1
+
+    R_bin_width = 1/image.shape[0] # [length] (R is already converted to length)
+    R_bins = np.arange(0,np.max(R),R_bin_width)
+    #print(R_bins)
+
+    Th_bin_width = 2*np.pi/4 # [radians]
+    Th_bins = np.arange(-Th_bin_width/2,2*np.pi-Th_bin_width/2,Th_bin_width)
+    Th[Th < -Th_bin_width/2] = 2*np.pi + Th[Th < -Th_bin_width/2]
+    #print(Th_bins)
+
+    # data with radius falling within a given bin are averaged together for a
+    # low noise approximation of the ESF at the given radius
+    ESF = np.empty([Th_bins.size,R_bins.size])
+    ESF[:] = np.NAN
+    count = np.zeros([Th_bins.size,R_bins.size])
+    for r in range(0,R_bins.size):
+        Rmask = R_bins[r]<=R
+        if r + 1 < R_bins.size:
+            Rmask = np.bitwise_and(Rmask, R<R_bins[r+1])
+
+        for th in range(0,Th_bins.size):
+            Tmask = Th_bins[th]<=Th
+            if th + 1 < Th_bins.size:
+                Tmask = np.bitwise_and(Tmask, Th<Th_bins[th+1])
+
+            # average all the counts for equal radii
+            #TODO: Determine whether count is actually needed. It could be replaced with np.mean
+            mask = np.bitwise_and(Tmask,Rmask)
+            count[th,r] = np.sum(mask)
+            if 0 < count[th,r]: # some bins may be empty
+                ESF[th,r] = np.sum(image[mask])/count[th,r]
+
+    while np.sum(np.isnan(ESF)): # smooth over empty bins
+        ESF[np.isnan(ESF)] = ESF[np.roll(np.isnan(ESF),-1)]
+
+    #plt.figure()
+    #for i in range(0,ESF.shape[0]):
+    #    plt.plot(ESF[i,:])
+    #plt.xlabel('radius');
+    #plt.title('ESF')
+
+    LSF = -np.diff(ESF,axis=1)
+
+    # trim the LSF so that the edge is in the center of the data
+    edge_center = int(phantom.feature[0].radius/R_bin_width)
+    #print(edge_center)
+    pad = int(LSF.shape[1]/5)
+    LSF = LSF[:,edge_center-pad:edge_center+pad+1]
+    #print(LSF)
+    LSF_weighted = LSF * np.hanning(LSF.shape[1])
+
+    #plt.figure()
+    #for i in range(0,LSF.shape[0]):
+    #    plt.plot(LSF[i,:])
+    #plt.xlabel('radius');
+    #plt.title('LSF')
+    #plt.show(block=True)
+
+    #Calculate the MTF
+    T = np.fft.fftshift(np.fft.fft(LSF_weighted));
+    faxis = (np.arange(0,LSF.shape[1]) / LSF.shape[1] - 0.5) / R_bin_width;
+
+    MTF = np.abs(T);
+    #Plot the MTF
+    plt.figure()
+    for i in range(0,MTF.shape[0]):
+        plt.plot(faxis,MTF[i,:])
+    plt.xlabel('spatial frequency (length^{-1})');
+    plt.ylabel('MTF_r')
+    plt.axis([0, np.max(faxis), 0, 1])
+    plt.legend(Th_bins/np.pi)
+    plt.show(block=True)
+    return faxis, MTF
+
 def compute_nps(image, plot_type='frequency'):
     '''Calculates the noise power spectrum from a unit circle image. The peak
     at low spatial frequency is probably due to aliasing. Invesigation into
     supressing this peak is necessary.
+
+    References
+    ---------------
+    S. N. Friedman, G. S. K. Fung, J. H. Siewerdsen, and B. M. W. Tsui.  "A
+    simple approach to measure computed tomography (CT) modulation transfer
+    function (MTF) and noise-power spectrum (NPS) using the American College
+    of Radiology (ACR) accreditation phantom," Med. Phys. 40, 051907-1 -
+    051907-9 (2013). http://dx.doi.org/10.1118/1.4800795
 
     Parameters
     ---------------
@@ -178,6 +305,7 @@ def compute_nps(image, plot_type='frequency'):
         plt.bar(bins, counts, width=bin_size)
         plt.xlabel('wavenumber [1/length]')
         plt.ylabel('value^2')
+        title('Noise Power Spectrum')
         plt.show(block=False)
         return bins, counts
 
@@ -188,6 +316,7 @@ def compute_nps(image, plot_type='frequency'):
         plt.ylabel('wavenumber [1/length]')
         plt.axis('equal')
         plt.colorbar()
+        title('Noise Power Spectrum')
         plt.show(block=False)
         return NPS, X, Y
 

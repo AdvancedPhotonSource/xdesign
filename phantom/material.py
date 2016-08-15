@@ -148,9 +148,9 @@ class DynamicRange(Phantom):
 class UnitCircle(Phantom):
     """Generates a phantom with a single circle of radius 0.4 for the purpose of
     measuring the nose power spectrum."""
-    def __init__(self, value=1):
+    def __init__(self, value=1, radius=0.5):
         super(UnitCircle, self).__init__()
-        self.append(Circle(Point(0.5,0.5),0.5,value=value))
+        self.append(Circle(Point(0.5,0.5),radius,value=value))
 
 class Soil(Phantom):
     """Generates a phantom with structure similar to soil.
