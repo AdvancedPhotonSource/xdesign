@@ -59,13 +59,12 @@ __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Point',
-           'Superellipse'
+           'Superellipse',
            'Ellipse',
            'Circle',
            'Line',
            'Segment',
            'Ray',
-           'Plane',
            'Triangle',
            'Rectangle',
            'Square',
@@ -611,6 +610,21 @@ class Rectangle(Polygon):
         super(Rectangle, self).__init__()
         if len(vertices) != 4:
             raise ValueError("Rectangle requires four points.")
+        self.vertices = vertices
+        self.n = 4
+
+
+class Square(Polygon):
+
+    """Square in 2-D cartesian space.
+
+    It is defined by four distinct points.
+    """
+
+    def __init__(self, vertices):
+        super(Rectangle, self).__init__()
+        if len(vertices) != 2:
+            raise ValueError("Square requires two points.")
         self.vertices = vertices
         self.n = 4
 

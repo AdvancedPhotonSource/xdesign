@@ -49,19 +49,19 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from phantom.geometry import *
-from phantom.phantom import *
-from phantom.acquisition import *
-from phantom.algorithms import *
-from phantom.metrics import *
-from phantom.plot import *
-from phantom.material import *
+from xdesign.geometry import *
+from xdesign.phantom import *
+from xdesign.acquisition import *
+from xdesign.algorithms import *
+from xdesign.metrics import *
+from xdesign.plot import *
+from xdesign.material import *
 
 import logging
 logging.basicConfig()
 
 try:
     import pkg_resources
-    __version__ = pkg_resources.working_set.require("phantom")[0].version
+    __version__ = pkg_resources.working_set.require("xdesign")[0].version
 except:
     pass

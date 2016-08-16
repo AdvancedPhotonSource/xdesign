@@ -69,7 +69,7 @@ __all__ = ['Material',
            'Electronics']
 
 
-class Material(Feature):
+class Material(object):
     """Placeholder for class which uses NIST data to automatically calculate
     material properties based on beam energy.
     """

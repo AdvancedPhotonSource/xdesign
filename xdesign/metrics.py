@@ -130,7 +130,7 @@ def compute_mtf2(phantom, image):
     wavelength = phantom.widths[1:-1]
     return wavelength, MTF
 
-from phantom.material import UnitCircle
+from xdesign.material import UnitCircle
 
 
 def compute_mtf(phantom, image, Ntheta=4):
