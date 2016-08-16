@@ -64,7 +64,8 @@ __all__ = ['Material',
            'DynamicRange',
            'UnitCircle',
            'Soil',
-           'Foam']
+           'Foam',
+           'Electronics']
 
 
 class Material(Feature):
