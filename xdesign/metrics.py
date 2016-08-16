@@ -53,17 +53,23 @@ import numpy as np
 import scipy.ndimage
 import logging
 import warnings
+from xdesign.material import HyperbolicConcentric
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
-__author__ = "Doga Gursoy"
+
+__author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['ImageQuality', 'probability_mask', 'compute_quality', 'compute_PCC',
-           'compute_likeness', 'compute_background_ttest', 'compute_mtf', 'compute_nps']
-
-from phantom.material import HyperbolicConcentric
-import matplotlib.pyplot as plt
+__all__ = ['ImageQuality',
+           'probability_mask',
+           'compute_quality', 
+           'compute_PCC',
+           'compute_likeness',
+           'compute_background_ttest',
+           'compute_mtf',
+           'compute_nps']
 
 
 def compute_mtf2(phantom, image):

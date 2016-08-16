@@ -50,8 +50,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
-from phantom.geometry import *
-from phantom.geometry import beamcirc, rotate
+from xdesign.geometry import *
+from xdesign.geometry import beamcirc, rotate
 import logging
 
 logger = logging.getLogger(__name__)
@@ -60,9 +60,32 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Probe',
+__all__ = ['Beam',
+           'Probe',
            'sinogram',
            'angleogram']
+
+
+class Beam(Line):
+
+    """Beam (thick line) in 2-D cartesian space.
+
+    It is defined by two distinct points.
+
+    Attributes
+    ----------
+    p1 : Point
+    p2 : Point
+    size : scalar, optional
+        Size of the beam.
+    """
+
+    def __init__(self, p1, p2, size=0):
+        super(Beam, self).__init__(p1, p2)
+        self.size = float(size)
+
+    def __str__(self):
+        return super(Beam, self).__str__()
 
 
 class Probe(Beam):

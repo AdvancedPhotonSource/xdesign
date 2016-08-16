@@ -59,10 +59,12 @@ import string
 logger = logging.getLogger(__name__)
 
 
-__author__ = "Doga Gursoy"
+__author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['plot_phantom', 'plot_metrics', 'plot_histograms']
+__all__ = ['plot_phantom',
+           'plot_metrics',
+           'plot_histograms']
 
 
 def plot_phantom(phantom):

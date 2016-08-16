@@ -1,5 +1,5 @@
-from phantom.phantom import *
-from phantom.material import *
+from xdesign.phantom import *
+from xdesign.material import *
 from numpy.testing import assert_allclose, assert_raises, assert_equal
 import numpy as np
 import scipy

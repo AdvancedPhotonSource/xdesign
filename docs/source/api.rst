@@ -1,7 +1,7 @@
 API
 ###
 
-.. automodule:: phantom.geometry
+.. automodule:: xdesign.geometry
    :members:
    :undoc-members:
    :show-inheritance:

@@ -51,10 +51,11 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 import logging
-from phantom.phantom import *
-from phantom.geometry import *
+from xdesign.phantom import *
+from xdesign.geometry import *
 
 logger = logging.getLogger(__name__)
+
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."

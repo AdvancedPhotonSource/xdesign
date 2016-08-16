@@ -53,12 +53,12 @@ import numpy as np
 import scipy.ndimage
 import logging
 import warnings
-from phantom.geometry import *
+from xdesign.geometry import *
 
 logger = logging.getLogger(__name__)
 
 
-__author__ = "Doga Gursoy"
+__author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Phantom']

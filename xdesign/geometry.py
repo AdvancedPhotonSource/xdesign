@@ -65,7 +65,6 @@ __all__ = ['Point',
            'Line',
            'Segment',
            'Ray',
-           'Beam',
            'Plane',
            'Triangle',
            'Rectangle',
@@ -93,17 +92,7 @@ class Entity(object):
     @property
     def numpy(self):
         """Return Numpy representation."""
-        raise NotImplementedError
-
-    @property
-    def area(self):
-        """Return the area of the entity."""
-        raise NotImplementedError
-
-    @property
-    def circumference(self):
-        """Return the circumference of the entity."""
-        raise NotImplementedError
+        return np.array(list)
 
     def translate(self, dx, dy):
         """Translate entity."""
@@ -167,19 +156,6 @@ class Point(Entity):
     def list(self):
         """Return list representation."""
         return [self.x, self.y]
-
-    @property
-    def numpy(self):
-        """Return Numpy representation."""
-        return np.array([self.x, self.y])
-
-    @property
-    def area(self):
-        return 0
-
-    @property
-    def circumference(self):
-        return 0
 
     @property
     def norm(self):
@@ -260,11 +236,6 @@ class LinearEntity(Entity):
     def list(self):
         """Return list representation."""
         return [self.p1.x, self.p1.y, self.p2.x, self.p2.y]
-
-    @property
-    def numpy(self):
-        """Return Numpy representation."""
-        return np.array(self.list)
 
     @property
     def points(self):
@@ -424,28 +395,6 @@ class Segment(LinearEntity):
         return Point.midpoint(self.p1, self.p2)
 
 
-class Beam(Line):
-
-    """Beam (thick line) in 2-D cartesian space.
-
-    It is defined by two distinct points.
-
-    Attributes
-    ----------
-    p1 : Point
-    p2 : Point
-    size : scalar, optional
-        Size of the beam.
-    """
-
-    def __init__(self, p1, p2, size=0):
-        super(Beam, self).__init__(p1, p2)
-        self.size = float(size)
-
-    def __str__(self):
-        return super(Beam, self).__str__()
-
-
 class CurvedEntity(Entity):
 
     """Base class for curved entities in 2-D cartesian space.
@@ -472,16 +421,6 @@ class CurvedEntity(Entity):
     @property
     def numpy(self):
         """Return Numpy representation."""
-        raise NotImplementedError
-
-    @property
-    def area(self):
-        """Return area."""
-        raise NotImplementedError
-
-    @property
-    def circumference(self):
-        """Return circumference."""
         raise NotImplementedError
 
     def translate(self, dx, dy):
@@ -516,6 +455,21 @@ class Superellipse(CurvedEntity):
         self.b = float(b)
         self.n = float(n)
 
+    @property
+    def list(self):
+        """Return list representation."""
+        return [self.center.x, self.center.y, self.a, self.b, self.n]
+
+    @property
+    def numpy(self):
+        """Return Numpy representation."""
+        return np.array(self.list)
+
+    def scale(self, val):
+        """Scale."""
+        self.a *= val
+        self.b *= val
+
 
 class Ellipse(CurvedEntity):
 
@@ -534,6 +488,21 @@ class Ellipse(CurvedEntity):
         self.a = float(a)
         self.b = float(b)
 
+    @property
+    def list(self):
+        """Return list representation."""
+        return [self.center.x, self.center.y, self.a, self.b]
+
+    @property
+    def numpy(self):
+        """Return Numpy representation."""
+        return np.array(self.list)
+
+    def scale(self, val):
+        """Scale."""
+        self.a *= val
+        self.b *= val
+
 
 class Circle(CurvedEntity):
 
@@ -547,14 +516,13 @@ class Circle(CurvedEntity):
         Radius of the circle.
     """
 
-    def __init__(self, center, radius, value=1):
+    def __init__(self, center, radius):
         super(Circle, self).__init__()
         self.center = center
         self.radius = float(radius)
-        self.value = float(value)
 
     def __eq__(self, circle):
-        return (self.x, self.y, self.radius, self.value) == (circle.x, circle.y, circle.radius, circle.value)
+        return (self.x, self.y, self.radius) == (circle.x, circle.y, circle.radius)
 
     @property
     def equation(self):
@@ -564,12 +532,7 @@ class Circle(CurvedEntity):
     @property
     def list(self):
         """Return list representation."""
-        return [self.center.x, self.center.y, self.radius, self.value]
-
-    @property
-    def numpy(self):
-        """Return Numpy representation."""
-        return np.array(self.list)
+        return [self.center.x, self.center.y, self.radius]
 
     @property
     def area(self):
@@ -585,14 +548,6 @@ class Circle(CurvedEntity):
     def diameter(self):
         """Return diameter."""
         return 2 * self.radius
-
-    def translate(self, dx, dy):
-        """Translate."""
-        self.center = translate(self.center, dx, dy)
-
-    def rotate(self, theta, point=Point(0, 0)):
-        """Rotate around a point."""
-        self.center = rotate(self.center, theta, point)
 
     def scale(self, val):
         """Scale."""
@@ -610,9 +565,24 @@ class Polygon(Entity):
     vertices : sequence of Points
     """
 
-    def __init__(self, vertices, value=1):
+    def __init__(self, vertices):
         super(Polygon, self).__init__()
         self.vertices = vertices
+        self.n = len(self.vertices)
+
+    @property
+    def area(self):
+        """Return the area of the entity."""
+        raise NotImplementedError
+
+    @property
+    def perimeter(self):
+        """Return the perimeter of the entity."""
+        perimeter = 0
+        points = self.vertices + [self.vertices[0]]
+        for i in range(self.n):
+            perimeter += points[i].distance(points[i + 1])
+        return perimeter
 
 
 class Triangle(Polygon):
@@ -622,11 +592,12 @@ class Triangle(Polygon):
     It is defined by three distinct points.
     """
 
-    def __init__(self, p1, p2, p3):
-        super(Line, self).__init__()
-        self.p1 = p1
-        self.p2 = p2
-        self.p3 = p3
+    def __init__(self, vertices):
+        super(Triangle, self).__init__()
+        if len(vertices) != 3:
+            raise ValueError("Triangle requires three points.")
+        self.vertices = vertices
+        self.n = 3
 
 
 class Rectangle(Polygon):
@@ -636,25 +607,12 @@ class Rectangle(Polygon):
     It is defined by four distinct points.
     """
 
-    def __init__(self, p1, p2, p3, p4):
+    def __init__(self, vertices):
         super(Rectangle, self).__init__()
-        self.p1 = p1
-        self.p2 = p2
-        self.p3 = p3
-        self.p4 = p4
-
-
-class Square(Rectangle):
-
-    """Triangle in 2-D cartesian space.
-
-    It is defined by two distinct points.
-    """
-
-    def __init__(self, p1, p2, p3):
-        super(Square, self).__init__()
-        self.p1 = p1
-        self.p2 = p2
+        if len(vertices) != 4:
+            raise ValueError("Rectangle requires four points.")
+        self.vertices = vertices
+        self.n = 4
 
 
 def rotate(point, theta, origin):

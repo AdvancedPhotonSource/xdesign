@@ -49,8 +49,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from phantom.geometry import *
-from phantom.geometry import beamcirc
+from xdesign.geometry import *
+from xdesign.geometry import beamcirc
 from numpy.testing import assert_allclose, assert_raises
 import numpy as np
 

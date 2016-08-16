@@ -69,7 +69,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Phantom'
+project = u'esign'
 copyright = u'2016, UChicago Argonne, LLC'
 author = u'Doga Gursoy'
 
@@ -232,7 +232,7 @@ html_static_path = ['_static']
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'phantomdoc'
+htmlhelp_basename = 'xdesigndoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -254,7 +254,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'phantom.tex', u'Phantom Documentation',
+    (master_doc, 'xdesign.tex', u'XDesign Documentation',
      copyright, 'manual'),
 ]
 
@@ -284,7 +284,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'phantom', u'Phantom Documentation',
+    (master_doc, 'xdesign', u'XDesign Documentation',
      [author], 1)
 ]
 
@@ -298,7 +298,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'phantom', u'Phantom Documentation',
+    (master_doc, 'xdesign', u'XDesign Documentation',
      author, copyright, 'Benchmarking tools for tomography.',
      'Miscellaneous'),
 ]

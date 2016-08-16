@@ -1,5 +1,5 @@
-from phantom.plot import plot_metrics
-from phantom.metrics import _compute_ssim, _compute_vifp, _compute_fsim, compute_quality, ImageQuality
+from xdesign.plot import plot_metrics
+from xdesign.metrics import _compute_ssim, _compute_vifp, _compute_fsim, compute_quality, ImageQuality
 from numpy.testing import *
 import numpy as np
 import scipy
