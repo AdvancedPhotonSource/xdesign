@@ -56,32 +56,82 @@ from phantom.geometry import *
 
 logger = logging.getLogger(__name__)
 
-__author__ = "Daniel Ching"
+__author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['HyperbolicConcentric',
-           'DynamicRange', 'UnitCircle', 'Soil', 'Foam']
+__all__ = ['Material',
+           'HyperbolicConcentric',
+           'DynamicRange',
+           'UnitCircle',
+           'Soil',
+           'Foam']
 
-# Elements and Mixtures - Not Implemented
 
-
-class Element(Circle):
+class Material(Feature):
     """Placeholder for class which uses NIST data to automatically calculate
-    attenuation values for features based on beam energy.
+    material properties based on beam energy.
     """
 
-    def __init__(self, MeV=1):
+    def __init__(self, formula, density):
         # calculate the value based on the photon energy
-        super(Element, self).__init__()
+        super(Material, self).__init__()
+        self.formula = formula
+        self.density = density
 
     @property
-    def attenuation():
+    def compton_cross_section(self, energy):
+        """Compton cross-section of the electron [cm^2]."""
         raise NotImplementedError
 
-    def set_beam_energy():
+    @property
+    def photoelectric_cross_section(self, energy):
         raise NotImplementedError
 
-# Microstructures
+    @property
+    def atomic_form_factor(self, energy):
+        """Measure of the scattering amplitude of a wave by an isolated atom.
+        Read from NIST database [Unitless]."""
+        raise NotImplementedError
+
+    @property
+    def atom_concentration(self, energy):
+        """Number of atoms per unit volume [1/cm^3]."""
+        raise NotImplementedError
+
+    @property
+    def reduced_energy_ratio(self, energy):
+        """Energy ratio of the incident x-ray and the electron energy [Unitless]."""
+        raise NotImplementedError
+
+    @property
+    def photoelectric_absorption(self, energy):
+        """X-ray attenuation due to the photoelectric effect [1/cm]."""
+        raise NotImplementedError
+
+    @property
+    def compton_scattering(self, energy):
+        """X-ray attenuation due to the Compton scattering [1/cm]."""
+        raise NotImplementedError
+
+    @property
+    def electron_density(self, energy):
+        """Electron density [e/cm^3]."""
+        raise NotImplementedError
+
+    @property
+    def linear_attenuation(self, energy):
+        """Total x-ray attenuation [1/cm]."""
+        raise NotImplementedError
+
+    @property
+    def refractive_index(self, energy):
+        raise NotImplementedError
+
+    def mass_ratio(self):
+        raise NotImplementedError
+
+    def number_of_elements(self):
+        raise NotImplementedError
 
 
 class HyperbolicConcentric(Phantom):
@@ -203,8 +253,6 @@ class Foam(Phantom):
         self.sprinkle(300, [0.05, 0.01], 0, value=-1)
         background = Circle(Point(0.5, 0.5), 0.5, value=1)
         self.insert(0, background)
-
-# Microstructures - Not Implemented
 
 
 class Metal(Phantom):
