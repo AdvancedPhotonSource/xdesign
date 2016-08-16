@@ -61,8 +61,7 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['Point',
            'Circle',
            'Line',
-           'Beam',
-           'Feature']
+           'Beam']
 
 
 class Feature(object):
@@ -389,6 +388,11 @@ class Beam(Line):
 
     def __str__(self):
         return super(Beam, self).__str__()
+
+    @property
+    def list(self):
+        """Return list representation."""
+        return [self.p1.x, self.p1.y, self.p2.x, self.p2.y, self.size]
 
 
 def rotate(point, theta, origin):

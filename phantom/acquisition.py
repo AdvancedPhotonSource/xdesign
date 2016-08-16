@@ -86,9 +86,10 @@ class Probe(Beam):
         poisson noise is added to the returned measurement."""
         newdata = 0
         for m in range(phantom.population):
-            newdata += beamcirc(self, phantom.feature[m]) * phantom.feature[m].value
+            newdata += beamcirc(self,
+                                phantom.feature[m]) * phantom.feature[m].value
         if noise > 0:
-            newdata += newdata*noise*np.random.poisson(1)
+            newdata += newdata * noise * np.random.poisson(1)
         return newdata
 
 
