@@ -228,18 +228,20 @@ def compute_mtf(phantom,image,Ntheta=4):
     #Calculate the MTF
     T = np.fft.fftshift(np.fft.fft(LSF_weighted));
     faxis = (np.arange(0,LSF.shape[1]) / LSF.shape[1] - 0.5) / R_bin_width;
+    nyquist = 0.5*image.shape[0]
 
     MTF = np.abs(T);
     #Plot the MTF
     plt.figure()
     for i in range(0,MTF.shape[0]):
         plt.plot(faxis,MTF[i,:])
-    plt.xlabel('spatial frequency [1/length]');
+    plt.axvline(nyquist)
+    plt.xlabel('spatial frequency [length$^{-1}$]');
     plt.ylabel('Radial MTF')
-    plt.axis([0, np.max(faxis), 0, 1])
+    plt.axis([0, nyquist, 0, 1])
     a = (Th_bins + Th_bin_width/2)/np.pi
-    plt.legend(['$'+ str(n) + ' \pi$' for n in a])
-
+    plt.legend([str(n) + '$\pi$' for n in a])
+    plt.title("Modulation Tansfer Function for various angles")
     plt.show(block=True)
     return faxis, MTF
 
