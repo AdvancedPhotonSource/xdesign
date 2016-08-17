@@ -67,12 +67,10 @@ __all__ = ['Point',
            'Ray',
            'Triangle',
            'Rectangle',
-           'Square',
-           'Polygon']
+           'Square']
 
 
 class Entity(object):
-
     """Base class for all geometric entities."""
 
     def __init__(self):
@@ -91,7 +89,7 @@ class Entity(object):
     @property
     def numpy(self):
         """Return Numpy representation."""
-        return np.array(list)
+        return np.array(self.list)
 
     def translate(self, dx, dy):
         """Translate entity."""
@@ -115,7 +113,6 @@ class Entity(object):
 
 
 class Point(Entity):
-
     """Point in 2-D cartesian space.
 
     Attributes
@@ -187,7 +184,6 @@ class Point(Entity):
 
 
 class LinearEntity(Entity):
-
     """Base class for linear entities in 2-D Cartesian space.
 
     Attributes
@@ -246,9 +242,8 @@ class LinearEntity(Entity):
         """Return a tuple (xmin, ymin, xmax, ymax) representing the
         bounding rectangle for the geometric figure.
         """
-        verts = self.points
-        xs = [p.x for p in verts]
-        ys = [p.y for p in verts]
+        xs = [p.x for p in self.points]
+        ys = [p.y for p in self.points]
         return (min(xs), min(ys), max(xs), max(ys))
 
     @property
@@ -279,7 +274,6 @@ class LinearEntity(Entity):
 
 
 class Line(LinearEntity):
-
     """Line in 2-D cartesian space.
 
     It is defined by two distinct points.
@@ -291,7 +285,7 @@ class Line(LinearEntity):
     """
 
     def __init__(self, p1, p2):
-        super(Line, self).__init__()
+        super(Line, self).__init__(p1, p2)
         if p1 == p2:
             raise ValueError('Requires two unique points.')
         self.p1 = p1
@@ -335,7 +329,6 @@ class Line(LinearEntity):
 
 
 class Ray(LinearEntity):
-
     """Ray in 2-D cartesian space.
 
     It is defined by two distinct points.
@@ -347,7 +340,7 @@ class Ray(LinearEntity):
     """
 
     def __init__(self, p1, p2):
-        super(Line, self).__init__()
+        super(Ray, self).__init__(p1, p2)
         if p1 == p2:
             raise ValueError('Requires two unique points.')
         self.p1 = p1
@@ -365,7 +358,6 @@ class Ray(LinearEntity):
 
 
 class Segment(LinearEntity):
-
     """Segment in 2-D cartesian space.
 
     It is defined by two distinct points.
@@ -377,7 +369,7 @@ class Segment(LinearEntity):
     """
 
     def __init__(self, p1, p2):
-        super(Line, self).__init__()
+        super(Segment, self).__init__(p1, p2)
         if p1 == p2:
             raise ValueError('Requires two unique points.')
         self.p1 = p1
@@ -395,7 +387,6 @@ class Segment(LinearEntity):
 
 
 class CurvedEntity(Entity):
-
     """Base class for curved entities in 2-D cartesian space.
 
     Attributes
@@ -420,7 +411,7 @@ class CurvedEntity(Entity):
     @property
     def numpy(self):
         """Return Numpy representation."""
-        raise NotImplementedError
+        return np.array(self.list)
 
     def translate(self, dx, dy):
         """Translate."""
@@ -436,7 +427,6 @@ class CurvedEntity(Entity):
 
 
 class Superellipse(CurvedEntity):
-
     """Superellipse in 2-D cartesian space.
 
     Attributes
@@ -448,7 +438,7 @@ class Superellipse(CurvedEntity):
     """
 
     def __init__(self, center, a, b, n):
-        super(Superellipse, self).__init__()
+        super(Superellipse, self).__init__(center)
         self.center = center
         self.a = float(a)
         self.b = float(b)
@@ -459,19 +449,13 @@ class Superellipse(CurvedEntity):
         """Return list representation."""
         return [self.center.x, self.center.y, self.a, self.b, self.n]
 
-    @property
-    def numpy(self):
-        """Return Numpy representation."""
-        return np.array(self.list)
-
     def scale(self, val):
         """Scale."""
         self.a *= val
         self.b *= val
 
 
-class Ellipse(CurvedEntity):
-
+class Ellipse(Superellipse):
     """Ellipse in 2-D cartesian space.
 
     Attributes
@@ -482,7 +466,7 @@ class Ellipse(CurvedEntity):
     """
 
     def __init__(self, center, a, b):
-        super(Ellipse, self).__init__()
+        super(Ellipse, self).__init__(center, a, b, 2)
         self.center = center
         self.a = float(a)
         self.b = float(b)
@@ -493,9 +477,9 @@ class Ellipse(CurvedEntity):
         return [self.center.x, self.center.y, self.a, self.b]
 
     @property
-    def numpy(self):
-        """Return Numpy representation."""
-        return np.array(self.list)
+    def area(self):
+        """Return area."""
+        return np.pi * self.a * self.b
 
     def scale(self, val):
         """Scale."""
@@ -503,8 +487,7 @@ class Ellipse(CurvedEntity):
         self.b *= val
 
 
-class Circle(CurvedEntity):
-
+class Circle(Ellipse):
     """Circle in 2-D cartesian space.
 
     Attributes
@@ -516,7 +499,7 @@ class Circle(CurvedEntity):
     """
 
     def __init__(self, center, radius):
-        super(Circle, self).__init__()
+        super(Circle, self).__init__(center, radius, radius)
         self.center = center
         self.radius = float(radius)
 
@@ -534,11 +517,6 @@ class Circle(CurvedEntity):
         return [self.center.x, self.center.y, self.radius]
 
     @property
-    def area(self):
-        """Return area."""
-        return np.pi * self.radius**2
-
-    @property
     def circumference(self):
         """Return circumference."""
         return 2 * np.pi * self.radius
@@ -554,7 +532,6 @@ class Circle(CurvedEntity):
 
 
 class Polygon(Entity):
-
     """Polygon in 2-D cartesian space.
 
     It is defined by n number of distinct points.
@@ -567,7 +544,23 @@ class Polygon(Entity):
     def __init__(self, vertices):
         super(Polygon, self).__init__()
         self.vertices = vertices
-        self.n = len(self.vertices)
+
+    @property
+    def numverts(self):
+        return len(self.vertices)
+
+    @property
+    def list(self):
+        """Return list representation."""
+        lst = []
+        for m in range(self.numverts):
+            lst.append(self.vertices[m].list)
+        return lst
+
+    @property
+    def numpy(self):
+        """Return Numpy representation."""
+        return np.array(self.list)
 
     @property
     def area(self):
@@ -578,55 +571,57 @@ class Polygon(Entity):
     def perimeter(self):
         """Return the perimeter of the entity."""
         perimeter = 0
-        points = self.vertices + [self.vertices[0]]
-        for i in range(self.n):
-            perimeter += points[i].distance(points[i + 1])
+        verts = self.vertices
+        points = verts + [verts[0]]
+        for m in range(self.numverts):
+            perimeter += points[m].distance(points[m + 1])
         return perimeter
+
+    @property
+    def bounds(self):
+        """Return a tuple (xmin, ymin, xmax, ymax) representing the
+        bounding rectangle for the geometric figure.
+        """
+        xs = [p.x for p in self.vertices]
+        ys = [p.y for p in self.vertices]
+        return (min(xs), min(ys), max(xs), max(ys))
 
 
 class Triangle(Polygon):
-
     """Triangle in 2-D cartesian space.
 
     It is defined by three distinct points.
     """
 
-    def __init__(self, vertices):
-        super(Triangle, self).__init__()
-        if len(vertices) != 3:
-            raise ValueError("Triangle requires three points.")
-        self.vertices = vertices
-        self.n = 3
+    def __init__(self, p1, p2, p3):
+        verts = [p1, p2, p3]
+        super(Triangle, self).__init__(verts)
+        self.vertices = verts
 
 
 class Rectangle(Polygon):
-
     """Rectangle in 2-D cartesian space.
 
     It is defined by four distinct points.
     """
 
-    def __init__(self, vertices):
-        super(Rectangle, self).__init__()
-        if len(vertices) != 4:
-            raise ValueError("Rectangle requires four points.")
-        self.vertices = vertices
-        self.n = 4
+    def __init__(self, p1, p2, p3, p4):
+        verts = [p1, p2, p3, p4]
+        super(Rectangle, self).__init__(verts)
+        self.vertices = verts
 
 
-class Square(Polygon):
+class Square(Rectangle):
 
     """Square in 2-D cartesian space.
 
     It is defined by four distinct points.
     """
 
-    def __init__(self, vertices):
-        super(Rectangle, self).__init__()
-        if len(vertices) != 2:
-            raise ValueError("Square requires two points.")
-        self.vertices = vertices
-        self.n = 4
+    def __init__(self, p1, p2, p3, p4):
+        verts = [p1, p2, p3, p4]
+        super(Rectangle, self).__init__(verts)
+        self.vertices = verts
 
 
 def rotate(point, theta, origin):
