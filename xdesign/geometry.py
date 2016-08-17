@@ -504,12 +504,14 @@ class Circle(Ellipse):
         self.radius = float(radius)
 
     def __eq__(self, circle):
-        return (self.x, self.y, self.radius) == (circle.x, circle.y, circle.radius)
+        return (self.x, self.y, self.radius) == (circle.x, circle.y,
+                                                 circle.radius)
 
     @property
     def equation(self):
         """Return analytical equation."""
-        return "(x-%s)^2 + (y-%s)^2 = %s^2" % (self.center.x, self.center.y, self.radius)
+        return "(x-%s)^2 + (y-%s)^2 = %s^2" % (self.center.x, self.center.y,
+                                               self.radius)
 
     @property
     def list(self):

@@ -49,11 +49,11 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+from xdesign.geometry import *
 import numpy as np
 import scipy.ndimage
 import logging
 import warnings
-from xdesign.geometry import *
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class Phantom(object):
     @property
     def list(self):
         for m in range(self.population):
-            print (self.feature[m].list)
+            print(self.feature[m].list)
 
     @property
     def density(self):
@@ -131,9 +131,9 @@ class Phantom(object):
     def sort(self, param="value", reverse=False):
         """Sorts the features by value or size"""
         if param == "value":
-            key = lambda circle: circle.value
+            def key(circle): return circle.value
         elif param == "size":
-            key = lambda circle: circle.area
+            def key(circle): return circle.area
         else:
             warnings.warn("Can't sort by " + param)
             return
@@ -143,7 +143,8 @@ class Phantom(object):
         """Reverse the features of the phantom"""
         self.feature.reverse()
 
-    def sprinkle(self, counts, radius, gap=0, region=None, value=1, max_density=1):
+    def sprinkle(self, counts, radius, gap=0, region=None, value=1,
+                 max_density=1):
         """Sprinkle a number of circles.
 
         Parameters
@@ -176,14 +177,15 @@ class Phantom(object):
             raise NotImplementedError
 
         collision = False
-        if radius[0] + gap < 0:  # prevents defining circles with negative radius
+        if radius[0] + gap < 0:  # prevents circles with negative radius
             collision = True
 
-        kTERM_CRIT = 200  # how many tries to append a new circle before quitting
-        n_tries = 0  # number of attempts to append a new circle
-        n_added = 0  # number of circles successfully added
+        kTERM_CRIT = 200  # tries to append a new circle before quitting
+        n_tries = 0  # attempts to append a new circle
+        n_added = 0  # circles successfully added
 
-        while n_tries < kTERM_CRIT and n_added < counts and self.density < max_density:
+        while (n_tries < kTERM_CRIT and n_added < counts and
+               self.density < max_density):
             center = self._random_point(radius[0], region=region)
 
             if collision:
@@ -252,8 +254,8 @@ class Phantom(object):
         ratio : scalar, optional
             The discretization works by supersampling. This parameter controls
             how many pixels in the larger representation are averaged for the
-            final representation. e.g. if ratio = 8, then the final pixel values
-            are the average of 64 pixels.
+            final representation. e.g. if ratio = 8, then the final pixel
+            values are the average of 64 pixels.
         uniform : boolean, optional
             When set to False, changes the way pixels are averaged from a
             uniform weights to gaussian weights.
@@ -263,7 +265,7 @@ class Phantom(object):
         image : numpy.ndarray
             The discrete representation of the phantom.
         """
-        #error = 1./ratio**2
+        # error = 1./ratio**2
         # warnings.warn("Discrete conversion is approximate. " +
         #              "True values will be within " + str(error) + " %")
 

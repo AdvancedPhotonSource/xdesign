@@ -102,7 +102,8 @@ class Material(object):
 
     @property
     def reduced_energy_ratio(self, energy):
-        """Energy ratio of the incident x-ray and the electron energy [Unitless]."""
+        """Energy ratio of the incident x-ray and the electron energy
+        [Unitless]."""
         raise NotImplementedError
 
     @property
@@ -138,8 +139,8 @@ class Material(object):
 
 class HyperbolicConcentric(Phantom):
     """Generates a series of cocentric alternating black and white circles whose
-    radii are changing at a parabolic rate. These lines whose spacing covers a
-    range scales can be used to estimate the Modulation Transfer Function (MTF).
+    radii are changing at a parabolic rate. These line spacings cover a range
+    of scales and can be used to estimate the Modulation Transfer Function.
     """
 
     def __init__(self, min_width=0.1, exponent=1 / 2):
@@ -153,7 +154,7 @@ class HyperbolicConcentric(Phantom):
         """
         super(HyperbolicConcentric, self).__init__(shape='circle')
         center = Point(0.5, 0.5)
-        #exponent = 1/2
+        # exponent = 1/2
         Nmax_rings = 512
 
         radii = [0]
@@ -214,7 +215,8 @@ class DynamicRange(Phantom):
         else:
             # completely random
             for i in range(0, steps):
-                if 1 > self.sprinkle(1, radius, gap=radius * 0.9, value=colors[i]):
+                if 1 > self.sprinkle(1, radius, gap=radius * 0.9,
+                                     value=colors[i]):
                     None
                     # TODO: ensure that all circles are placed
 

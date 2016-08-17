@@ -51,6 +51,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from xdesign.geometry import *
 from xdesign.geometry import beamcirc
+from xdesign.acquisition import *
 from numpy.testing import assert_allclose, assert_raises
 import numpy as np
 
