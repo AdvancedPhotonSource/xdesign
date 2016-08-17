@@ -135,7 +135,7 @@ def sinogram(sx, sy, phantom, noise=False):
     scan = raster_scan(sx, sy)
     sino = np.zeros((sx, sy))
     for m in range(sx):
-        print (m)
+        print(m)
         for n in range(sy):
             sino[m, n] = next(scan).measure(phantom, noise)
     return sino
@@ -160,7 +160,7 @@ def angleogram(sx, sy, phantom, noise=False):
     scan = angle_scan(sx, sy)
     angl = np.zeros((sx, sy))
     for m in range(sx):
-        print (m)
+        print(m)
         for n in range(sy):
             angl[m, n] = next(scan).measure(phantom, noise)
     return angl
