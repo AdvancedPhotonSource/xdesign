@@ -64,12 +64,51 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['Phantom']
 
 
-def propagation(grid, probe):
+def _initialize_wavefront():
+    """Initialize wavefront.
+    """
+    pass
+
+
+def _extract_slice(delta_grid, beta_grid, islice):
+    """Extract a specified slice from the grid.
+
+    Parameters:
+    -----------
+    delta_grid : ndarray
+        As-constructed grid with defined phantoms filled with material delta values.
+    beta_grid : ndarray
+        As-constructed grid with defined phantoms filled with material beta values.
+    """
+    pass
+
+
+## Add energy / wavelength attribute to probe class?
+def _slice_propagate(delta_slice, beta_slice, probe, wavefront, slice_width, wavelen):
+    """Modify wavefront within a slice.
+
+    Parameters:
+    -----------
+    delta_grid : ndarray
+        Extracted slice filled with material delta values.
+    beta_grid : ndarray
+        Extracted slice filled with material beta values.
+    """
+    kz = 2 * np.pi * slice_width / wavelen
+    wavefront = wavefront * np.exp((kz * delta_slice)*1j) * np.exp(-kz * beta_slice)
+
+    return wavefront
+
+
+def multislice_propagate(delta_grid, beta_grid, probe):
     """Do multislice propagation for wave with specified properties in the constructed grid.
 
     Parameters:
     -----------
     probe : Probe
-    grid : ndarray
-        As-constructed grid with defined phantoms.
+    delta_grid : ndarray
+        As-constructed grid with defined phantoms filled with material delta values.
+    beta_grid : ndarray
+        As-constructed grid with defined phantoms filled with material beta values.
     """
+    wavefront = _initialize_wavefront()
