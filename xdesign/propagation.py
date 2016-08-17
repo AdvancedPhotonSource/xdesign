@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 # #########################################################################
-# Copyright (c) 2015, UChicago Argonne, LLC. All rights reserved.         #
+# Copyright (c) 2016, UChicago Argonne, LLC. All rights reserved.         #
 #                                                                         #
-# Copyright 2015. UChicago Argonne, LLC. This software was produced       #
+# Copyright 2016. UChicago Argonne, LLC. This software was produced       #
 # under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
 # Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
 # U.S. Department of Energy. The U.S. Government has rights to use,       #
@@ -49,20 +49,27 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from xdesign.geometry import *
-from xdesign.phantom import *
-from xdesign.acquisition import *
-from xdesign.algorithms import *
-from xdesign.metrics import *
-from xdesign.plot import *
-from xdesign.material import *
-from xdesign.propagation import *
-
+import numpy as np
+import scipy.ndimage
 import logging
-logging.basicConfig()
+import warnings
+from xdesign.geometry import *
 
-try:
-    import pkg_resources
-    __version__ = pkg_resources.working_set.require("xdesign")[0].version
-except:
-    pass
+logger = logging.getLogger(__name__)
+
+
+__author__ = "Daniel Ching, Doga Gursoy"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = ['Phantom']
+
+
+def propagation(grid, probe):
+    """Do multislice propagation for wave with specified properties in the constructed grid.
+
+    Parameters:
+    -----------
+    probe : Probe
+    grid : ndarray
+        As-constructed grid with defined phantoms.
+    """

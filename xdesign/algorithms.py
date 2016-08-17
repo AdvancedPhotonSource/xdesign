@@ -70,7 +70,7 @@ def reconstruct(probe, shape, data, rec):
     shape : list
         shape of the reconstruction grid.
     data : scalar
-        Probe measurement dtaa.
+        Probe measurement data.
     rec : ndarray
         Initialization matrix.
     """
