@@ -60,7 +60,7 @@ __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['ImageQuality','probability_mask','compute_quality','compute_PCC',
-            'compute_likeness','compute_background_ttest', 'compute_mtf', 'compute_nps']
+            'compute_likeness','compute_background_ttest', 'compute_mtf', 'compute_nps', 'compute_neq']
 
 from phantom.material import HyperbolicConcentric
 import matplotlib.pyplot as plt
@@ -123,8 +123,9 @@ def compute_mtf2(phantom,image):
     return wavelength, MTF
 
 from phantom.material import UnitCircle
+import itertools
 def compute_mtf(phantom,image,Ntheta=4):
-    ''' Uses method described in Friedman et al to calculate the MTF.
+    '''Uses method described in Friedman et al to calculate the MTF.
 
     Parameters
     ---------------
@@ -169,7 +170,7 @@ def compute_mtf(phantom,image,Ntheta=4):
     image[image > 1] = 1
 
     R_bin_width = 1/image.shape[0] # [length] (R is already converted to length)
-    R_bins = np.arange(0,np.max(R),R_bin_width)
+    R_bins = np.arange(0,0.5,R_bin_width)
     #print(R_bins)
 
     Th_bin_width = 2*np.pi/Ntheta # [radians]
@@ -202,11 +203,11 @@ def compute_mtf(phantom,image,Ntheta=4):
     while np.sum(np.isnan(ESF)): # smooth over empty bins
         ESF[np.isnan(ESF)] = ESF[np.roll(np.isnan(ESF),-1)]
 
-    #plt.figure()
-    #for i in range(0,ESF.shape[0]):
+    # plt.figure()
+    # for i in range(0,ESF.shape[0]):
     #    plt.plot(ESF[i,:])
-    #plt.xlabel('radius');
-    #plt.title('ESF')
+    # plt.xlabel('radius');
+    # plt.title('ESF')
 
     LSF = -np.diff(ESF,axis=1)
 
@@ -218,34 +219,36 @@ def compute_mtf(phantom,image,Ntheta=4):
     #print(LSF)
     LSF_weighted = LSF * np.hanning(LSF.shape[1])
 
-    #plt.figure()
-    #for i in range(0,LSF.shape[0]):
-    #    plt.plot(LSF[i,:])
-    #plt.xlabel('radius');
-    #plt.title('LSF')
+    # plt.figure()
+    # for i in range(0,LSF.shape[0]):
+    #    plt.plot(LSF_weighted[i,:])
+    # plt.xlabel('radius');
+    # plt.title('LSF')
     #plt.show(block=True)
 
     #Calculate the MTF
     T = np.fft.fftshift(np.fft.fft(LSF_weighted));
     faxis = (np.arange(0,LSF.shape[1]) / LSF.shape[1] - 0.5) / R_bin_width;
     nyquist = 0.5*image.shape[0]
+    #print(LSF.shape[1])
 
     MTF = np.abs(T);
     #Plot the MTF
     plt.figure()
+    m = itertools.cycle(('+', ',', 'o', '.', '*'))
     for i in range(0,MTF.shape[0]):
-        plt.plot(faxis,MTF[i,:])
+        plt.plot(faxis,MTF[i,:], marker=next(m))
     plt.axvline(nyquist)
-    plt.xlabel('spatial frequency [length$^{-1}$]');
+    plt.xlabel('spatial frequency [cycles/length]');
     plt.ylabel('Radial MTF')
     plt.axis([0, nyquist, 0, 1])
     a = (Th_bins + Th_bin_width/2)/np.pi
     plt.legend([str(n) + '$\pi$' for n in a])
     plt.title("Modulation Tansfer Function for various angles")
-    plt.show(block=True)
+    #plt.show(block=True)
     return faxis, MTF
 
-def compute_nps(phantom, image, plot_type='frequency'):
+def compute_nps(phantom, A, B=None, plot_type='frequency'):
     '''Calculates the noise power spectrum from a unit circle image. The peak
     at low spatial frequency is probably due to aliasing. Invesigation into
     supressing this peak is necessary.
@@ -260,19 +263,34 @@ def compute_nps(phantom, image, plot_type='frequency'):
 
     Parameters
     ---------------
-    images : ndarray
-        The unit circle reconstrucitons to evaluate for noise.
+    phantom : UnitCircle
+        The unit circle phantom.
+    A : ndarray
+        The reconstruction of the above phantom.
+    B : ndarray
+        The reconstruction of the above phantom with different noise. This
+        second reconstruction enables allows use of trend subtraction instead
+        of zero mean normalization.
     plot_type : string
         'histogram' returns a plot binned by radial coordinate wavenumber
         'frequency' returns a wavenumber vs wavenumber plot
     '''
+    image = A
+    if B is not None:
+        image = image - B
+
+    # plt.figure()
+    # plt.imshow(image, cmap='inferno',interpolation="none")
+    # plt.colorbar()
+    #plt.show(block=True)
+
     resolution = image.shape[0] # [pixels/length]
     # cut out uniform region (square circumscribed by unit circle)
     i_half = int(image.shape[0]/2) # half image
     s_half = int(image.shape[0]*phantom.feature[0].radius/np.sqrt(2)) # half of the square inside the circle
     unif_region = image[i_half-s_half:i_half+s_half,i_half-s_half:i_half+s_half]
 
-    # zero-mean normalization
+    # normalization
     unif_region = unif_region-np.mean(unif_region)
 
     # 2D fourier-transform
@@ -282,18 +300,18 @@ def compute_nps(phantom, image, plot_type='frequency'):
 
     # Calculate axis labels
     # TODO@dgursoy is this frequency scaling correct?
-    x = y = (np.arange(0,unif_region.shape[0]) / (unif_region.shape[0]) - 0.5 ) / resolution;
+    x = y = (np.arange(0,unif_region.shape[0])/unif_region.shape[0] - 0.5) * image.shape[0]
     X, Y = np.meshgrid(x, y)
+    #print(x)
 
     if plot_type == 'histogram':
         # calculate polar coordinates for each position
         R = np.sqrt(X**2 + Y**2)
         # Theta = nothing; we are averaging radial contours
 
-        n_bins = 1e2
-        bin_size = np.max(R)/n_bins
-        bins = np.arange(0.0,np.max(R),bin_size)
-
+        bin_width = 1 # [length] (R is already converted to length)
+        bins = np.arange(0,np.max(R),bin_width)
+        #print(bins)
         counts = np.zeros(bins.shape)
         for i in range(0,bins.size):
             if i < bins.size - 1:
@@ -305,23 +323,64 @@ def compute_nps(phantom, image, plot_type='frequency'):
                 counts[i] = np.mean(NPS[mask])
 
         plt.figure()
-        plt.bar(bins, counts, width=bin_size)
-        plt.xlabel('wavenumber [1/length]')
+        plt.bar(bins, counts, width=bin_width)
+        plt.xlabel('spatial frequency [cycles/length]');
         plt.ylabel('value^2')
         plt.title('Noise Power Spectrum')
-        plt.show(block=False)
+        #plt.show(block=False)
         return bins, counts
 
     elif plot_type == 'frequency':
         plt.figure()
         plt.contourf(X,Y,NPS,cmap='inferno')
-        plt.xlabel('wavenumber [1/length]')
-        plt.ylabel('wavenumber [1/length]')
+        plt.xlabel('spatial frequency [cycles/length]');
+        plt.ylabel('spatial frequency [cycles/length]');
         plt.axis('equal')
         plt.colorbar()
         plt.title('Noise Power Spectrum')
-        plt.show(block=False)
-        return NPS, X, Y
+        #plt.show(block=False)
+        return X, Y, NPS
+
+def compute_neq(phantom, A, B):
+    '''Calculates the NEQ according to recommendations by JT Dobbins.
+    phantom : UnitCircle
+        The unit circle class with radius less than 0.5
+    A : ndarray
+        The reconstruction of the above phantom.
+    B : ndarray
+        The reconstruction of the above phantom with different noise. This
+        second reconstruction enables allows use of trend subtraction instead
+        of zero mean normalization.
+    '''
+
+    mu_a, NPS = compute_nps(phantom,A,B,plot_type='histogram')
+    mu_b, MTF = compute_mtf(phantom,A,Ntheta=1)
+
+    # remove negative MT
+    MTF = MTF[:,mu_b > 0]
+    mu_b = mu_b[mu_b > 0]
+
+
+    # bin the NPS data to match the MTF data
+    NPS_binned = np.zeros(MTF.shape)
+    for i in range(0,mu_b.size):
+        bucket = mu_b[i] < mu_a
+        if i + 1 < mu_b.size:
+            bucket = np.logical_and(bucket, mu_a < mu_b[i+1])
+
+        if NPS[bucket].size > 0:
+            NPS_binned[0,i] = np.sum(NPS[bucket])
+
+    NEQ = MTF/np.sqrt(NPS_binned) # or something similiar
+
+    plt.figure()
+    plt.plot(mu_b.flatten(), NEQ.flatten())
+    plt.xlabel('spatial frequency [cycles/length]');
+    plt.ylabel('value')
+    plt.xlim([0, A.shape[0]/2])
+    plt.title('Noise Equivalent Quanta')
+
+    return mu_b, NEQ
 
 def probability_mask(phantom, size, ratio=8, uniform=True):
     """Returns the probability mask for each phase in the phantom.
