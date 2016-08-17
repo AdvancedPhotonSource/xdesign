@@ -49,7 +49,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from xdesign.geometry import *
+from xdesign.feature import *
 import numpy as np
 import scipy.ndimage
 import logging
@@ -79,7 +79,6 @@ class Phantom(object):
         List of features.
     """
     # OPERATOR OVERLOADS
-
     def __init__(self, shape='circle'):
         assert(shape == 'circle' or shape == 'square')
         self.shape = shape
@@ -102,6 +101,9 @@ class Phantom(object):
 
     @property
     def density(self):
+        '''Returns the area density of the phantom. (Does not acount for
+        value.)
+        '''
         if self.shape == 'square':
             return self.area
         elif self.shape == 'circle':
@@ -131,12 +133,11 @@ class Phantom(object):
     def sort(self, param="value", reverse=False):
         """Sorts the features by value or size"""
         if param == "value":
-            def key(circle): return circle.value
+            def key(feature): return feature.value
         elif param == "size":
-            def key(circle): return circle.area
+            def key(feature): return feature.area
         else:
-            warnings.warn("Can't sort by " + param)
-            return
+            raise ValueError("Can't sort by " + param)
         self.feature = sorted(self.feature, key=key, reverse=reverse)
 
     def reverse(self):
@@ -189,14 +190,15 @@ class Phantom(object):
             center = self._random_point(radius[0], region=region)
 
             if collision:
-                self.append(Circle(center, radius[0], value=value))
+                self.append(Feature(Circle(center, radius[0]), value=value))
                 n_added += 1
                 continue
 
-            circle = Circle(center, radius[0] + gap)
+            circle = Feature(Circle(center, radius[0] + gap))
             overlap = self._collision(circle)
             if overlap <= radius[0] - radius[1]:
-                self.append(Circle(center, radius[0] - overlap, value=value))
+                self.append(Feature(Circle(center, radius[0] - overlap),
+                                    value=value))
                 n_added += 1
                 n_tries = 0
 
@@ -219,6 +221,8 @@ class Phantom(object):
     # IMPORT AND EXPORT
     def numpy(self):
         """Returns the Numpy representation."""
+        raise NotImplementedError
+        # Phantoms contain more than circles now.
         arr = np.empty((self.population, 4))
         for m in range(self.population):
             arr[m] = [
@@ -230,10 +234,12 @@ class Phantom(object):
 
     def save(self, filename):
         """Save phantom to file."""
+        raise NotImplementedError
         np.savetxt(filename, self.numpy(), delimiter=',')
 
     def load(self, filename):
         """Load phantom from file."""
+        raise NotImplementedError
         arr = np.loadtxt(filename, delimiter=',')
         for m in range(arr.shape[0]):
             self.append(
@@ -265,6 +271,7 @@ class Phantom(object):
         image : numpy.ndarray
             The discrete representation of the phantom.
         """
+        raise NotImplementedError
         # error = 1./ratio**2
         # warnings.warn("Discrete conversion is approximate. " +
         #              "True values will be within " + str(error) + " %")
@@ -345,6 +352,7 @@ class Phantom(object):
         overlap : scalar
             The largest amount that the circle is overlapping
         """
+        raise NotImplementedError
         assert(isinstance(circle, Circle))
 
         overlap = 0
