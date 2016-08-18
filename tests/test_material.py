@@ -48,13 +48,25 @@
 
 from xdesign.phantom import *
 from xdesign.material import *
+from xdesign.plot import *
 from numpy.testing import assert_allclose, assert_raises, assert_equal
 import numpy as np
 import scipy
+import matplotlib.pyplot as plt
 
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
+
+
+def _plot_both(ref, target):
+    plt.figure()
+    plt.imshow(ref, cmap='viridis')
+    plt.colorbar()
+    plt.figure()
+    plt.imshow(target, cmap='viridis')
+    plt.colorbar()
+    plt.show(block=True)
 
 
 def test_HyperbolicCocentric():
@@ -66,6 +78,7 @@ def test_HyperbolicCocentric():
     p = HyperbolicConcentric()
     target = p.discrete(200, uniform=False)
 
+    # _plot_both(ref, target)
     assert_equal(target, ref,
                  "Default HyperbolicConcentric phantom has changed.")
 
@@ -79,7 +92,7 @@ def test_DynamicRange():
         np.random.seed(0)
         p = DynamicRange(jitter=i)
         target = p.discrete(100)
-
+        # _plot_both(ref, target)
         assert_equal(target, ref, "Default DynamicRange" + str(i) +
                                   " phantom has changed.")
 
@@ -92,7 +105,7 @@ def test_Soil():
     np.random.seed(0)
     p = Soil()
     target = p.discrete(100)
-
+    # _plot_both(ref, target)
     assert_equal(target, ref, "Default Soil phantom has changed.")
 
 
@@ -104,5 +117,5 @@ def test_Foam():
     np.random.seed(0)
     p = Foam()
     target = p.discrete(100)
-
+    # _plot_both(ref, target)
     assert_equal(target, ref, "Default Foam phantom has changed.")

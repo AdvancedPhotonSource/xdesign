@@ -49,6 +49,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+from xdesign.geometry import *
 from xdesign.feature import *
 import numpy as np
 import scipy.ndimage
@@ -221,7 +222,6 @@ class Phantom(object):
     # IMPORT AND EXPORT
     def numpy(self):
         """Returns the Numpy representation."""
-        raise NotImplementedError
         # Phantoms contain more than circles now.
         arr = np.empty((self.population, 4))
         for m in range(self.population):
@@ -234,16 +234,15 @@ class Phantom(object):
 
     def save(self, filename):
         """Save phantom to file."""
-        raise NotImplementedError
         np.savetxt(filename, self.numpy(), delimiter=',')
 
     def load(self, filename):
         """Load phantom from file."""
-        raise NotImplementedError
         arr = np.loadtxt(filename, delimiter=',')
         for m in range(arr.shape[0]):
-            self.append(
-                Circle(Point(arr[m, 0], arr[m, 1]), arr[m, 2], arr[m, 3]))
+            self.append(Feature(
+                        Circle(Point(arr[m, 0], arr[m, 1]), arr[m, 2]),
+                        arr[m, 3]))
 
     def discrete(self, size, bitdepth=32, ratio=8, uniform=True):
         """Returns discrete representation of the phantom. The values of
@@ -271,7 +270,6 @@ class Phantom(object):
         image : numpy.ndarray
             The discrete representation of the phantom.
         """
-        raise NotImplementedError
         # error = 1./ratio**2
         # warnings.warn("Discrete conversion is approximate. " +
         #              "True values will be within " + str(error) + " %")
@@ -352,8 +350,7 @@ class Phantom(object):
         overlap : scalar
             The largest amount that the circle is overlapping
         """
-        raise NotImplementedError
-        assert(isinstance(circle, Circle))
+        assert(isinstance(circle, Feature))
 
         overlap = 0
         for m in range(self.population):
