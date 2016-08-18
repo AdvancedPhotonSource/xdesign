@@ -74,7 +74,8 @@ __all__ = ['ImageQuality',
            'compute_likeness',
            'compute_background_ttest',
            'compute_mtf',
-           'compute_nps']
+           'compute_nps',
+           'compute_neq']
 
 
 def compute_mtf2(phantom, image):
@@ -244,6 +245,7 @@ def compute_mtf(phantom, image, Ntheta=4):
     # Calculate the MTF
     T = np.fft.fftshift(np.fft.fft(LSF_weighted))
     faxis = (np.arange(0, LSF.shape[1]) / LSF.shape[1] - 0.5) / R_bin_width
+    nyquist = 0.5*image.shape[0]
 
     MTF = np.abs(T)
     # Plot the MTF
