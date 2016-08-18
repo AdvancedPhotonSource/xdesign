@@ -53,6 +53,7 @@ import numpy as np
 import logging
 from xdesign.phantom import *
 from xdesign.geometry import *
+from xdesign.feature import *
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +165,8 @@ class HyperbolicConcentric(Phantom):
             if radius > 0.5 and ring % 2:
                 break
 
-            self.append(Circle(center, radius, value=(-1.)**(ring % 2)))
+            self.append(Feature(
+                        Circle(center, radius), value=(-1.)**(ring % 2)))
             # record information about the rings
             widths.append(radius - radii[-1])
             radii.append(radius)
@@ -211,7 +213,8 @@ class DynamicRange(Phantom):
             # place the circles
             for i in range(0, steps):
                 center = Point(px[i] + jitters[0, i], py[i] + jitters[1, i])
-                self.append(Circle(center, radius, value=colors[i]))
+                self.append(Feature(
+                            Circle(center, radius), value=colors[i]))
         else:
             # completely random
             for i in range(0, steps):
@@ -226,7 +229,8 @@ class UnitCircle(Phantom):
 
     def __init__(self, radius=0.5, value=1):
         super(UnitCircle, self).__init__()
-        self.append(Circle(Point(0.5, 0.5), radius, value))
+        self.append(Feature(
+                    Circle(Point(0.5, 0.5), radius), value))
 
 
 class Soil(Phantom):
@@ -245,7 +249,7 @@ class Soil(Phantom):
         # use overlap to approximate area opening transform because opening is
         # not discrete
         self.sprinkle(100, 0.02, 0.01, value=-.25)
-        background = Circle(Point(0.5, 0.5), 0.5, value=0.5)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), value=0.5)
         self.insert(0, background)
 
 
@@ -255,7 +259,7 @@ class Foam(Phantom):
     def __init__(self):
         super(Foam, self).__init__(shape='circle')
         self.sprinkle(300, [0.05, 0.01], 0, value=-1)
-        background = Circle(Point(0.5, 0.5), 0.5, value=1)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), value=1)
         self.insert(0, background)
 
 

@@ -144,6 +144,10 @@ class Point(Entity):
         """Scalar multiplication."""
         return Point(c * self.x, c * self.y)
 
+    def __truediv__(self, c):
+        """Scalar division."""
+        return Point(self.x / c, self.y / c)
+
     @property
     def equation(self):
         return "(%s, %s)" % (self.x, self.y)
