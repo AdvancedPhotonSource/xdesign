@@ -111,7 +111,7 @@ def plot_histograms(images, masks=None, thresh=0.025):
     labels = []  # holds legend labels for plotting
     abet = string.ascii_uppercase
 
-    if masks == None:
+    if masks is None:
         for i in range(len(images)):
             hgrams.append(images[i])
             labels.append(abet[i])
@@ -123,7 +123,7 @@ def plot_histograms(images, masks=None, thresh=0.025):
                 assert(A.shape == m.shape)
                 # convert probability mask to boolean mask
                 mA = A[m >= thresh]
-                #h = np.histogram(m, bins='auto', density=True)
+                # h = np.histogram(m, bins='auto', density=True)
                 hgrams.append(mA)
                 labels.append(abet[j] + str(i))
 
@@ -164,8 +164,9 @@ def plot_metrics(imqual):
         for j in range(1, N):
             plt.subplot2grid((p[j][0], p[j][0]), p[j][1], colspan=p[j][2],
                              rowspan=p[j][2])
-            im = plt.imshow(imqual[i].maps[j - 1], cmap=plt.cm.viridis, vmin=lo,
-                            vmax=1, interpolation="none", aspect='equal')
+            im = plt.imshow(imqual[i].maps[j - 1], cmap=plt.cm.viridis,
+                            vmin=lo, vmax=1, interpolation="none",
+                            aspect='equal')
             # plt.colorbar()
             plt.annotate(r'$\sigma$ =' + str(imqual[i].scales[j - 1]),
                          xy=(0.05, 0.05), xycoords='axes fraction',
@@ -194,7 +195,8 @@ def plot_metrics(imqual):
 
 
 def _pyramid(N):
-    """Generates the corner positions, grid size, and column/row spans for a pyramid image.
+    """Generates the corner positions, grid size, and column/row spans for
+    a pyramid image.
 
     Parameters
     --------------
