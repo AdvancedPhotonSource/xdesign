@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 # #########################################################################
-# Copyright (c) 2016, UChicago Argonne, LLC. All rights reserved.         #
+# Copyright (c) 2015, UChicago Argonne, LLC. All rights reserved.         #
 #                                                                         #
-# Copyright 2016. UChicago Argonne, LLC. This software was produced       #
+# Copyright 2015. UChicago Argonne, LLC. This software was produced       #
 # under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
 # Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
 # U.S. Department of Energy. The U.S. Government has rights to use,       #
@@ -46,32 +46,22 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-import setuptools
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-setuptools.setup(
-    name='phantom',
-    version=open('VERSION').read().strip(),
-    author='Doga Gursoy',
-    description='Benchmarking and optimization tools for tomography.',
-    packages=setuptools.find_packages(exclude=['docs']),
-    include_package_data=True,
-    install_requires=['six', 'numpy'],
-    url='http://github.com/tomography/xdesign.git',
-    keywords=['xdesign', 'tomography'],
-    license='BSD-3',
-    platforms='Any',
-    classifiers=[
-        'Development Status :: 3 - Alpha',
-        'License :: OSI Approved :: BSD License',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-        'Operating System :: OS Independent',
-        'Topic :: Scientific/Engineering :: Physics',
-        'Topic :: Scientific/Engineering :: Chemistry',
-        'Topic :: Software Development :: Libraries',
-        'Intended Audience :: Science/Research',
-        'Intended Audience :: Education',
-        'Intended Audience :: Developers',
-    ],
-)
+from xdesign.geometry import *
+from xdesign.phantom import *
+from xdesign.acquisition import *
+from xdesign.algorithms import *
+from xdesign.metrics import *
+from xdesign.plot import *
+from xdesign.material import *
+
+import logging
+logging.basicConfig()
+
+try:
+    import pkg_resources
+    __version__ = pkg_resources.working_set.require("xdesign")[0].version
+except:
+    pass

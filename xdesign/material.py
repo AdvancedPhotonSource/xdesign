@@ -51,39 +51,100 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 import logging
-from phantom.phantom import *
-from phantom.geometry import *
+from xdesign.phantom import *
+from xdesign.geometry import *
+from xdesign.feature import *
 
 logger = logging.getLogger(__name__)
 
-__author__ = "Daniel Ching"
+
+__author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['HyperbolicConcentric','DynamicRange','UnitCircle','Soil','Foam']
+__all__ = ['Material',
+           'HyperbolicConcentric',
+           'DynamicRange',
+           'UnitCircle',
+           'Soil',
+           'Foam',
+           'Electronics']
 
-## Elements and Mixtures - Not Implemented
-class Element(Circle):
+
+class Material(object):
     """Placeholder for class which uses NIST data to automatically calculate
-    attenuation values for features based on beam energy.
+    material properties based on beam energy.
     """
-    def __init__(self, MeV=1):
+
+    def __init__(self, formula, density):
         # calculate the value based on the photon energy
-        super(Element, self).__init__()
+        super(Material, self).__init__()
+        self.formula = formula
+        self.density = density
 
     @property
-    def attenuation():
+    def compton_cross_section(self, energy):
+        """Compton cross-section of the electron [cm^2]."""
         raise NotImplementedError
 
-    def set_beam_energy():
+    @property
+    def photoelectric_cross_section(self, energy):
         raise NotImplementedError
 
-## Microstructures
+    @property
+    def atomic_form_factor(self, energy):
+        """Measure of the scattering amplitude of a wave by an isolated atom.
+        Read from NIST database [Unitless]."""
+        raise NotImplementedError
+
+    @property
+    def atom_concentration(self, energy):
+        """Number of atoms per unit volume [1/cm^3]."""
+        raise NotImplementedError
+
+    @property
+    def reduced_energy_ratio(self, energy):
+        """Energy ratio of the incident x-ray and the electron energy
+        [Unitless]."""
+        raise NotImplementedError
+
+    @property
+    def photoelectric_absorption(self, energy):
+        """X-ray attenuation due to the photoelectric effect [1/cm]."""
+        raise NotImplementedError
+
+    @property
+    def compton_scattering(self, energy):
+        """X-ray attenuation due to the Compton scattering [1/cm]."""
+        raise NotImplementedError
+
+    @property
+    def electron_density(self, energy):
+        """Electron density [e/cm^3]."""
+        raise NotImplementedError
+
+    @property
+    def linear_attenuation(self, energy):
+        """Total x-ray attenuation [1/cm]."""
+        raise NotImplementedError
+
+    @property
+    def refractive_index(self, energy):
+        raise NotImplementedError
+
+    def mass_ratio(self):
+        raise NotImplementedError
+
+    def number_of_elements(self):
+        raise NotImplementedError
+
+
 class HyperbolicConcentric(Phantom):
     """Generates a series of cocentric alternating black and white circles whose
-    radii are changing at a parabolic rate. These lines whose spacing covers a
-    range scales can be used to estimate the Modulation Transfer Function (MTF).
+    radii are changing at a parabolic rate. These line spacings cover a range
+    of scales and can be used to estimate the Modulation Transfer Function.
     """
-    def __init__(self, min_width=0.1,exponent=1/2):
+
+    def __init__(self, min_width=0.1, exponent=1 / 2):
         """
         Attributes
         -------------
@@ -93,25 +154,27 @@ class HyperbolicConcentric(Phantom):
             The list of the widths of the bands
         """
         super(HyperbolicConcentric, self).__init__(shape='circle')
-        center = Point(0.5,0.5)
-        #exponent = 1/2
+        center = Point(0.5, 0.5)
+        # exponent = 1/2
         Nmax_rings = 512
 
         radii = [0]
         widths = [min_width]
-        for ring in range(0,Nmax_rings):
-            radius = min_width*np.power(ring+1,exponent)
-            if radius > 0.5 and ring%2:
+        for ring in range(0, Nmax_rings):
+            radius = min_width * np.power(ring + 1, exponent)
+            if radius > 0.5 and ring % 2:
                 break
 
-            self.append(Circle(center,radius, value=(-1.)**(ring%2)))
+            self.append(Feature(
+                        Circle(center, radius), value=(-1.)**(ring % 2)))
             # record information about the rings
-            widths.append(radius-radii[-1])
+            widths.append(radius - radii[-1])
             radii.append(radius)
 
-        self.reverse() # smaller circles on top
+        self.reverse()  # smaller circles on top
         self.radii = radii
         self.widths = widths
+
 
 class DynamicRange(Phantom):
     """Generates a phantom of randomly placed circles for determining dynamic
@@ -126,42 +189,49 @@ class DynamicRange(Phantom):
         False : circles are randomly placed
     shape : string, optional
     """
+
     def __init__(self, steps=10, jitter=True, shape='square'):
         super(DynamicRange, self).__init__(shape=shape)
 
         # determine the size and and spacing of the circles around the box.
-        spacing = 1./np.ceil(np.sqrt(steps))
-        radius = spacing/4
+        spacing = 1. / np.ceil(np.sqrt(steps))
+        radius = spacing / 4
 
-        colors = [2**j for j in range(0,steps)]
+        colors = [2**j for j in range(0, steps)]
         np.random.shuffle(colors)
 
         if jitter:
             # generate grid
-            _x = np.arange(0, 1, spacing) + spacing/2
+            _x = np.arange(0, 1, spacing) + spacing / 2
             px, py, = np.meshgrid(_x, _x)
             px = np.ravel(px)
             py = np.ravel(py)
 
             # calculate jitters
-            jitters = 2*radius*(np.random.rand(2,steps)-0.5)
+            jitters = 2 * radius * (np.random.rand(2, steps) - 0.5)
 
             # place the circles
-            for i in range(0,steps):
-                center = Point(px[i]+jitters[0,i],py[i]+jitters[1,i])
-                self.append(Circle(center,radius,value=colors[i]))
+            for i in range(0, steps):
+                center = Point(px[i] + jitters[0, i], py[i] + jitters[1, i])
+                self.append(Feature(
+                            Circle(center, radius), value=colors[i]))
         else:
             # completely random
-            for i in range(0,steps):
-                if 1 > self.sprinkle(1,radius,gap=radius*0.9,value=colors[i]):
+            for i in range(0, steps):
+                if 1 > self.sprinkle(1, radius, gap=radius * 0.9,
+                                     value=colors[i]):
                     None
-                    #TODO: ensure that all circles are placed
+                    # TODO: ensure that all circles are placed
+
 
 class UnitCircle(Phantom):
     """Generates a phantom with a single circle in its center."""
+
     def __init__(self, radius=0.5, value=1):
         super(UnitCircle, self).__init__()
-        self.append(Circle(Point(0.5,0.5),radius,value))
+        self.append(Feature(
+                    Circle(Point(0.5, 0.5), radius), value))
+
 
 class Soil(Phantom):
     """Generates a phantom with structure similar to soil.
@@ -172,35 +242,46 @@ class Soil(Phantom):
     processing of multiphase images obtained via X‐ray microtomography: a
     review. Water Resources Research, 50(4), 3615-3639.
     """
+
     def __init__(self, porosity=0.412):
         super(Soil, self).__init__(shape='circle')
-        self.sprinkle(30, [0.1,0.03], 0, value=0.5, max_density=1-porosity)
-        # use overlap to approximate area opening transform because opening is not discrete
+        self.sprinkle(30, [0.1, 0.03], 0, value=0.5, max_density=1 - porosity)
+        # use overlap to approximate area opening transform because opening is
+        # not discrete
         self.sprinkle(100, 0.02, 0.01, value=-.25)
-        background = Circle(Point(0.5,0.5),0.5, value=0.5)
-        self.insert(0,background)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), value=0.5)
+        self.insert(0, background)
+
 
 class Foam(Phantom):
     """Generates a phantom with structure similar to foam."""
+
     def __init__(self):
         super(Foam, self).__init__(shape='circle')
-        self.sprinkle(300, [0.05,0.01], 0, value=-1)
-        background = Circle(Point(0.5,0.5), 0.5, value=1)
-        self.insert(0,background)
+        self.sprinkle(300, [0.05, 0.01], 0, value=-1)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), value=1)
+        self.insert(0, background)
 
-## Microstructures - Not Implemented
+
 class Metal(Phantom):
+
     def __init__(self, shape='square'):
         raise NotImplementedError
+
 
 class SoftBiomaterial(Phantom):
+
     def __init__(self, shape='square'):
         raise NotImplementedError
+
 
 class Electronics(Phantom):
+
     def __init__(self, shape='square'):
         raise NotImplementedError
 
+
 class FiberComposite(Phantom):
+
     def __init__(self, shape='square'):
         raise NotImplementedError

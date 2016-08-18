@@ -46,32 +46,19 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-import setuptools
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-setuptools.setup(
-    name='phantom',
-    version=open('VERSION').read().strip(),
-    author='Doga Gursoy',
-    description='Benchmarking and optimization tools for tomography.',
-    packages=setuptools.find_packages(exclude=['docs']),
-    include_package_data=True,
-    install_requires=['six', 'numpy'],
-    url='http://github.com/tomography/xdesign.git',
-    keywords=['xdesign', 'tomography'],
-    license='BSD-3',
-    platforms='Any',
-    classifiers=[
-        'Development Status :: 3 - Alpha',
-        'License :: OSI Approved :: BSD License',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-        'Operating System :: OS Independent',
-        'Topic :: Scientific/Engineering :: Physics',
-        'Topic :: Scientific/Engineering :: Chemistry',
-        'Topic :: Software Development :: Libraries',
-        'Intended Audience :: Science/Research',
-        'Intended Audience :: Education',
-        'Intended Audience :: Developers',
-    ],
-)
+import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+__author__ = "Daniel Ching, Doga Gursoy"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = []
+
+"""Placeholder module for reading/writing various formatted phantoms,
+experiments, meshes, data, etc."""

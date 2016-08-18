@@ -1,9 +1,9 @@
 package:
-  name: phantom
+  name: xdesign
   version: '0.1.0'
 
 source:
-  git_url: https://github.com/tomography/phantom.git
+  git_url: https://github.com/tomography/xdesign.git
 
 build:
   number: 0
@@ -20,17 +20,17 @@ requirements:
     - six
     - matplotlib
     - phasepack
+    - cached-property
 
 test:
   # Python imports
   imports:
-    - phantom
-    - phantom.circle
+    - xdesign
 
 about:
-  home: http://phantom.readthedocs.io
+  home: http://xdesign.readthedocs.io
   license: BSD-3
-  summary: 'Benchmarking tools for tomography.'
+  summary: 'Benchmarking and optimization tools for tomography.'
 
 # See
 # http://docs.continuum.io/conda/build.html for

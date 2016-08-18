@@ -49,162 +49,69 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+from xdesign.geometry import *
 import numpy as np
-from phantom.geometry import *
-from phantom.geometry import beamcirc, rotate
 import logging
+from cached_property import cached_property
 
 logger = logging.getLogger(__name__)
 
-
-__author__ = "Doga Gursoy"
+__author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Probe',
-           'sinogram',
-           'angleogram']
+__all__ = ['Feature']
 
 
-class Probe(Beam):
+class Feature(object):
+    '''A container object for geometry objects. It is a mesh or grid object.
+    Maybe it is a base class for meshes and grids?
+    '''
+    def __init__(self, entity, value=1):
+        assert(isinstance(entity, Circle))
+        # TODO: Add a base class for all entities with area?
+        self.e_values = [value]
+        self.entities = [entity]
 
-    def __init__(self, p1, p2, size=0):
-        super(Probe, self).__init__(p1, p2, size)
+    @cached_property
+    def area(self):
+        """Returns the total area of the feature"""
+        total_area = 0
+        for e in self.entities:
+            total_area += e.area
+        return total_area
 
-    def translate(self, dx):
-        """Translates beam along its normal direction."""
-        vec = self.normal * dx
-        self.p1 += vec
-        self.p2 += vec
+    @cached_property
+    def value(self):
+        """Returns the area average value of the feature."""
+        total_value = 0
+        for i in range(0, len(self.entities)):
+            total_value += self.e_values[i]*self.entities[i].area
+        return total_value / self.area
 
-    def rotate(self, theta, origin):
-        """Rotates beam around a given point."""
-        self.p1 = rotate(self.p1, theta, origin)
-        self.p2 = rotate(self.p2, theta, origin)
+    @cached_property
+    def center(self):
+        """Returns the area center of mass."""
+        center = Point(0, 0)
+        for i in range(0, len(self.entities)):
+            center += self.entities[i].center*self.entities[i].area
+        return center / self.area
 
-    def measure(self, phantom, noise=False):
-        """Return the probe measurement given phantom. When noise is > 0,
-        poisson noise is added to the returned measurement."""
-        newdata = 0
-        for m in range(phantom.population):
-            newdata += beamcirc(self, phantom.feature[m]) * phantom.feature[m].value
-        if noise > 0:
-            newdata += newdata*noise*np.random.poisson(1)
-        return newdata
+    @cached_property
+    def radius(self):
+        """Returns the radius of the smallest boundary circle"""
+        radius = 0
+        for i in range(0, len(self.entities)):
+            d = self.entities[i].center - self.center
+            radius = max(radius, d.norm + self.entities[i].radius)
+        return radius
 
+    def translate(self, dx, dy):
+        """Translate feature."""
+        del self.__dict__['center']
+        for e in self.entities:
+            e.translate(dx, dy)
 
-def sinogram(sx, sy, phantom, noise=False):
-    """Generates sinogram given a phantom.
-
-    Parameters
-    ----------
-    sx : int
-        Number of rotation angles.
-    sy : int
-        Number of detection pixels (or sample translations).
-    phantom : Phantom
-
-    Returns
-    -------
-    ndarray
-        Sinogram.
-    """
-    scan = raster_scan(sx, sy)
-    sino = np.zeros((sx, sy))
-    for m in range(sx):
-        print (m)
-        for n in range(sy):
-            sino[m, n] = next(scan).measure(phantom, noise)
-    return sino
-
-
-def angleogram(sx, sy, phantom, noise=False):
-    """Generates angleogram given a phantom.
-
-    Parameters
-    ----------
-    sx : int
-        Number of rotation angles.
-    sy : int
-        Number of detection pixels (or sample translations).
-    phantom : Phantom
-
-    Returns
-    -------
-    ndarray
-        Angleogram.
-    """
-    scan = angle_scan(sx, sy)
-    angl = np.zeros((sx, sy))
-    for m in range(sx):
-        print (m)
-        for n in range(sy):
-            angl[m, n] = next(scan).measure(phantom, noise)
-    return angl
-
-
-def raster_scan(sx, sy):
-    """Provides a beam list for raster-scanning.
-
-    Parameters
-    ----------
-    sx : int
-        Number of rotation angles.
-    sy : int
-        Number of detection pixels (or sample translations).
-
-    Yields
-    ------
-    Probe
-    """
-    # Step size of the probe.
-    step = 1. / sy
-
-    # Step size of the rotation angle.
-    theta = np.pi / sx
-
-    # Fixed probe location.
-    p = Probe(Point(step / 2., -10), Point(step / 2., 10), step)
-
-    for m in range(sx):
-        for n in range(sy):
-            yield p
-            p.translate(step)
-        p.translate(-1)
-        p.rotate(theta, Point(0.5, 0.5))
-
-
-def angle_scan(sx, sy):
-    """Provides a beam list for raster-scanning.
-
-    Parameters
-    ----------
-    sx : int
-        Number of rotation angles.
-    sy : int
-        Number of detection pixels (or sample translations).
-
-    Yields
-    ------
-    Probe
-    """
-    # Step size of the probe.
-    step = 0.1 / sy
-
-    # Fixed rotation points.
-    p1 = Point(0, 0.5)
-    p2 = Point(0.5, 0.5)
-
-    # Step size of the rotation angle.
-    beta = np.pi / (sx + 1)
-    alpha = np.pi / sy
-
-    # Fixed probe location.
-    p = Probe(Point(step / 2., -10), Point(step / 2., 10), step)
-
-    for m in range(sx):
-        for n in range(sy):
-            yield p
-            p.rotate(-alpha, p1)
-        p.rotate(np.pi, p1)
-        p1.rotate(-beta, p2)
-        p.rotate(-beta, p2)
+    def rotate(self, theta, point):
+        """Rotate feature around a point."""
+        for e in self.entities:
+            e.rotate(theta, point)

@@ -59,22 +59,26 @@ __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Point',
+           'Superellipse',
+           'Ellipse',
            'Circle',
            'Line',
-           'Beam',
-           'Feature']
+           'Segment',
+           'Ray',
+           'Triangle',
+           'Rectangle',
+           'Square']
 
 
-class Feature(object):
-
-    """Base feature class."""
+class Entity(object):
+    """Base class for all geometric entities."""
 
     def __init__(self):
         pass
 
     @property
     def equation(self):
-        """Analytical equation of the feature."""
+        """Analytical equation of the entity."""
         raise NotImplementedError
 
     @property
@@ -85,41 +89,30 @@ class Feature(object):
     @property
     def numpy(self):
         """Return Numpy representation."""
-        raise NotImplementedError
-
-    @property
-    def area(self):
-        """Return the area of the feature."""
-        raise NotImplementedError
-
-    @property
-    def circumference(self):
-        """Return the circumference of the feature."""
-        raise NotImplementedError
+        return np.array(self.list)
 
     def translate(self, dx, dy):
-        """Translate feature."""
+        """Translate entity."""
         raise NotImplementedError
 
     def rotate(self, theta, point):
-        """Rotate feature around a point."""
+        """Rotate entity around a point."""
         raise NotImplementedError
 
     def scale(self, val):
-        """Scale feature."""
+        """Scale entity."""
         raise NotImplementedError
 
-    def collision(self, feature):
-        """Check if feature collides with another feature."""
+    def collision(self, entity):
+        """Check if entity collides with another entity."""
         raise NotImplementedError
 
-    def distance(self, feature):
-        """Return the closest distance between features."""
+    def distance(self, entity):
+        """Return the closest distance between entities."""
         raise NotImplementedError
 
 
-class Point(Feature):
-
+class Point(Entity):
     """Point in 2-D cartesian space.
 
     Attributes
@@ -151,6 +144,10 @@ class Point(Feature):
         """Scalar multiplication."""
         return Point(c * self.x, c * self.y)
 
+    def __truediv__(self, c):
+        """Scalar division."""
+        return Point(self.x / c, self.y / c)
+
     @property
     def equation(self):
         return "(%s, %s)" % (self.x, self.y)
@@ -159,19 +156,6 @@ class Point(Feature):
     def list(self):
         """Return list representation."""
         return [self.x, self.y]
-
-    @property
-    def numpy(self):
-        """Return Numpy representation."""
-        return np.array([self.x, self.y])
-
-    @property
-    def area(self):
-        return 0
-
-    @property
-    def circumference(self):
-        return 0
 
     @property
     def norm(self):
@@ -198,76 +182,13 @@ class Point(Feature):
         """Return the distance from a point."""
         return np.hypot(self.x - point.x, self.y - point.y)
 
-
-class Circle(Feature):
-
-    """Circle in 2-D cartesian space.
-
-    Attributes
-    ----------
-    center : Point
-        Defines the center point of the circle.
-    radius : scalar
-        Radius of the circle.
-    """
-
-    def __init__(self, center, radius, value=1):
-        super(Circle, self).__init__()
-        self.center = center
-        self.radius = float(radius)
-        self.value = float(value)
-
-    def __eq__(self, circle):
-        return (self.x, self.y, self.radius, self.value) == (circle.x, circle.y, circle.radius, circle.value)
-
-    @property
-    def equation(self):
-        """Return analytical equation."""
-        return "(x-%s)^2 + (y-%s)^2 = %s^2" % (self.center.x, self.center.y, self.radius)
-
-    @property
-    def list(self):
-        """Return list representation."""
-        return [self.center.x, self.center.y, self.radius, self.value]
-
-    @property
-    def numpy(self):
-        """Return Numpy representation."""
-        return np.array(self.list)
-
-    @property
-    def area(self):
-        """Return area."""
-        return np.pi * self.radius**2
-
-    @property
-    def circumference(self):
-        """Return circumference."""
-        return 2 * np.pi * self.radius
-
-    @property
-    def diameter(self):
-        """Return diameter."""
-        return 2 * self.radius
-
-    def translate(self, dx, dy):
-        """Translate."""
-        self.center = translate(self.center, dx, dy)
-
-    def rotate(self, theta, point=Point(0, 0)):
-        """Rotate around a point."""
-        self.center = rotate(self.center, theta, point)
-
-    def scale(self, val):
-        """Scale."""
-        self.rad *= val
+    def midpoint(self, point):
+        """Return the midpoint from a point."""
+        return self.distance(point) / 2.
 
 
-class Line(Feature):
-
-    """Line in 2-D cartesian space.
-
-    It is defined by two distinct points.
+class LinearEntity(Entity):
+    """Base class for linear entities in 2-D Cartesian space.
 
     Attributes
     ----------
@@ -276,14 +197,10 @@ class Line(Feature):
     """
 
     def __init__(self, p1, p2):
-        super(Line, self).__init__()
         if p1 == p2:
             raise ValueError('Requires two unique points.')
         self.p1 = p1
         self.p2 = p2
-
-    def __eq__(self, line):
-        return (self.slope, self.yintercept) == (line.slope, line.yintercept)
 
     @property
     def vertical(self):
@@ -310,27 +227,9 @@ class Line(Feature):
             return (self.p2.y - self.p1.y) / (self.p2.x - self.p1.x)
 
     @property
-    def xintercept(self):
-        """Return the x-intercept."""
-        if self.horizontal:
-            return 0.
-        else:
-            return self.p1.x - 1 / self.slope * self.p1.y
-
-    @property
-    def yintercept(self):
-        """Return the y-intercept."""
-        if self.vertical:
-            return 0.
-        else:
-            return self.p1.y - self.slope * self.p1.x
-
-    @property
     def equation(self):
         """Return line equation."""
-        if self.vertical:
-            return "x = %s" % self.p1.x
-        return "y = %sx + %s" % (self.slope, self.yintercept)
+        raise NotImplementedError
 
     @property
     def list(self):
@@ -338,9 +237,18 @@ class Line(Feature):
         return [self.p1.x, self.p1.y, self.p2.x, self.p2.y]
 
     @property
-    def numpy(self):
-        """Return Numpy representation."""
-        return np.array(self.list)
+    def points(self):
+        """The two points used to define this linear entity."""
+        return (self.p1, self.p2)
+
+    @property
+    def bounds(self):
+        """Return a tuple (xmin, ymin, xmax, ymax) representing the
+        bounding rectangle for the geometric figure.
+        """
+        xs = [p.x for p in self.points]
+        ys = [p.y for p in self.points]
+        return (min(xs), min(ys), max(xs), max(ys))
 
     @property
     def tangent(self):
@@ -369,9 +277,8 @@ class Line(Feature):
         self.p2 = rotate(self.p2, theta, point)
 
 
-class Beam(Line):
-
-    """Beam (thick line) in 2-D cartesian space.
+class Line(LinearEntity):
+    """Line in 2-D cartesian space.
 
     It is defined by two distinct points.
 
@@ -379,16 +286,348 @@ class Beam(Line):
     ----------
     p1 : Point
     p2 : Point
-    size : scalar, optional
-        Size of the beam.
     """
 
-    def __init__(self, p1, p2, size=0):
-        super(Beam, self).__init__(p1, p2)
-        self.size = float(size)
+    def __init__(self, p1, p2):
+        super(Line, self).__init__(p1, p2)
+        if p1 == p2:
+            raise ValueError('Requires two unique points.')
+        self.p1 = p1
+        self.p2 = p2
 
-    def __str__(self):
-        return super(Beam, self).__str__()
+    def __eq__(self, line):
+        return (self.slope, self.yintercept) == (line.slope, line.yintercept)
+
+    @property
+    def xintercept(self):
+        """Return the x-intercept."""
+        if self.horizontal:
+            return 0.
+        else:
+            return self.p1.x - 1 / self.slope * self.p1.y
+
+    @property
+    def yintercept(self):
+        """Return the y-intercept."""
+        if self.vertical:
+            return 0.
+        else:
+            return self.p1.y - self.slope * self.p1.x
+
+    @property
+    def equation(self):
+        """Return line equation."""
+        if self.vertical:
+            return "x = %s" % self.p1.x
+        return "y = %sx + %s" % (self.slope, self.yintercept)
+
+    def translate(self, dx, dy):
+        """Translate."""
+        self.p1 = translate(self.p1, dx, dy)
+        self.p2 = translate(self.p2, dx, dy)
+
+    def rotate(self, theta, point=Point(0, 0)):
+        """Rotate around a point."""
+        self.p1 = rotate(self.p1, theta, point)
+        self.p2 = rotate(self.p2, theta, point)
+
+
+class Ray(LinearEntity):
+    """Ray in 2-D cartesian space.
+
+    It is defined by two distinct points.
+
+    Attributes
+    ----------
+    p1 : Point (source)
+    p2 : Point (point direction)
+    """
+
+    def __init__(self, p1, p2):
+        super(Ray, self).__init__(p1, p2)
+        if p1 == p2:
+            raise ValueError('Requires two unique points.')
+        self.p1 = p1
+        self.p2 = p2
+
+    @property
+    def source(self):
+        """The point from which the ray emanates."""
+        return self.p1
+
+    @property
+    def direction(self):
+        """The direction in which the ray emanates."""
+        return self.p2 - self.p1
+
+
+class Segment(LinearEntity):
+    """Segment in 2-D cartesian space.
+
+    It is defined by two distinct points.
+
+    Attributes
+    ----------
+    p1 : Point (source)
+    p2 : Point (point direction)
+    """
+
+    def __init__(self, p1, p2):
+        super(Segment, self).__init__(p1, p2)
+        if p1 == p2:
+            raise ValueError('Requires two unique points.')
+        self.p1 = p1
+        self.p2 = p2
+
+    @property
+    def length(self):
+        """The length of the line segment."""
+        return Point.distance(self.p1, self.p2)
+
+    @property
+    def midpoint(self):
+        """The midpoint of the line segment."""
+        return Point.midpoint(self.p1, self.p2)
+
+
+class CurvedEntity(Entity):
+    """Base class for curved entities in 2-D cartesian space.
+
+    Attributes
+    ----------
+    center : Point
+    """
+
+    def __init__(self, center):
+        super(CurvedEntity, self).__init__()
+        self.center = center
+
+    @property
+    def equation(self):
+        """Return analytical equation."""
+        raise NotImplementedError
+
+    @property
+    def list(self):
+        """Return list representation."""
+        raise NotImplementedError
+
+    @property
+    def numpy(self):
+        """Return Numpy representation."""
+        return np.array(self.list)
+
+    def translate(self, dx, dy):
+        """Translate."""
+        self.center = translate(self.center, dx, dy)
+
+    def rotate(self, theta, point=Point(0, 0)):
+        """Rotate around a point."""
+        self.center = rotate(self.center, theta, point)
+
+    def scale(self, val):
+        """Scale."""
+        raise NotImplementedError
+
+
+class Superellipse(CurvedEntity):
+    """Superellipse in 2-D cartesian space.
+
+    Attributes
+    ----------
+    center : Point
+    a : scalar
+    b : scalar
+    n : scalar
+    """
+
+    def __init__(self, center, a, b, n):
+        super(Superellipse, self).__init__(center)
+        self.center = center
+        self.a = float(a)
+        self.b = float(b)
+        self.n = float(n)
+
+    @property
+    def list(self):
+        """Return list representation."""
+        return [self.center.x, self.center.y, self.a, self.b, self.n]
+
+    def scale(self, val):
+        """Scale."""
+        self.a *= val
+        self.b *= val
+
+
+class Ellipse(Superellipse):
+    """Ellipse in 2-D cartesian space.
+
+    Attributes
+    ----------
+    center : Point
+    a : scalar
+    b : scalar
+    """
+
+    def __init__(self, center, a, b):
+        super(Ellipse, self).__init__(center, a, b, 2)
+        self.center = center
+        self.a = float(a)
+        self.b = float(b)
+
+    @property
+    def list(self):
+        """Return list representation."""
+        return [self.center.x, self.center.y, self.a, self.b]
+
+    @property
+    def area(self):
+        """Return area."""
+        return np.pi * self.a * self.b
+
+    def scale(self, val):
+        """Scale."""
+        self.a *= val
+        self.b *= val
+
+
+class Circle(Ellipse):
+    """Circle in 2-D cartesian space.
+
+    Attributes
+    ----------
+    center : Point
+        Defines the center point of the circle.
+    radius : scalar
+        Radius of the circle.
+    """
+
+    def __init__(self, center, radius):
+        super(Circle, self).__init__(center, radius, radius)
+        self.center = center
+        self.radius = float(radius)
+
+    def __eq__(self, circle):
+        return (self.x, self.y, self.radius) == (circle.x, circle.y,
+                                                 circle.radius)
+
+    @property
+    def equation(self):
+        """Return analytical equation."""
+        return "(x-%s)^2 + (y-%s)^2 = %s^2" % (self.center.x, self.center.y,
+                                               self.radius)
+
+    @property
+    def list(self):
+        """Return list representation."""
+        return [self.center.x, self.center.y, self.radius]
+
+    @property
+    def circumference(self):
+        """Return circumference."""
+        return 2 * np.pi * self.radius
+
+    @property
+    def diameter(self):
+        """Return diameter."""
+        return 2 * self.radius
+
+    def scale(self, val):
+        """Scale."""
+        self.rad *= val
+
+
+class Polygon(Entity):
+    """Polygon in 2-D cartesian space.
+
+    It is defined by n number of distinct points.
+
+    Attributes
+    ----------
+    vertices : sequence of Points
+    """
+
+    def __init__(self, vertices):
+        super(Polygon, self).__init__()
+        self.vertices = vertices
+
+    @property
+    def numverts(self):
+        return len(self.vertices)
+
+    @property
+    def list(self):
+        """Return list representation."""
+        lst = []
+        for m in range(self.numverts):
+            lst.append(self.vertices[m].list)
+        return lst
+
+    @property
+    def numpy(self):
+        """Return Numpy representation."""
+        return np.array(self.list)
+
+    @property
+    def area(self):
+        """Return the area of the entity."""
+        raise NotImplementedError
+
+    @property
+    def perimeter(self):
+        """Return the perimeter of the entity."""
+        perimeter = 0
+        verts = self.vertices
+        points = verts + [verts[0]]
+        for m in range(self.numverts):
+            perimeter += points[m].distance(points[m + 1])
+        return perimeter
+
+    @property
+    def bounds(self):
+        """Return a tuple (xmin, ymin, xmax, ymax) representing the
+        bounding rectangle for the geometric figure.
+        """
+        xs = [p.x for p in self.vertices]
+        ys = [p.y for p in self.vertices]
+        return (min(xs), min(ys), max(xs), max(ys))
+
+
+class Triangle(Polygon):
+    """Triangle in 2-D cartesian space.
+
+    It is defined by three distinct points.
+    """
+
+    def __init__(self, p1, p2, p3):
+        verts = [p1, p2, p3]
+        super(Triangle, self).__init__(verts)
+        self.vertices = verts
+
+
+class Rectangle(Polygon):
+    """Rectangle in 2-D cartesian space.
+
+    It is defined by four distinct points.
+    """
+
+    def __init__(self, p1, p2, p3, p4):
+        verts = [p1, p2, p3, p4]
+        super(Rectangle, self).__init__(verts)
+        self.vertices = verts
+
+
+class Square(Rectangle):
+
+    """Square in 2-D cartesian space.
+
+    It is defined by four distinct points.
+    """
+
+    def __init__(self, p1, p2, p3, p4):
+        verts = [p1, p2, p3, p4]
+        super(Rectangle, self).__init__(verts)
+        self.vertices = verts
 
 
 def rotate(point, theta, origin):

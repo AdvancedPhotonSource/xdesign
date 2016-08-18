@@ -52,15 +52,19 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import logging, time, string
+import logging
+import time
+import string
 
 logger = logging.getLogger(__name__)
 
 
-__author__ = "Doga Gursoy"
+__author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['plot_phantom','plot_metrics', 'plot_histograms']
+__all__ = ['plot_phantom',
+           'plot_metrics',
+           'plot_histograms']
 
 
 def plot_phantom(phantom):
@@ -85,6 +89,7 @@ def plot_phantom(phantom):
     plt.gca().invert_yaxis()
     plt.show(block=False)
 
+
 def plot_histograms(images, masks=None, thresh=0.025):
     """Plots the normalized histograms for the pixel intensity under each
     mask.
@@ -102,11 +107,11 @@ def plot_histograms(images, masks=None, thresh=0.025):
     if type(images) is not list:
         images = [images]
 
-    hgrams = [] # holds histograms before plotting
-    labels = [] # holds legend labels for plotting
+    hgrams = []  # holds histograms before plotting
+    labels = []  # holds legend labels for plotting
     abet = string.ascii_uppercase
 
-    if masks == None:
+    if masks is None:
         for i in range(len(images)):
             hgrams.append(images[i])
             labels.append(abet[i])
@@ -118,9 +123,9 @@ def plot_histograms(images, masks=None, thresh=0.025):
                 assert(A.shape == m.shape)
                 # convert probability mask to boolean mask
                 mA = A[m >= thresh]
-                #h = np.histogram(m, bins='auto', density=True)
+                # h = np.histogram(m, bins='auto', density=True)
                 hgrams.append(mA)
-                labels.append(abet[j]+str(i))
+                labels.append(abet[j] + str(i))
 
     plt.figure()
     # autobins feature doesn't work because one of the groups is all zeros?
@@ -128,20 +133,21 @@ def plot_histograms(images, masks=None, thresh=0.025):
     plt.legend(labels)
     plt.show()
 
+
 def plot_metrics(imqual):
     """Plots metrics of ImageQuality data
 
     """
     colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(imqual))))
-    for i in range(0,len(imqual)):
+    for i in range(0, len(imqual)):
         # Draw a plot of the mean quality vs scale using different colors for
         # each reconstruction.
         plt.figure(0)
-        plt.scatter(imqual[i].scales, imqual[i].qualities,color=next(colors))
+        plt.scatter(imqual[i].scales, imqual[i].qualities, color=next(colors))
 
         # Plot the reconstruction
-        f = plt.figure(i+1)
-        N = len(imqual[i].maps)+1;
+        f = plt.figure(i + 1)
+        N = len(imqual[i].maps) + 1
         p = _pyramid(N)
         plt.subplot2grid((p[0][0], p[0][0]), p[0][1], colspan=p[0][2],
                          rowspan=p[0][2])
@@ -150,18 +156,19 @@ def plot_metrics(imqual):
         plt.colorbar()
         plt.title("Reconstruction")
 
-        lo = 1. # Determine the min local quality for all the scales
+        lo = 1.  # Determine the min local quality for all the scales
         for m in imqual[i].maps:
-            lo = min(lo,np.min(m))
+            lo = min(lo, np.min(m))
 
         # Draw a plot of the local quality at each scale.
-        for j in range(1,N):
+        for j in range(1, N):
             plt.subplot2grid((p[j][0], p[j][0]), p[j][1], colspan=p[j][2],
                              rowspan=p[j][2])
-            im = plt.imshow(imqual[i].maps[j-1], cmap=plt.cm.viridis, vmin=lo,
-                            vmax=1, interpolation="none", aspect='equal')
-            #plt.colorbar()
-            plt.annotate(r'$\sigma$ =' + str(imqual[i].scales[j-1]),
+            im = plt.imshow(imqual[i].maps[j - 1], cmap=plt.cm.viridis,
+                            vmin=lo, vmax=1, interpolation="none",
+                            aspect='equal')
+            # plt.colorbar()
+            plt.annotate(r'$\sigma$ =' + str(imqual[i].scales[j - 1]),
                          xy=(0.05, 0.05), xycoords='axes fraction',
                          weight='heavy')
 
@@ -180,14 +187,16 @@ def plot_metrics(imqual):
     plt.figure(0)
     plt.ylabel('Quality')
     plt.xlabel('Scale')
-    plt.ylim([0,1])
-    plt.legend([str(x) for x in range(1,len(imqual)+1)])
+    plt.ylim([0, 1])
+    plt.legend([str(x) for x in range(1, len(imqual) + 1)])
     plt.title("Comparison of Reconstruction Methods")
 
     plt.show(block=True)
 
+
 def _pyramid(N):
-    """Generates the corner positions, grid size, and column/row spans for a pyramid image.
+    """Generates the corner positions, grid size, and column/row spans for
+    a pyramid image.
 
     Parameters
     --------------
@@ -202,15 +211,15 @@ def _pyramid(N):
         location of a particular axies, and span is the size of a paricular
         axies.
     """
-    L = round(N/float(3)) # the number of levels in the pyramid
-    W = int(2**L) # grid size of the pyramid
+    L = round(N / float(3))  # the number of levels in the pyramid
+    W = int(2**L)  # grid size of the pyramid
 
-    params = [p%3 for p in range(0,N)]
-    lcorner = [0,0] # the min corner of this level
-    for n in range(0,N):
-        l = int(n/3) # pyramid level
-        span = int(W/(2**(l+1))) # span of the in number of grid spaces
-        corner = list(lcorner) # the min corner of this tile
+    params = [p % 3 for p in range(0, N)]
+    lcorner = [0, 0]  # the min corner of this level
+    for n in range(0, N):
+        l = int(n / 3)  # pyramid level
+        span = int(W / (2**(l + 1)))  # span of the in number of grid spaces
+        corner = list(lcorner)  # the min corner of this tile
 
         if params[n] == 0:
             lcorner[0] += span
@@ -220,7 +229,7 @@ def _pyramid(N):
         elif params[n] == 1:
             corner[1] = lcorner[1] - span
 
-        params[n] = [W,corner,span]
-        #print(params[n])
+        params[n] = [W, corner, span]
+        # print(params[n])
 
     return params

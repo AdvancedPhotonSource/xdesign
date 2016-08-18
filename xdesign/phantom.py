@@ -49,15 +49,17 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+from xdesign.geometry import *
+from xdesign.feature import *
 import numpy as np
 import scipy.ndimage
-import logging, warnings
-from phantom.geometry import *
+import logging
+import warnings
 
 logger = logging.getLogger(__name__)
 
 
-__author__ = "Doga Gursoy"
+__author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Phantom']
@@ -79,7 +81,7 @@ class Phantom(object):
     """
     # OPERATOR OVERLOADS
     def __init__(self, shape='circle'):
-        assert(shape=='circle' or shape=='square')
+        assert(shape == 'circle' or shape == 'square')
         self.shape = shape
         self.population = 0
         self.area = 0
@@ -96,10 +98,13 @@ class Phantom(object):
     @property
     def list(self):
         for m in range(self.population):
-            print (self.feature[m].list)
+            print(self.feature[m].list)
 
     @property
     def density(self):
+        '''Returns the area density of the phantom. (Does not acount for
+        value.)
+        '''
         if self.shape == 'square':
             return self.area
         elif self.shape == 'circle':
@@ -122,26 +127,26 @@ class Phantom(object):
     def insert(self, i, feature):
         """Insert a feature at a given depth."""
         assert(isinstance(feature, Feature))
-        self.feature.insert(i,feature)
+        self.feature.insert(i, feature)
         self.area += feature.area
         self.population += 1
 
     def sort(self, param="value", reverse=False):
         """Sorts the features by value or size"""
         if param == "value":
-            key=lambda circle: circle.value
+            def key(feature): return feature.value
         elif param == "size":
-            key=lambda circle: circle.area
+            def key(feature): return feature.area
         else:
-            warnings.warn("Can't sort by " + param)
-            return
-        self.feature = sorted(self.feature,key=key,reverse=reverse)
+            raise ValueError("Can't sort by " + param)
+        self.feature = sorted(self.feature, key=key, reverse=reverse)
 
     def reverse(self):
         """Reverse the features of the phantom"""
         self.feature.reverse()
 
-    def sprinkle(self, counts, radius, gap=0, region=None, value=1, max_density=1):
+    def sprinkle(self, counts, radius, gap=0, region=None, value=1,
+                 max_density=1):
         """Sprinkle a number of circles.
 
         Parameters
@@ -165,32 +170,36 @@ class Phantom(object):
             The number of circles successfully added.
         """
         assert(counts >= 0)
-        if not isinstance(radius,list):
-            radius = [radius,radius]
-        assert(len(radius)==2 and radius[0] >= radius[1] and radius[1] > 0)
+        if not isinstance(radius, list):
+            radius = [radius, radius]
+        assert(len(radius) == 2 and radius[0] >= radius[1] and radius[1] > 0)
         if gap < 0:
-            raise NotImplementedError # Support for partially overlapping features is not yet supported in the aquisition module
+            # Support for partially overlapping features is not yet supported
+            # in the aquisition module
+            raise NotImplementedError
 
         collision = False
-        if radius[0] + gap < 0: # prevents defining circles with negative radius
+        if radius[0] + gap < 0:  # prevents circles with negative radius
             collision = True
 
-        kTERM_CRIT = 200 # how many tries to append a new circle before quitting
-        n_tries = 0 # number of attempts to append a new circle
-        n_added = 0 # number of circles successfully added
+        kTERM_CRIT = 200  # tries to append a new circle before quitting
+        n_tries = 0  # attempts to append a new circle
+        n_added = 0  # circles successfully added
 
-        while n_tries < kTERM_CRIT and n_added < counts and self.density < max_density:
+        while (n_tries < kTERM_CRIT and n_added < counts and
+               self.density < max_density):
             center = self._random_point(radius[0], region=region)
 
             if collision:
-                self.append(Circle(center, radius[0], value=value))
+                self.append(Feature(Circle(center, radius[0]), value=value))
                 n_added += 1
                 continue
 
-            circle = Circle(center, radius[0] + gap)
+            circle = Feature(Circle(center, radius[0] + gap))
             overlap = self._collision(circle)
-            if overlap <= radius[0]-radius[1]:
-                self.append(Circle(center, radius[0]-overlap, value=value))
+            if overlap <= radius[0] - radius[1]:
+                self.append(Feature(Circle(center, radius[0] - overlap),
+                                    value=value))
                 n_added += 1
                 n_tries = 0
 
@@ -213,6 +222,7 @@ class Phantom(object):
     # IMPORT AND EXPORT
     def numpy(self):
         """Returns the Numpy representation."""
+        # Phantoms contain more than circles now.
         arr = np.empty((self.population, 4))
         for m in range(self.population):
             arr[m] = [
@@ -230,7 +240,9 @@ class Phantom(object):
         """Load phantom from file."""
         arr = np.loadtxt(filename, delimiter=',')
         for m in range(arr.shape[0]):
-            self.append(Circle(Point(arr[m, 0], arr[m, 1]), arr[m, 2], arr[m, 3]))
+            self.append(Feature(
+                        Circle(Point(arr[m, 0], arr[m, 1]), arr[m, 2]),
+                        arr[m, 3]))
 
     def discrete(self, size, bitdepth=32, ratio=8, uniform=True):
         """Returns discrete representation of the phantom. The values of
@@ -247,8 +259,8 @@ class Phantom(object):
         ratio : scalar, optional
             The discretization works by supersampling. This parameter controls
             how many pixels in the larger representation are averaged for the
-            final representation. e.g. if ratio = 8, then the final pixel values
-            are the average of 64 pixels.
+            final representation. e.g. if ratio = 8, then the final pixel
+            values are the average of 64 pixels.
         uniform : boolean, optional
             When set to False, changes the way pixels are averaged from a
             uniform weights to gaussian weights.
@@ -258,8 +270,8 @@ class Phantom(object):
         image : numpy.ndarray
             The discrete representation of the phantom.
         """
-        #error = 1./ratio**2
-        #warnings.warn("Discrete conversion is approximate. " +
+        # error = 1./ratio**2
+        # warnings.warn("Discrete conversion is approximate. " +
         #              "True values will be within " + str(error) + " %")
 
         # Make a higher resolution grid to sample the continuous space
@@ -269,25 +281,26 @@ class Phantom(object):
 
         # Draw the shapes at the higher resolution. The order in which shapes
         # are drawn is preserved.
-        image = np.zeros((size*ratio,size*ratio), dtype=np.float)
+        image = np.zeros((size * ratio, size * ratio), dtype=np.float)
         for m in range(self.population):
             x = self.feature[m].center.x
             y = self.feature[m].center.y
             rad = self.feature[m].radius
             val = self.feature[m].value
-            # image *= ((px - x)**2 + (py - y)**2 >= rad**2) # support for partial overlap
+            # image *= ((px - x)**2 + (py - y)**2 >= rad**2) # support for
+            # partial overlap
             image += ((px - x)**2 + (py - y)**2 < rad**2) * val
 
         # Resample down to the desired size
         if uniform:
-            image = scipy.ndimage.uniform_filter(image,ratio)
+            image = scipy.ndimage.uniform_filter(image, ratio)
         else:
-            image = scipy.ndimage.gaussian_filter(image,ratio/4.)
-        image = image[::ratio,::ratio]
+            image = scipy.ndimage.gaussian_filter(image, ratio / 4.)
+        image = image[::ratio, ::ratio]
 
         # Rescale to proper bitdepth
         if bitdepth < 32:
-            image = image*(2**bitdepth-1)
+            image = image * (2**bitdepth - 1)
             image = image.astype(int)
 
         return image
@@ -315,9 +328,9 @@ class Phantom(object):
             center = region.center
         elif region is None:
             radius = 0.5
-            center = Point(0.5,0.5)
+            center = Point(0.5, 0.5)
         else:
-            assert(False) # Region is invalid
+            assert(False)  # Region is invalid
 
         if self.shape == 'square':
             x = np.random.uniform(margin - radius, radius - margin) + center.x
@@ -337,7 +350,7 @@ class Phantom(object):
         overlap : scalar
             The largest amount that the circle is overlapping
         """
-        assert(isinstance(circle,Circle))
+        assert(isinstance(circle, Feature))
 
         overlap = 0
         for m in range(self.population):
