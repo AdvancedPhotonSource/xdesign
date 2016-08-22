@@ -142,7 +142,7 @@ class Point(Entity):
         """Scalar division."""
         return Point(self.x / c, self.y / c)
 
-    def equation(self):
+    def __str__(self):
         return "(%s, %s)" % (self.x, self.y)
 
     @property
@@ -220,7 +220,7 @@ class LinearEntity(Entity):
             return (self.p2.y - self.p1.y) / (self.p2.x - self.p1.x)
 
     @property
-    def equation(self):
+    def __str__(self):
         """Return line equation."""
         raise NotImplementedError
 
@@ -308,7 +308,7 @@ class Line(LinearEntity):
             return self.p1.y - self.slope * self.p1.x
 
     @property
-    def equation(self):
+    def __str__(self):
         """Return line equation."""
         if self.vertical:
             return "x = %s" % self.p1.x
@@ -397,7 +397,7 @@ class CurvedEntity(Entity):
         self.center = center
 
     @property
-    def equation(self):
+    def __str__(self):
         """Return analytical equation."""
         raise NotImplementedError
 
@@ -506,7 +506,7 @@ class Circle(Ellipse):
                                                  circle.radius)
 
     @property
-    def equation(self):
+    def __str__(self):
         """Return analytical equation."""
         return "(x-%s)^2 + (y-%s)^2 = %s^2" % (self.center.x, self.center.y,
                                                self.radius)
