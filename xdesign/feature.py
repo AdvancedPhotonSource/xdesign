@@ -67,7 +67,7 @@ class Feature(object):
     Maybe it is a base class for meshes and grids?
     '''
     def __init__(self, entity, value=1):
-        assert(isinstance(entity, Circle))
+        assert(isinstance(entity, Entity))
         # TODO: Add a base class for all entities with area?
         self.e_values = [value]
         self.entities = [entity]

@@ -51,6 +51,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 import logging
+from cached_property import cached_property
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,8 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Point',
+__all__ = ['Entity',
+           'Point',
            'Superellipse',
            'Ellipse',
            'Circle',
@@ -67,7 +69,8 @@ __all__ = ['Point',
            'Ray',
            'Triangle',
            'Rectangle',
-           'Square']
+           'Square',
+           'Mesh']
 
 
 class Entity(object):
@@ -75,11 +78,6 @@ class Entity(object):
 
     def __init__(self):
         pass
-
-    @property
-    def equation(self):
-        """Analytical equation of the entity."""
-        raise NotImplementedError
 
     @property
     def list(self):
@@ -391,7 +389,8 @@ class Segment(LinearEntity):
 
 
 class CurvedEntity(Entity):
-    """Base class for curved entities in 2-D cartesian space.
+    """Base class for entities whose surface can be defined by a continuous
+    equation.
 
     Attributes
     ----------
@@ -604,6 +603,19 @@ class Triangle(Polygon):
         super(Triangle, self).__init__(verts)
         self.vertices = verts
 
+    @property
+    def center(self):
+        center = Point(0, 0)
+        for v in self.vertices:
+            center += v
+        return center / 3
+
+    @property
+    def area(self):
+        A = self.vertices[0] - self.vertices[1]
+        B = self.vertices[0] - self.vertices[2]
+        return 1/2 * np.abs(np.cross([A.x, A.y], [B.x, B.y]))
+
 
 class Rectangle(Polygon):
     """Rectangle in 2-D cartesian space.
@@ -628,6 +640,69 @@ class Square(Rectangle):
         verts = [p1, p2, p3, p4]
         super(Rectangle, self).__init__(verts)
         self.vertices = verts
+
+
+class Mesh(Entity):
+    """A mesh object. It is a collection of polygons"""
+
+    def __init__(self):
+        self.faces = []
+        self.area = 0
+        self.population = 0
+        self.radius = 0
+
+    @cached_property
+    def center(self):
+        center = Point(0, 0)
+        if self.area > 0:
+            for f in self.faces:
+                center += f.center * f.area
+            center /= self.area
+        return center
+
+    def append(self, t):
+        """Add a triangle to the mesh."""
+        assert(isinstance(t, Polygon))
+        self.population += 1
+        self.center = ((self.center * self.area + t.center * t.area) /
+                       (self.area + t.area))
+        self.area += t.area
+        for v in t.vertices:
+            self.radius = max(self.radius, self.center.distance(v))
+        self.faces.append(t)
+
+    def pop(self, i=-1):
+        """Pop i-th triangle from the mesh."""
+        self.population -= 1
+        self.area -= self.faces[i].area
+        try:
+            del self.__dict__['center']
+        except KeyError:
+            pass
+        return self.faces.pop(i)
+
+    def translate(self, dx, dy):
+        """Translate entity."""
+        for t in self.faces:
+            t.translate(dx, dy)
+
+    def rotate(self, theta, point):
+        """Rotate entity around a point."""
+        for t in self.faces:
+            t.rotate(theta, point)
+
+    def scale(self, val):
+        """Scale entity."""
+        for t in self.faces:
+            t.scale(value)
+
+    def collision(self, entity):
+        """Check if entity collides with another entity."""
+        raise NotImplementedError
+
+    def distance(self, entity):
+        """Return the closest distance between entities."""
+        raise NotImplementedError
 
 
 def rotate(point, theta, origin):
