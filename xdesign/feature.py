@@ -32,15 +32,15 @@
 #       contributors may be used to endorse or promote products derived   #
 #       from this software without specific prior written permission.     #
 #                                                                         #
-# THIS SOFTWARE IS PROVIDED BY UChicago Argonne, LLC AND CONTRIBUTORS     #
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT       #
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS       #
+# THIS SOFTWARE IS PROVIDED BY UChicago Argonne, LLC A2D CONTRIBUTORS     #
+# "AS IS" A2D ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT       #
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY A2D FITNESS       #
 # FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL UChicago     #
-# Argonne, LLC OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,        #
+# Argonne, LLC OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, I2DIRECT,        #
 # INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,    #
 # BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;        #
 # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER        #
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT      #
+# CAUSED A2D ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT      #
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN       #
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
@@ -50,9 +50,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from xdesign.geometry import *
-import numpy as np
 import logging
-from cached_property import cached_property
 
 logger = logging.getLogger(__name__)
 
@@ -63,15 +61,18 @@ __all__ = ['Feature']
 
 
 class Feature(object):
-    '''An ND geometric region(s) and associated materials properti(es).
+    '''A 2D geometric region(s) and associated materials properti(es).
+    Properties and geometry can be manipulated from this level, but rendering
+    must access the geometry directly.
 
     Attributes
     ----------------
     geometry : Entity
-        Defines an ND region(s) where the properties are valid.
+        Defines an 2D region(s) where the properties are valid.
     '''
-    def __init__(self, geometry):
+    def __init__(self, geometry, value=1):
         self.geometry = geometry
+        self.value = value
 
     def add_property(self, name, function):
         """Adds a property by name to the Feature.
@@ -81,42 +82,32 @@ class Feature(object):
         """
         setattr(self, name, function)
 
-    @cached_property
+    @property
     def center(self):
-        """Returns the area center of mass."""
-        center = Point(0, 0)
-        for i in range(0, len(self.entities)):
-            center += self.entities[i].center*self.entities[i].area
-        return center / self.area
+        """Returns the centroid of the feature."""
+        return self.geometry.center
 
-    @cached_property
+    @property
     def radius(self):
         """Returns the radius of the smallest boundary circle"""
-        radius = 0
-        for i in range(0, len(self.entities)):
-            d = self.entities[i].center - self.center
-            radius = max(radius, d.norm + self.entities[i].radius)
-        return radius
+        return self.geometry.radius
 
-    @cached_property
+    @property
     def area(self):
         """Returns the total surface area of the feature"""
         return self.geometry.area
 
-    @cached_property
+    @property
     def volume(self):
-        """Returns the hypervolume of the feature"""
+        """Returns the volume of the feature"""
         return self.geometry.volume
 
-    def translate(self, nd_X):
+    def translate(self, x, y):
         """Translate feature geometry. Translating property functions is not
         supported."""
-        del self.__dict__['center']
-        self.geometry.translate(nd_X)
+        self.geometry.translate(x, y)
 
-    def rotate(self, theta, nd_line):
+    def rotate(self, theta, p):
         """Rotate feature geometry around a line. Rotating property
         functions is not supported."""
-        if not nd_line.contains(self.center):
-            del self.__dict__['center']
-        self.geometry.rotate(theta, nd_line)
+        self.geometry.rotate(theta, p)

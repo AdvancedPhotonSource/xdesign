@@ -55,6 +55,10 @@ import matplotlib.patches as patches
 import logging
 import time
 import string
+from xdesign.phantom import Phantom
+from xdesign.geometry import CurvedEntity, Polygon, Mesh
+from xdesign.feature import Feature
+import scipy.ndimage
 
 logger = logging.getLogger(__name__)
 
@@ -64,30 +68,146 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['plot_phantom',
            'plot_metrics',
-           'plot_histograms']
+           'plot_histograms',
+           'discrete_phantom']
 
 
-def plot_phantom(phantom):
-    """Plots the phantom.
+def plot_phantom(phantom, axis=None):
+    """Plots a phantom to the given axis."""
+    assert(isinstance(phantom, Phantom))
+    if axis is None:
+        fig = plt.figure(figsize=(8, 8), facecolor='w')
+        a = fig.add_subplot(111, aspect='equal')
+        plt.grid('on')
+        plt.gca().invert_yaxis()
+
+    # Draw all features in the phantom.
+    for f in phantom.feature:
+        plot_feature(f, a)
+
+    plt.show(block=False)
+
+
+def plot_feature(feature, axis=None):
+    assert(isinstance(feature, Feature))
+    if axis is None:
+        fig = plt.figure(figsize=(8, 8), facecolor='w')
+        axis = fig.add_subplot(111, aspect='equal')
+        plt.grid('on')
+        plt.gca().invert_yaxis()
+
+    # Plot geometry using correct method
+    if isinstance(feature.geometry, Mesh):
+        plot_mesh(feature.geometry, axis)
+    elif isinstance(feature.geometry, CurvedEntity):
+        plot_curve(feature.geometry, axis)
+    elif isinstance(feature.geometry, Polygon):
+        plot_polygon(feature.geometry, axis)
+    else:
+        raise ValueError
+
+    plt.show(block=False)
+
+
+def plot_mesh(mesh, axis=None):
+    assert(isinstance(mesh, Mesh))
+    if axis is None:
+        fig = plt.figure(figsize=(8, 8), facecolor='w')
+        axis = fig.add_subplot(111, aspect='equal')
+        plt.grid('on')
+        plt.gca().invert_yaxis()
+
+    # Plot each face separately
+    for f in mesh.faces:
+        plot_polygon(f, axis)
+
+    plt.show(block=False)
+
+
+def plot_polygon(polygon, axis=None):
+    assert(isinstance(polygon, Polygon))
+    if axis is None:
+        fig = plt.figure(figsize=(8, 8), facecolor='w')
+        axis = fig.add_subplot(111, aspect='equal')
+        plt.grid('on')
+        plt.gca().invert_yaxis()
+
+    axis.add_patch(polygon.patch)
+
+    plt.show(block=False)
+
+
+def plot_curve(curve, axis=None):
+    assert(isinstance(curve, CurvedEntity))
+    if axis is None:
+        fig = plt.figure(figsize=(8, 8), facecolor='w')
+        axis = fig.add_subplot(111, aspect='equal')
+        plt.grid('on')
+        plt.gca().invert_yaxis()
+
+    axis.add_patch(curve.patch)
+
+    plt.show(block=False)
+
+
+def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
+    """Returns discrete representation of the phantom. The values of
+    overlapping shapes are additive.
 
     Parameters
-    ----------
-    phantom : Phantom
+    ------------
+    size : scalar
+        The side length in pixels of the resulting square image.
+    bitdepth : scalar, optional
+        The bitdepth of resulting representation. Depths less than 32 are
+        returned as integers, and depths greater than 32 are returned as
+        floats.
+    ratio : scalar, optional
+        The antialiasing works by supersampling. This parameter controls
+        how many pixels in the larger representation are averaged for the
+        final representation. e.g. if ratio = 8, then the final pixel
+        values are the average of 64 pixels.
+    uniform : boolean, optional
+        When set to False, changes the way pixels are averaged from a
+        uniform weights to gaussian weights.
+
+    Returns
+    ------------
+    image : numpy.ndarray
+        The discrete representation of the phantom.
     """
-    fig = plt.figure(figsize=(8, 8), facecolor='w')
-    a = fig.add_subplot(111, aspect='equal')
 
-    # Draw all circles in the phantom.
-    for m in range(phantom.population):
-        cx = phantom.feature[m].center.x
-        cy = phantom.feature[m].center.y
-        cr = phantom.feature[m].radius
-        circle = patches.Circle((cx, cy), cr)
-        a.add_patch(circle)
+    # Make a higher resolution grid to sample the continuous space
+    _x = np.arange(0, 1, 1 / size / ratio)
+    _y = np.arange(0, 1, 1 / size / ratio)
+    px, py = np.meshgrid(_x, _y)
 
-    plt.grid('on')
-    plt.gca().invert_yaxis()
-    plt.show(block=False)
+    # Draw the shapes at the higher resolution.
+    image = np.zeros((size * ratio, size * ratio), dtype=np.float)
+
+    # Rasterize all features in the phantom.
+    for f in phantom.feature:
+        image = _discrete_feature(f, image, px, py)
+
+    # Resample down to the desired size
+    if uniform:
+        image = scipy.ndimage.uniform_filter(image, ratio)
+    else:
+        image = scipy.ndimage.gaussian_filter(image, ratio / 4.)
+    image = image[::ratio, ::ratio]
+
+    # Rescale to proper bitdepth
+    if bitdepth < 32:
+        image = image * (2**bitdepth - 1)
+        image = image.astype(int)
+
+    return image
+
+
+def _discrete_feature(feature, image, px, py):
+    assert(isinstance(feature, Feature))
+    new_feature = feature.geometry.contains(px, py) * feature.value
+    return image + new_feature
 
 
 def plot_histograms(images, masks=None, thresh=0.025):

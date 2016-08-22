@@ -52,6 +52,8 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 import logging
 from cached_property import cached_property
+import matplotlib.pyplot as plt
+from matplotlib.path import Path
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +61,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Entity',
-           'Point',
+__all__ = ['Point',
            'Superellipse',
            'Ellipse',
            'Circle',
@@ -74,20 +75,11 @@ __all__ = ['Entity',
 
 
 class Entity(object):
-    """Base class for all geometric entities."""
+    """Base class for all geometric entities. All geometric entities should
+    have these methods."""
 
     def __init__(self):
         pass
-
-    @property
-    def list(self):
-        """Return list representation."""
-        raise NotImplementedError
-
-    @property
-    def numpy(self):
-        """Return Numpy representation."""
-        return np.array(self.list)
 
     def translate(self, dx, dy):
         """Translate entity."""
@@ -99,6 +91,10 @@ class Entity(object):
 
     def scale(self, val):
         """Scale entity."""
+        raise NotImplementedError
+
+    def contains(self, x, y):
+        """Returns true if the points are contained by the entity"""
         raise NotImplementedError
 
     def collision(self, entity):
@@ -146,7 +142,6 @@ class Point(Entity):
         """Scalar division."""
         return Point(self.x / c, self.y / c)
 
-    @property
     def equation(self):
         return "(%s, %s)" % (self.x, self.y)
 
@@ -531,9 +526,17 @@ class Circle(Ellipse):
         """Return diameter."""
         return 2 * self.radius
 
+    @property
+    def patch(self):
+        return plt.Circle((self.center.x, self.center.y), self.radius)
+
     def scale(self, val):
         """Scale."""
         self.rad *= val
+
+    def contains(self, px, py):
+        return (((px-self.center.x)**2 + (py-self.center.y)**2) <=
+                self.radius**2)
 
 
 class Polygon(Entity):
@@ -590,6 +593,16 @@ class Polygon(Entity):
         xs = [p.x for p in self.vertices]
         ys = [p.y for p in self.vertices]
         return (min(xs), min(ys), max(xs), max(ys))
+
+    @property
+    def patch(self):
+        return plt.Polygon(self.numpy)
+
+    def contains(self, px, py):
+        points = np.vstack((px.flatten(), py.flatten())).transpose()
+        border = Path(self.numpy)
+        bools = border.contains_points(points)
+        return np.reshape(bools, px.shape)
 
 
 class Triangle(Polygon):
@@ -703,6 +716,19 @@ class Mesh(Entity):
     def distance(self, entity):
         """Return the closest distance between entities."""
         raise NotImplementedError
+
+    def contains(self, px, py):
+        bools = np.full(px.shape, False, dtype=bool)
+        for f in self.faces:
+            bools = np.logical_or(bools, f.contains(px, py))
+        return bools
+
+    @property
+    def patch(self):
+        patches = []
+        for f in self.faces:
+            patches.append(f.patch)
+        return patches
 
 
 def rotate(point, theta, origin):

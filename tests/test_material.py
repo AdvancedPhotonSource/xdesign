@@ -72,11 +72,11 @@ def _plot_both(ref, target):
 def test_HyperbolicCocentric():
     p0 = Phantom()
     p0.load('tests/HyperbolicConcentric.txt')
-    ref = p0.discrete(200, uniform=False)
+    ref = discrete_phantom(p0, 200, uniform=False)
 
     np.random.seed(0)
     p = HyperbolicConcentric()
-    target = p.discrete(200, uniform=False)
+    target = discrete_phantom(p, 200, uniform=False)
 
     # _plot_both(ref, target)
     assert_equal(target, ref,
@@ -87,11 +87,11 @@ def test_DynamicRange():
     for i in range(0, 2):
         p0 = Phantom()
         p0.load('tests/DynamicRange'+str(i)+'.txt')
-        ref = p0.discrete(100)
+        ref = discrete_phantom(p0, 100)
 
         np.random.seed(0)
         p = DynamicRange(jitter=i)
-        target = p.discrete(100)
+        target = discrete_phantom(p, 100)
         # _plot_both(ref, target)
         assert_equal(target, ref, "Default DynamicRange" + str(i) +
                                   " phantom has changed.")
@@ -100,11 +100,11 @@ def test_DynamicRange():
 def test_Soil():
     p0 = Phantom()
     p0.load('tests/Soil.txt')
-    ref = p0.discrete(100)
+    ref = discrete_phantom(p0, 100)
 
     np.random.seed(0)
     p = Soil()
-    target = p.discrete(100)
+    target = discrete_phantom(p, 100)
     # _plot_both(ref, target)
     assert_equal(target, ref, "Default Soil phantom has changed.")
 
@@ -112,10 +112,10 @@ def test_Soil():
 def test_Foam():
     p0 = Phantom()
     p0.load('tests/Foam.txt')
-    ref = p0.discrete(100)
+    ref = discrete_phantom(p0, 100)
 
     np.random.seed(0)
     p = Foam()
-    target = p.discrete(100)
+    target = discrete_phantom(p, 100)
     # _plot_both(ref, target)
     assert_equal(target, ref, "Default Foam phantom has changed.")
