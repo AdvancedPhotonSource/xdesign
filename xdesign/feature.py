@@ -63,30 +63,23 @@ __all__ = ['Feature']
 
 
 class Feature(object):
-    '''A container object for geometry objects. It is a mesh or grid object.
-    Maybe it is a base class for meshes and grids?
+    '''An ND geometric region(s) and associated materials properti(es).
+
+    Attributes
+    ----------------
+    geometry : Entity
+        Defines an ND region(s) where the properties are valid.
     '''
-    def __init__(self, entity, value=1):
-        assert(isinstance(entity, Circle))
-        # TODO: Add a base class for all entities with area?
-        self.e_values = [value]
-        self.entities = [entity]
+    def __init__(self, geometry):
+        self.geometry = geometry
 
-    @cached_property
-    def area(self):
-        """Returns the total area of the feature"""
-        total_area = 0
-        for e in self.entities:
-            total_area += e.area
-        return total_area
-
-    @cached_property
-    def value(self):
-        """Returns the area average value of the feature."""
-        total_value = 0
-        for i in range(0, len(self.entities)):
-            total_value += self.e_values[i]*self.entities[i].area
-        return total_value / self.area
+    def add_property(self, name, function):
+        """Adds a property by name to the Feature.
+        NOTE: Properties added here are not cached because they are probably
+        never called with the same parameters ever or the property is static
+        so it doesnt need caching.
+        """
+        setattr(self, name, function)
 
     @cached_property
     def center(self):
@@ -105,13 +98,25 @@ class Feature(object):
             radius = max(radius, d.norm + self.entities[i].radius)
         return radius
 
-    def translate(self, dx, dy):
-        """Translate feature."""
-        del self.__dict__['center']
-        for e in self.entities:
-            e.translate(dx, dy)
+    @cached_property
+    def area(self):
+        """Returns the total surface area of the feature"""
+        return self.geometry.area
 
-    def rotate(self, theta, point):
-        """Rotate feature around a point."""
-        for e in self.entities:
-            e.rotate(theta, point)
+    @cached_property
+    def volume(self):
+        """Returns the hypervolume of the feature"""
+        return self.geometry.volume
+
+    def translate(self, nd_X):
+        """Translate feature geometry. Translating property functions is not
+        supported."""
+        del self.__dict__['center']
+        self.geometry.translate(nd_X)
+
+    def rotate(self, theta, nd_line):
+        """Rotate feature geometry around a line. Rotating property
+        functions is not supported."""
+        if not nd_line.contains(self.center):
+            del self.__dict__['center']
+        self.geometry.rotate(theta, nd_line)
