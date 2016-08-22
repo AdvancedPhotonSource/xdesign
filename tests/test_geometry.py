@@ -52,7 +52,7 @@ from __future__ import (absolute_import, division, print_function,
 from xdesign.geometry import *
 from xdesign.geometry import beamcirc
 from xdesign.acquisition import *
-from numpy.testing import assert_allclose, assert_raises
+from numpy.testing import assert_allclose, assert_raises, assert_equal
 import numpy as np
 
 
@@ -172,6 +172,43 @@ def test_Line_same_points():
 def test_Circle_area():
     circle = Circle(Point(0, 0), 1)
     assert_allclose(circle.area, 3.14159265359, rtol=1e-6)
+
+
+def test_Mesh_area():
+    p5 = Point(0, 0)
+    p1 = Point(1, 1)
+    p4 = Point(1, -1)
+    p3 = Point(-1, -1)
+    p2 = Point(-1, 1)
+    m = Mesh()
+    assert_equal(m.area, 0)
+    m.append(Triangle(p5, p1, p2))
+    m.append(Triangle(p5, p2, p3))
+    m.append(Triangle(p5, p3, p4))
+    m.append(Triangle(p5, p4, p1))
+    assert_equal(m.area, 4)
+
+
+def test_Mesh_center():
+    p5 = Point(0, 0)
+    p1 = Point(1, 1)
+    p4 = Point(1, -1)
+    p3 = Point(-1, -1)
+    p2 = Point(-1, 1)
+    m = Mesh()
+    assert_equal(m.center, Point(0, 0))
+
+    m.append(Triangle(p5, p1, p2))
+    m.append(Triangle(p5, p2, p3))
+    m.append(Triangle(p5, p3, p4))
+    m.append(Triangle(p5, p4, p1))
+    assert_equal(m.center, Point(0, 0))
+
+    m.pop()
+    m.pop()
+    m.pop()
+    m.pop()
+    assert_equal(m.center, Point(0, 0))
 
 
 if __name__ == '__main__':

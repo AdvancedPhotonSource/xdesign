@@ -92,6 +92,7 @@ class Probe(Beam):
 
     def __init__(self, p1, p2, size=0):
         super(Probe, self).__init__(p1, p2, size)
+        self.history = []
 
     def translate(self, dx):
         """Translates beam along its normal direction."""
@@ -113,7 +114,11 @@ class Probe(Beam):
                                 phantom.feature[m]) * phantom.feature[m].value
         if noise > 0:
             newdata += newdata * noise * np.random.poisson(1)
+        self.record()
         return newdata
+
+    def record(self):
+        self.history.append(self.list)
 
 
 def sinogram(sx, sy, phantom, noise=False):
@@ -135,7 +140,7 @@ def sinogram(sx, sy, phantom, noise=False):
     scan = raster_scan(sx, sy)
     sino = np.zeros((sx, sy))
     for m in range(sx):
-        print(m)
+        # print(m)
         for n in range(sy):
             sino[m, n] = next(scan).measure(phantom, noise)
     return sino
