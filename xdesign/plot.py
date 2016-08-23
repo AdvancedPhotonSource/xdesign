@@ -82,7 +82,7 @@ def plot_phantom(phantom):
         cx = phantom.feature[m].center.x
         cy = phantom.feature[m].center.y
         cr = phantom.feature[m].radius
-        circle = patches.Circle((cx, cy), cr)
+        circle = patches.Circle((cx, cy), cr, alpha=phantom.feature[m].value)
         a.add_patch(circle)
 
     plt.grid('on')
