@@ -64,6 +64,24 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['Phantom']
 
 
+def _gen_mesh(lengths, shape):
+    """Generate mesh grid.
+
+    Parameters:
+    -----------
+    lengths : ndarray
+        Half-lengths of axes in nm or nm^-1.
+    shape : ndarray
+        Number of pixels in each dimension.
+    """
+    dim = len(lengths)
+    axes = np.array([np.linspace(-lengths[0], lengths[0], shape[0])])
+    for i in range(1, dim):
+        np.append(axes, np.linspace(-lengths[i], lengths[i], shape[i]), axis=0)
+    res = np.meshgrid(*axes)
+    return res
+
+
 def _initialize_wavefront():
     """Initialize wavefront.
     """
@@ -95,18 +113,23 @@ def _slice_modify(delta_slice, beta_slice, probe, wavefront, delta_nm, lmda):
         Extracted slice filled with material beta values.
     """
     kz = 2 * np.pi * delta_nm / lmda
-    wavefront = wavefront * np.exp((kz * delta_slice)*1j) * np.exp(-kz * beta_slice)
+    wavefront = wavefront * np.exp((kz * delta_slice) * 1j) * np.exp(-kz * beta_slice)
 
     return wavefront
 
 
-def _slice_propagate(wavefront, delta_nm):
+def _slice_propagate(wavefront, delta_nm, lmda):
     """Free space propagation.
 
     Parameters:
     -----------
 
     """
+    u = _gen_mesh()
+    H = np.sqrt(1. - lmda ** 2 * np.fft.fftshift(v) ** 2)
+    wavefront = np.fft.ifft(np.fft.fft(wavefront) * np.exp(-1j * 2 * np.pi * delta_nm / lmda * H))
+
+    return wavefront
 
 
 def multislice_propagate(delta_grid, beta_grid, probe, delta_nm):
@@ -122,7 +145,7 @@ def multislice_propagate(delta_grid, beta_grid, probe, delta_nm):
         As-constructed grid with defined phantoms filled with material beta values.
     """
     wavefront = _initialize_wavefront()
-    #
+    # wavelength in nm
     lmda = probe.wavelength
     n_slice = delta_grid.shape[0]
     for i_slice in range(n_slice):
@@ -130,3 +153,5 @@ def multislice_propagate(delta_grid, beta_grid, probe, delta_nm):
         beta_slice = delta_grid[i_slice, :]
         wavefront = _slice_modify(delta_slice, beta_slice, probe, wavefront, delta_nm, lmda)
         wavefront = _slice_propagate(wavefront, delta_nm)
+
+    return wavefront
