@@ -273,8 +273,9 @@ def plot_metrics(imqual):
                          rowspan=p[0][2])
         plt.imshow(imqual[i].recon, cmap=plt.cm.inferno,
                    interpolation="none", aspect='equal')
-        plt.colorbar()
-        plt.title("Reconstruction")
+        # plt.colorbar()
+        plt.axis('off')
+        # plt.title("Reconstruction")
 
         lo = 1.  # Determine the min local quality for all the scales
         for m in imqual[i].maps:
@@ -288,6 +289,7 @@ def plot_metrics(imqual):
                             vmin=lo, vmax=1, interpolation="none",
                             aspect='equal')
             # plt.colorbar()
+            plt.axis('off')
             plt.annotate(r'$\sigma$ =' + str(imqual[i].scales[j - 1]),
                          xy=(0.05, 0.05), xycoords='axes fraction',
                          weight='heavy')
