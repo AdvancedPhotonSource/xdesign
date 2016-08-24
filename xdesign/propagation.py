@@ -84,7 +84,7 @@ def _extract_slice(delta_grid, beta_grid, islice):
 
 
 ## Add energy / wavelength attribute to probe class?
-def _slice_propagate(delta_slice, beta_slice, probe, wavefront, slice_width, wavelen):
+def _slice_modify(delta_slice, beta_slice, probe, wavefront, delta_nm, lmda):
     """Modify wavefront within a slice.
 
     Parameters:
@@ -94,21 +94,39 @@ def _slice_propagate(delta_slice, beta_slice, probe, wavefront, slice_width, wav
     beta_grid : ndarray
         Extracted slice filled with material beta values.
     """
-    kz = 2 * np.pi * slice_width / wavelen
+    kz = 2 * np.pi * delta_nm / lmda
     wavefront = wavefront * np.exp((kz * delta_slice)*1j) * np.exp(-kz * beta_slice)
 
     return wavefront
 
 
-def multislice_propagate(delta_grid, beta_grid, probe):
+def _slice_propagate(wavefront, delta_nm):
+    """Free space propagation.
+
+    Parameters:
+    -----------
+
+    """
+
+
+def multislice_propagate(delta_grid, beta_grid, probe, delta_nm):
     """Do multislice propagation for wave with specified properties in the constructed grid.
 
     Parameters:
     -----------
-    probe : Probe
+    probe : instance
+        Probe beam instance.
     delta_grid : ndarray
         As-constructed grid with defined phantoms filled with material delta values.
     beta_grid : ndarray
         As-constructed grid with defined phantoms filled with material beta values.
     """
     wavefront = _initialize_wavefront()
+    #
+    lmda = probe.wavelength
+    n_slice = delta_grid.shape[0]
+    for i_slice in range(n_slice):
+        delta_slice = delta_grid[i_slice, :]
+        beta_slice = delta_grid[i_slice, :]
+        wavefront = _slice_modify(delta_slice, beta_slice, probe, wavefront, delta_nm, lmda)
+        wavefront = _slice_propagate(wavefront, delta_nm)
