@@ -54,6 +54,7 @@ import logging
 from xdesign.phantom import *
 from xdesign.geometry import *
 from xdesign.feature import *
+from scipy.spatial import Delaunay
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,7 @@ __all__ = ['Material',
            'HyperbolicConcentric',
            'DynamicRange',
            'UnitCircle',
+           'WetCircles',
            'Soil',
            'Foam',
            'Electronics']
@@ -251,6 +253,83 @@ class Soil(Phantom):
         self.sprinkle(100, 0.02, 0.01, value=-.25)
         background = Feature(Circle(Point(0.5, 0.5), 0.5), value=0.5)
         self.insert(0, background)
+
+
+class WetCircles(Phantom):
+    def __init__(self):
+        super(WetCircles, self).__init__(shape='circle')
+
+        # np.random.seed(0)
+        self.sprinkle(2, 0.1, 0.1)
+
+        A = self.feature[0].geometry
+        B = self.feature[1].geometry
+        # A = Feature(Circle(Point(0.2,0.4),0.1))
+        # B = Feature(Circle(Point(0.6,0.4),0.1))
+
+        thetaA = [np.pi/2, 20]
+        thetaB = [np.pi/2, 20]
+
+        mesh = wet_circles(A, B, thetaA, thetaB)
+
+        self.append(Feature(mesh))
+        # self.append(A)
+        # self.append(B)
+
+
+def wet_circles(A, B, thetaA, thetaB):
+    """Generates a mesh that wets the surface of circles A and B.
+
+    Parameters
+    -------------
+    A,B : Circle
+    theta : list
+        the number of radians that the wet covers and number of the points on
+        the surface range
+    """
+
+    vector = B.center - A.center
+    if vector.x > 0:
+        angleA = np.arctan(vector.y/vector.x)
+        angleB = np.pi + angleA
+    else:
+        angleB = np.arctan(vector.y/vector.x)
+        angleA = np.pi + angleB
+    print(vector)
+    rA = A.radius
+    rB = B.radius
+
+    points = []
+    for t in (np.arange(0, thetaA[1])/(thetaA[1]-1) - 0.5) * thetaA[0] + angleA:
+        x = rA*np.cos(t) + A.center.x
+        y = rA*np.sin(t) + A.center.y
+        points.append([x, y])
+
+    mid = len(points)
+    for t in (np.arange(0, thetaB[1])/(thetaB[1]-1) - 0.5) * thetaB[0] + angleB:
+        x = rB*np.cos(t) + B.center.x
+        y = rB*np.sin(t) + B.center.y
+        points.append([x, y])
+
+    points = np.array(points)
+
+    # Triangulate the polygon
+    tri = Delaunay(points)
+
+    # Remove extra triangles
+    # print(tri.simplices)
+    mask = np.sum(tri.simplices < mid, 1)
+    mask = np.logical_and(mask < 3, mask > 0)
+    tri.simplices = tri.simplices[mask, :]
+    # print(tri.simplices)
+
+    m = Mesh()
+    for t in tri.simplices:
+        m.append(Triangle(Point(points[t[0], 0], points[t[0], 1]),
+                          Point(points[t[1], 0], points[t[1], 1]),
+                          Point(points[t[2], 0], points[t[2], 1])))
+
+    return m
 
 
 class Foam(Phantom):

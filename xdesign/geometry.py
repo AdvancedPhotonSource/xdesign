@@ -94,7 +94,13 @@ class Entity(object):
         raise NotImplementedError
 
     def contains(self, x, y):
-        """Returns true if the points are contained by the entity"""
+        """Returns True if the points are contained by the entity.
+
+        Parameters
+        ------------
+        x, y: numpy array like
+            A list of coordinates to query whether they are in within the
+            boundaries of the entity"""
         raise NotImplementedError
 
     def collision(self, entity):
