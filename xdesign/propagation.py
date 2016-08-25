@@ -54,6 +54,7 @@ import scipy.ndimage
 import logging
 import warnings
 from xdesign.geometry import *
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,8 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Phantom']
+__all__ = ['multislice_propagate',
+           'plot_wavefront']
 
 
 def _gen_mesh(lengths, shape):
@@ -82,10 +84,11 @@ def _gen_mesh(lengths, shape):
     return res
 
 
-def _initialize_wavefront():
+def _initialize_wavefront(wvfnt_width):
     """Initialize wavefront.
     """
-    pass
+    wavefront = np.ones(wvfnt_width).astype('complex64')
+    return wavefront
 
 
 def _extract_slice(delta_grid, beta_grid, islice):
@@ -118,21 +121,40 @@ def _slice_modify(delta_slice, beta_slice, probe, wavefront, delta_nm, lmda):
     return wavefront
 
 
-def _slice_propagate(wavefront, delta_nm, lmda):
+def _slice_propagate(wavefront, delta_nm, lat_nm, shape, lmda):
     """Free space propagation.
 
     Parameters:
     -----------
 
     """
-    u = _gen_mesh()
-    H = np.sqrt(1. - lmda ** 2 * np.fft.fftshift(v) ** 2)
-    wavefront = np.fft.ifft(np.fft.fft(wavefront) * np.exp(-1j * 2 * np.pi * delta_nm / lmda * H))
+    u_max = 1. / (2. * lat_nm)
+    u = _gen_mesh([u_max], [shape])
+    u = u[0]
+    H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
+    wavefront = np.fft.ifftn(np.fft.fftn(wavefront) * np.fft.fftshift(H))
 
     return wavefront
 
 
-def multislice_propagate(delta_grid, beta_grid, probe, delta_nm):
+def plot_wavefront(wavefront, lat_nm):
+    """Plot wavefront intensity.
+
+    Parameters:
+    -----------
+    wavefront : ndarray
+        Complex wavefront.
+    """
+    i = wavefront * np.conjugate(wavefront)
+    shape = len(wavefront)
+    half_len = lat_nm * shape / 2
+    x = np.linspace(-half_len, -half_len, shape)
+    fig = plt.figure()
+    plt.plot(x, i)
+    plt.show()
+
+
+def multislice_propagate(delta_grid, beta_grid, probe, delta_nm, lat_nm):
     """Do multislice propagation for wave with specified properties in the constructed grid.
 
     Parameters:
@@ -143,15 +165,20 @@ def multislice_propagate(delta_grid, beta_grid, probe, delta_nm):
         As-constructed grid with defined phantoms filled with material delta values.
     beta_grid : ndarray
         As-constructed grid with defined phantoms filled with material beta values.
+    delta_nm : float
+        Slice thickness in nm.
+    lat_nm : float
+        Lateral pixel size in nm.
     """
-    wavefront = _initialize_wavefront()
+    field_shape = delta_grid.shape
+    wavefront = _initialize_wavefront(field_shape[1])
     # wavelength in nm
     lmda = probe.wavelength
     n_slice = delta_grid.shape[0]
     for i_slice in range(n_slice):
         delta_slice = delta_grid[i_slice, :]
-        beta_slice = delta_grid[i_slice, :]
+        beta_slice = beta_grid[i_slice, :]
         wavefront = _slice_modify(delta_slice, beta_slice, probe, wavefront, delta_nm, lmda)
-        wavefront = _slice_propagate(wavefront, delta_nm)
+        wavefront = _slice_propagate(wavefront, delta_nm, lat_nm, len(delta_slice), lmda)
 
     return wavefront
