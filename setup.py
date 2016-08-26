@@ -49,7 +49,7 @@
 import setuptools
 
 setuptools.setup(
-    name='phantom',
+    name='xdesign',
     version=open('VERSION').read().strip(),
     author='Doga Gursoy',
     description='Benchmarking and optimization tools for tomography.',
