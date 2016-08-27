@@ -55,6 +55,7 @@ setuptools.setup(
     description='Benchmarking and optimization tools for tomography.',
     packages=setuptools.find_packages(exclude=['docs']),
     include_package_data=True,
+#    install_requires=['six', 'numpy'],
     url='http://github.com/tomography/xdesign.git',
     keywords=['xdesign', 'tomography'],
     license='BSD-3',
