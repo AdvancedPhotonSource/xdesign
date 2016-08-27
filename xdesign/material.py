@@ -267,8 +267,8 @@ class WetCircles(Phantom):
         # A = Feature(Circle(Point(0.2,0.4),0.1))
         # B = Feature(Circle(Point(0.6,0.4),0.1))
 
-        thetaA = [np.pi/2, 20]
-        thetaB = [np.pi/2, 20]
+        thetaA = [np.pi/2, 10]
+        thetaB = [np.pi/2, 10]
 
         mesh = wet_circles(A, B, thetaA, thetaB)
 
@@ -295,7 +295,7 @@ def wet_circles(A, B, thetaA, thetaB):
     else:
         angleB = np.arctan(vector.y/vector.x)
         angleA = np.pi + angleB
-    print(vector)
+    # print(vector)
     rA = A.radius
     rB = B.radius
 

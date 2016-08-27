@@ -54,6 +54,7 @@ import logging
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 import polytope as pt
+from cached_property import cached_property
 
 logger = logging.getLogger(__name__)
 
@@ -618,7 +619,7 @@ class Polygon(Entity):
         bools = border.contains_points(points)
         return np.reshape(bools, px.shape)
 
-    @property
+    @cached_property
     def half_space(self):
         """Returns the half space polytope respresentation of the polygon."""
         A = []
@@ -766,6 +767,13 @@ class Mesh(Entity):
             patches.append(f.patch)
         return patches
 
+    @cached_property
+    def half_space(self):
+        regions = []
+        for face in self.faces:
+            regions.append(face.half_space)
+        return pt.Region(regions)
+
 
 def rotate(point, theta, origin):
     """Rotates a point in counter-clockwise around another point.
@@ -825,11 +833,7 @@ def beamintersect(beam, geometry):
 
 def beammesh(beam, mesh):
     """Intersection area of infinite beam with polygonal mesh"""
-    total = 0
-    for face in mesh.faces:
-        total += beampoly(beam, face)
-
-    return total
+    return beam.half_space.intersect(mesh.half_space).volume
 
 
 def beampoly(beam, poly):
