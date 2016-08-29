@@ -85,8 +85,6 @@ def plot_phantom(phantom, axis=None):
     for f in phantom.feature:
         plot_feature(f, a)
 
-    plt.show(block=False)
-
 
 def plot_feature(feature, axis=None):
     assert(isinstance(feature, Feature))
@@ -106,8 +104,6 @@ def plot_feature(feature, axis=None):
     else:
         raise ValueError
 
-    plt.show(block=False)
-
 
 def plot_mesh(mesh, axis=None):
     assert(isinstance(mesh, Mesh))
@@ -121,8 +117,6 @@ def plot_mesh(mesh, axis=None):
     for f in mesh.faces:
         plot_polygon(f, axis)
 
-    plt.show(block=False)
-
 
 def plot_polygon(polygon, axis=None):
     assert(isinstance(polygon, Polygon))
@@ -134,8 +128,6 @@ def plot_polygon(polygon, axis=None):
 
     axis.add_patch(polygon.patch)
 
-    plt.show(block=False)
-
 
 def plot_curve(curve, axis=None):
     assert(isinstance(curve, CurvedEntity))
@@ -146,8 +138,6 @@ def plot_curve(curve, axis=None):
         plt.gca().invert_yaxis()
 
     axis.add_patch(curve.patch)
-
-    plt.show(block=False)
 
 
 def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
@@ -251,7 +241,6 @@ def plot_histograms(images, masks=None, thresh=0.025):
     # autobins feature doesn't work because one of the groups is all zeros?
     plt.hist(hgrams, bins=25, normed=True, stacked=False)
     plt.legend(labels)
-    plt.show()
 
 
 def plot_metrics(imqual):
@@ -310,8 +299,6 @@ def plot_metrics(imqual):
     plt.ylim([0, 1])
     plt.legend([str(x) for x in range(1, len(imqual) + 1)])
     plt.title("Comparison of Reconstruction Methods")
-
-    plt.show(block=True)
 
 
 def _pyramid(N):
