@@ -96,16 +96,16 @@ def plot_feature(feature, axis=None):
 
     # Plot geometry using correct method
     if isinstance(feature.geometry, Mesh):
-        plot_mesh(feature.geometry, axis)
+        plot_mesh(feature.geometry, axis, feature.value)
     elif isinstance(feature.geometry, CurvedEntity):
-        plot_curve(feature.geometry, axis)
+        plot_curve(feature.geometry, axis, feature.value)
     elif isinstance(feature.geometry, Polygon):
-        plot_polygon(feature.geometry, axis)
+        plot_polygon(feature.geometry, axis, feature.value)
     else:
         raise ValueError
 
 
-def plot_mesh(mesh, axis=None):
+def plot_mesh(mesh, axis=None, alpha=None):
     assert(isinstance(mesh, Mesh))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -115,10 +115,10 @@ def plot_mesh(mesh, axis=None):
 
     # Plot each face separately
     for f in mesh.faces:
-        plot_polygon(f, axis)
+        plot_polygon(f, axis, alpha)
 
 
-def plot_polygon(polygon, axis=None):
+def plot_polygon(polygon, axis=None, alpha=None):
     assert(isinstance(polygon, Polygon))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -126,10 +126,12 @@ def plot_polygon(polygon, axis=None):
         plt.grid('on')
         plt.gca().invert_yaxis()
 
-    axis.add_patch(polygon.patch)
+    p = polygon.patch
+    p.set_alpha(alpha)
+    axis.add_patch(p)
 
 
-def plot_curve(curve, axis=None):
+def plot_curve(curve, axis=None, alpha=None):
     assert(isinstance(curve, CurvedEntity))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -137,7 +139,9 @@ def plot_curve(curve, axis=None):
         plt.grid('on')
         plt.gca().invert_yaxis()
 
-    axis.add_patch(curve.patch)
+    p = curve.patch
+    p.set_alpha(alpha)
+    axis.add_patch(p)
 
 
 def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
