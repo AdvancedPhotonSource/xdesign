@@ -72,8 +72,14 @@ __all__ = ['plot_phantom',
            'discrete_phantom']
 
 
-def plot_phantom(phantom, axis=None):
-    """Plots a phantom to the given axis."""
+def plot_phantom(phantom, axis=None, labels=None):
+    """Plots a phantom to the given axis.
+    Parameters
+    ---------------
+    labels : bool
+        When True, each feature is labelled according to its index in the
+        phantom. IDEA: Allow users to provide list or generator for labels.
+    """
     assert(isinstance(phantom, Phantom))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -82,8 +88,13 @@ def plot_phantom(phantom, axis=None):
         plt.gca().invert_yaxis()
 
     # Draw all features in the phantom.
+    i = 0
     for f in phantom.feature:
         plot_feature(f, a)
+        if labels is not None:
+            a.annotate(str(i), xy=(f.center.x, f.center.y),
+                       ha='center', va='center', color='white')
+            i += 1
 
     plt.show(block=False)
 
