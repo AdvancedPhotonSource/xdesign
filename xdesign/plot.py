@@ -87,6 +87,8 @@ def plot_phantom(phantom, axis=None):
 
 
 def plot_feature(feature, axis=None):
+    """Plots a feature on the given axis. Currently, the value property of the
+    feature is mapped to the transparency of the plotted geometry."""
     assert(isinstance(feature, Feature))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -105,7 +107,15 @@ def plot_feature(feature, axis=None):
         raise ValueError
 
 
-def plot_mesh(mesh, axis=None, alpha=None):
+def plot_mesh(mesh, axis=None, alpha=None, c='blue'):
+    """Plots a mesh to the given axis.
+    Parameters
+    ---------
+    alpha : float
+        The plot opaqueness. 0 is transparent. 1 is opaque.
+    c : matplotlib color specifier
+        See http://matplotlib.org/api/colors_api.html
+    """
     assert(isinstance(mesh, Mesh))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -115,10 +125,18 @@ def plot_mesh(mesh, axis=None, alpha=None):
 
     # Plot each face separately
     for f in mesh.faces:
-        plot_polygon(f, axis, alpha)
+        plot_polygon(f, axis, alpha, c)
 
 
-def plot_polygon(polygon, axis=None, alpha=None):
+def plot_polygon(polygon, axis=None, alpha=None, c='blue'):
+    """Plots a polygon to the given axis.
+    Parameters
+    ---------
+    alpha : float
+        The plot opaqueness. 0 is transparent. 1 is opaque.
+    c : matplotlib color specifier
+        See http://matplotlib.org/api/colors_api.html
+    """
     assert(isinstance(polygon, Polygon))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -128,10 +146,19 @@ def plot_polygon(polygon, axis=None, alpha=None):
 
     p = polygon.patch
     p.set_alpha(alpha)
+    p.set_color(c)
     axis.add_patch(p)
 
 
-def plot_curve(curve, axis=None, alpha=None):
+def plot_curve(curve, axis=None, alpha=None, c='blue'):
+    """Plots a curve to the given axis.
+    Parameters
+    ---------
+    alpha : float
+        The plot opaqueness. 0 is transparent. 1 is opaque.
+    c : matplotlib color specifier
+        See http://matplotlib.org/api/colors_api.html
+    """
     assert(isinstance(curve, CurvedEntity))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -141,6 +168,7 @@ def plot_curve(curve, axis=None, alpha=None):
 
     p = curve.patch
     p.set_alpha(alpha)
+    p.set_color(c)
     axis.add_patch(p)
 
 
