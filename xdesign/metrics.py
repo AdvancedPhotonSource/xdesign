@@ -706,23 +706,18 @@ MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
     eps = 1e-10
 
     for level in range(0, nlevels):
-        # Downsampling
+        # Downsample (using ndimage.zoom to prevent sampling bias)
         if (level > 0):
-            ref = scipy.ndimage.uniform_filter(ref, 2)
-            dist = scipy.ndimage.uniform_filter(dist, 2)
-            ref = ref[::2, ::2]
-            dist = dist[::2, ::2]
+            ref = scipy.ndimage.zoom(ref, 1/2)
+            dist = scipy.ndimage.zoom(dist, 1/2)
 
-        # TODO: @Daniel convolving with a low pass 11x11 normalized gaussian
         mu1 = scipy.ndimage.gaussian_filter(ref, sigma)
         mu2 = scipy.ndimage.gaussian_filter(dist, sigma)
 
-        sigma1_sq = scipy.ndimage.gaussian_filter(
-            (ref - mu1)**2,         sigma)
-        sigma2_sq = scipy.ndimage.gaussian_filter(
-            (dist - mu2)**2,        sigma)
-        sigma12 = scipy.ndimage.gaussian_filter(
-            (ref - mu1) * (dist - mu2), sigma)
+        sigma1_sq = scipy.ndimage.gaussian_filter((ref - mu1)**2, sigma)
+        sigma2_sq = scipy.ndimage.gaussian_filter((dist - mu2)**2, sigma)
+        sigma12 = scipy.ndimage.gaussian_filter((ref - mu1) * (dist - mu2),
+                                                sigma)
 
         g = sigma12 / (sigma1_sq + eps)
         sigmav_sq = sigma2_sq - g * sigma12
@@ -804,11 +799,9 @@ def _compute_fsim(imQual, nlevels=5, nwavelets=16, L=None):
         # and min wavelet filter (phase congruency filter) is 3.
         sigma = 1.2 * 2**scale
 
-        F = 2  # Downsample the image
-        aveY1 = scipy.ndimage.filters.uniform_filter(Y1, size=F)
-        aveY2 = scipy.ndimage.filters.uniform_filter(Y2, size=F)
-        Y1 = aveY1[::F, ::F]
-        Y2 = aveY2[::F, ::F]
+        F = 2  # Downsample (using ndimage.zoom to prevent sampling bias)
+        Y1 = scipy.ndimage.zoom(Y1, 1/F)
+        Y2 = scipy.ndimage.zoom(Y2, 1/F)
 
         # Calculate the phase congruency maps
         [PC1, Orient1, ft1, T1] = _phasecongmono(Y1, nscale=nwavelets)
@@ -895,12 +888,9 @@ def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
         if l == nlevels - 1:
             break
 
-        # Apply lowpass filter retain size, reflect at edges
-        filtered_im1 = scipy.ndimage.filters.uniform_filter(img1, size=2)
-        filtered_im2 = scipy.ndimage.filters.uniform_filter(img2, size=2)
-        # Downsample by factor of two using numpy slicing
-        img1 = filtered_im1[::2, ::2]
-        img2 = filtered_im2[::2, ::2]
+        # Downsample (using ndimage.zoom to prevent sampling bias)
+        img1 = scipy.ndimage.zoom(img1, 1/2)
+        img2 = scipy.ndimage.zoom(img2, 1/2)
 
     return imQual
 
