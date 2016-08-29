@@ -54,6 +54,7 @@ import logging
 from xdesign.phantom import *
 from xdesign.geometry import *
 from xdesign.feature import *
+from xdesign.plot import *
 from scipy.spatial import Delaunay
 
 logger = logging.getLogger(__name__)
@@ -258,23 +259,26 @@ class Soil(Phantom):
 class WetCircles(Phantom):
     def __init__(self):
         super(WetCircles, self).__init__(shape='circle')
+        porosity = 0.412
+        np.random.seed(0)
 
-        # np.random.seed(0)
-        self.sprinkle(2, 0.1, 0.1)
+        self.sprinkle(30, [0.1, 0.03], 0.005, value=0.5,
+                      max_density=1 - porosity)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), value=0.5)
+        self.insert(0, background)
 
-        A = self.feature[0].geometry
-        B = self.feature[1].geometry
-        # A = Feature(Circle(Point(0.2,0.4),0.1))
-        # B = Feature(Circle(Point(0.6,0.4),0.1))
+        pairs = [(23, 12), (12, 19), (29, 11), (22, 5), (1, 3), (21, 9),
+                 (8, 2), (2, 27)]
+        for p in pairs:
+            A = self.feature[p[0]].geometry
+            B = self.feature[p[1]].geometry
 
-        thetaA = [np.pi/2, 10]
-        thetaB = [np.pi/2, 10]
+            thetaA = [np.pi/2, 10]
+            thetaB = [np.pi/2, 10]
 
-        mesh = wet_circles(A, B, thetaA, thetaB)
+            mesh = wet_circles(A, B, thetaA, thetaB)
 
-        self.append(Feature(mesh))
-        # self.append(A)
-        # self.append(B)
+            self.append(Feature(mesh, value=-.25))
 
 
 def wet_circles(A, B, thetaA, thetaB):
