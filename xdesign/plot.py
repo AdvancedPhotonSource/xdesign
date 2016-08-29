@@ -67,8 +67,11 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['plot_phantom',
+           'plot_feature',
+           'plot_mesh',
+           'plot_polygon',
+           'plot_curve',
            'plot_metrics',
-           'plot_histograms',
            'discrete_phantom']
 
 
@@ -227,58 +230,15 @@ def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
 
 
 def _discrete_feature(feature, image, px, py):
+    """Helper function for discrete_phantom. Rasterizes the geometry of the
+    feature."""
     assert(isinstance(feature, Feature))
     new_feature = feature.geometry.contains(px, py) * feature.value
     return image + new_feature
 
 
-def plot_histograms(images, masks=None, thresh=0.025):
-    """Plots the normalized histograms for the pixel intensity under each
-    mask.
-
-    Parameters
-    --------------
-    images : list of ndarrays, ndarray
-        image(s) for comparing histograms.
-    masks : list of ndarrays, float, optional
-        If supplied, the data under each mask is plotted separately.
-    strict : boolean
-        If true, the mask takes values >= only. If false, the mask takes all
-        values > 0.
-    """
-    if type(images) is not list:
-        images = [images]
-
-    hgrams = []  # holds histograms before plotting
-    labels = []  # holds legend labels for plotting
-    abet = string.ascii_uppercase
-
-    if masks is None:
-        for i in range(len(images)):
-            hgrams.append(images[i])
-            labels.append(abet[i])
-    else:
-        for i in range(len(masks)):
-            for j in range(len(images)):
-                m = masks[i]
-                A = images[j]
-                assert(A.shape == m.shape)
-                # convert probability mask to boolean mask
-                mA = A[m >= thresh]
-                # h = np.histogram(m, bins='auto', density=True)
-                hgrams.append(mA)
-                labels.append(abet[j] + str(i))
-
-    plt.figure()
-    # autobins feature doesn't work because one of the groups is all zeros?
-    plt.hist(hgrams, bins=25, normed=True, stacked=False)
-    plt.legend(labels)
-
-
 def plot_metrics(imqual):
-    """Plots metrics of ImageQuality data
-
-    """
+    """Plots full reference metrics of ImageQuality data"""
     colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(imqual))))
     for i in range(0, len(imqual)):
         # Draw a plot of the mean quality vs scale using different colors for
@@ -372,3 +332,46 @@ def _pyramid(N):
         # print(params[n])
 
     return params
+
+
+def plot_histograms(images, masks=None, thresh=0.025):
+    """Plots the normalized histograms for the pixel intensity under each
+    mask.
+
+    Parameters
+    --------------
+    images : list of ndarrays, ndarray
+        image(s) for comparing histograms.
+    masks : list of ndarrays, float, optional
+        If supplied, the data under each mask is plotted separately.
+    strict : boolean
+        If true, the mask takes values >= only. If false, the mask takes all
+        values > 0.
+    """
+    if type(images) is not list:
+        images = [images]
+
+    hgrams = []  # holds histograms before plotting
+    labels = []  # holds legend labels for plotting
+    abet = string.ascii_uppercase
+
+    if masks is None:
+        for i in range(len(images)):
+            hgrams.append(images[i])
+            labels.append(abet[i])
+    else:
+        for i in range(len(masks)):
+            for j in range(len(images)):
+                m = masks[i]
+                A = images[j]
+                assert(A.shape == m.shape)
+                # convert probability mask to boolean mask
+                mA = A[m >= thresh]
+                # h = np.histogram(m, bins='auto', density=True)
+                hgrams.append(mA)
+                labels.append(abet[j] + str(i))
+
+    plt.figure()
+    # autobins feature doesn't work because one of the groups is all zeros?
+    plt.hist(hgrams, bins=25, normed=True, stacked=False)
+    plt.legend(labels)
