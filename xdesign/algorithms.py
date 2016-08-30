@@ -58,7 +58,23 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['reconstruct', 'art', 'sirt', 'mlem', 'stream']
+__all__ = ['reconstruct', 'art', 'sirt', 'mlem', 'stream', 'update_progress']
+
+
+def update_progress(progress):
+    '''Draws a process bar in the terminal.
+
+    Parameters
+    -------------
+    process : float
+        The percentage completed e.g. 0.10 for 10%
+    '''
+    percent = progress*100
+    nbars = int(progress*10)
+    print('\r[{0}{1}] {2:.2f}%'.format('#'*nbars, ' '*(10-nbars), percent),
+          end='')
+    if progress == 1:
+        print('')
 
 
 def reconstruct(probe, shape, data, rec):
@@ -143,7 +159,7 @@ def art(probe, data, init, niter=10):
     _init = np.zeros(init.shape)
 
     for n in range(niter):
-        print (n)
+        update_progress(n/niter)
         for m in range(len(probe.history)):
         # for m in range(3000):
             x0 = probe.history[m][0]
@@ -195,9 +211,8 @@ def art(probe, data, init, niter=10):
             if not dist2 == 0:
                 upd = np.true_divide((data[m] - sim), dist2)
                 init[ix[ind], iy[ind]] += dist[ind] * upd
+    update_progress(1)
     return init
-
-
 
 
 def sirt(probe, data, init, niter=10):
@@ -214,7 +229,7 @@ def sirt(probe, data, init, niter=10):
         update = np.zeros(init.shape)
         sumdist = np.zeros(init.shape)
 
-        print (n)
+        update_progress(n/niter)
         for m in range(len(probe.history)):
         # for m in range(100):
             x0 = probe.history[m][0]
@@ -267,10 +282,9 @@ def sirt(probe, data, init, niter=10):
                 upd = np.true_divide((data[m] - sim), dist2)
                 update[ix[ind], iy[ind]] += dist[ind] * upd
 
-        init += np.true_divide(update, sumdist * sy) 
+        init += np.true_divide(update, sumdist * sy)
+    update_progress(1)
     return init
-
-
 
 
 def mlem(probe, data, init, niter=10):
@@ -287,7 +301,7 @@ def mlem(probe, data, init, niter=10):
         update = np.zeros(init.shape)
         sumdist = np.zeros(init.shape)
 
-        print (n)
+        update_progress(n/niter)
         for m in range(len(probe.history)):
         # for m in range(3000):
         # for m in range(100):
@@ -341,7 +355,8 @@ def mlem(probe, data, init, niter=10):
                 upd = np.true_divide(data[m] , sim)
                 update[ix[ind], iy[ind]] += dist[ind] * upd
 
-        init[sumdist > 0] *= np.true_divide(update[sumdist > 0], sumdist[sumdist > 0] * sy) 
+        init[sumdist > 0] *= np.true_divide(update[sumdist > 0], sumdist[sumdist > 0] * sy)
+    update_progress(1)
     return init
 
 
@@ -412,7 +427,6 @@ def stream(probe, data, init):
                 upd = np.true_divide(data[m+n] , sim)
                 update[ix[ind], iy[ind]] += dist[ind] * upd
 
-        # init[sumdist > 0] += np.true_divide(update[sumdist > 0], sumdist[sumdist > 0] * sy) 
+        # init[sumdist > 0] += np.true_divide(update[sumdist > 0], sumdist[sumdist > 0] * sy)
         init[sumdist > 0] *= np.true_divide(update[sumdist > 0], sumdist[sumdist > 0] * sy)
     return init
-
