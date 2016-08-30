@@ -4,7 +4,7 @@
 # #########################################################################
 # Copyright (c) 2016, UChicago Argonne, LLC. All rights reserved.         #
 #                                                                         #
-# Copyright 2015. UChicago Argonne, LLC. This software was produced       #
+# Copyright 2016. UChicago Argonne, LLC. This software was produced       #
 # under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
 # Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
 # U.S. Department of Energy. The U.S. Government has rights to use,       #
@@ -46,54 +46,68 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-from xdesign.plot import plot_metrics
-from xdesign.metrics import (_compute_ssim, _compute_vifp, _compute_fsim,
-                             compute_quality, ImageQuality)
-from numpy.testing import *
-import numpy as np
-import scipy
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
+from xdesign.geometry import *
+import logging
 
-__author__ = "Daniel Ching"
+logger = logging.getLogger(__name__)
+
+__author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
+__all__ = ['Feature']
 
 
-def test_SSIM_same_image_is_unity():
-    img1 = scipy.ndimage.imread("tests/cameraman.png")
-    IQ = ImageQuality(img1, img1)
-    IQ = _compute_ssim(IQ)
-    assert_equal(IQ.qualities[0], 1, err_msg="Mean is not unity.")
-    assert_equal(IQ.maps[0], np.ones(img1.shape),
-                 err_msg="local metrics are not unity.")
-    assert_equal(img1.shape, IQ.maps[0].shape,
-                 err_msg="SSIMs map not the same size as input")
+class Feature(object):
+    '''A 2D geometric region(s) and associated materials properti(es).
+    Properties and geometry can be manipulated from this level, but rendering
+    must access the geometry directly.
 
+    Attributes
+    ----------------
+    geometry : Entity
+        Defines an 2D region(s) where the properties are valid.
+    '''
+    def __init__(self, geometry, value=1):
+        self.geometry = geometry
+        self.value = value
 
-def test_VIFp_same_image_is_unity():
-    img1 = scipy.ndimage.imread("tests/cameraman.png")
-    IQ = ImageQuality(img1, img1)
-    IQ = _compute_vifp(IQ)
-    assert_almost_equal(IQ.qualities, 1, err_msg="Mean is not unity.")
-    # assert_equal(IQ.maps,1,err_msg="local metrics are not unity.")
+    def add_property(self, name, function):
+        """Adds a property by name to the Feature.
+        NOTE: Properties added here are not cached because they are probably
+        never called with the same parameters ever or the property is static
+        so it doesnt need caching.
+        """
+        setattr(self, name, function)
 
+    @property
+    def center(self):
+        """Returns the centroid of the feature."""
+        return self.geometry.center
 
-def test_FSIM_same_image_is_unity():
-    img1 = scipy.ndimage.imread("tests/cameraman.png")
-    IQ = ImageQuality(img1, img1)
-    IQ = _compute_fsim(IQ)
-    assert_almost_equal(IQ.qualities, 1., err_msg="Mean is not unity.")
-    # assert_almost_equal(IQ.maps, np.ones(len(IQ.maps)),
-    #                     err_msg="local metrics are not unity.")
+    @property
+    def radius(self):
+        """Returns the radius of the smallest boundary circle"""
+        return self.geometry.radius
 
+    @property
+    def area(self):
+        """Returns the total surface area of the feature"""
+        return self.geometry.area
 
-def test_compute_quality_cameraman():
-    img1 = scipy.ndimage.imread("tests/cameraman.png")  # original
-    img4 = scipy.ndimage.imread("tests/cameraman_mixed1.png")
+    @property
+    def volume(self):
+        """Returns the volume of the feature"""
+        return self.geometry.volume
 
-    metrics = compute_quality(img1, [img4], method="VIFp", L=256)
-    # plot_metrics(metrics)
-    metrics = compute_quality(img1, [img4], method="FSIM", L=256)
-    # plot_metrics(metrics)
-    metrics = compute_quality(img1, [img4], method="MSSSIM", L=256)
-    # plot_metrics(metrics)
+    def translate(self, x, y):
+        """Translate feature geometry. Translating property functions is not
+        supported."""
+        self.geometry.translate(x, y)
+
+    def rotate(self, theta, p):
+        """Rotate feature geometry around a line. Rotating property
+        functions is not supported."""
+        self.geometry.rotate(theta, p)

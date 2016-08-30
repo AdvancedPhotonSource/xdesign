@@ -49,12 +49,18 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import logging
 import time
 import string
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import scipy.ndimage
+from cycler import cycler
+from xdesign.phantom import Phantom
+from xdesign.geometry import CurvedEntity, Polygon, Mesh
+from xdesign.feature import Feature
+
 
 logger = logging.getLogger(__name__)
 
@@ -63,87 +69,196 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['plot_phantom',
+           'plot_feature',
+           'plot_mesh',
+           'plot_polygon',
+           'plot_curve',
            'plot_metrics',
-           'plot_histograms']
+           'discrete_phantom']
 
 
-def plot_phantom(phantom):
-    """Plots the phantom.
+def plot_phantom(phantom, axis=None):
+    """Plots a phantom to the given axis."""
+    assert(isinstance(phantom, Phantom))
+    if axis is None:
+        fig = plt.figure(figsize=(8, 8), facecolor='w')
+        a = fig.add_subplot(111, aspect='equal')
+        plt.grid('on')
+        plt.gca().invert_yaxis()
 
-    Parameters
-    ----------
-    phantom : Phantom
-    """
-    fig = plt.figure(figsize=(8, 8), facecolor='w')
-    a = fig.add_subplot(111, aspect='equal')
-
-    # Draw all circles in the phantom.
-    for m in range(phantom.population):
-        cx = phantom.feature[m].center.x
-        cy = phantom.feature[m].center.y
-        cr = phantom.feature[m].radius
-        circle = patches.Circle((cx, cy), cr)
-        a.add_patch(circle)
-
-    plt.grid('on')
-    plt.gca().invert_yaxis()
-    plt.show(block=False)
+    # Draw all features in the phantom.
+    for f in phantom.feature:
+        plot_feature(f, a)
 
 
-def plot_histograms(images, masks=None, thresh=0.025):
-    """Plots the normalized histograms for the pixel intensity under each
-    mask.
+def plot_feature(feature, axis=None):
+    """Plots a feature on the given axis. Currently, the value property of the
+    feature is mapped to the transparency of the plotted geometry."""
+    assert(isinstance(feature, Feature))
+    if axis is None:
+        fig = plt.figure(figsize=(8, 8), facecolor='w')
+        axis = fig.add_subplot(111, aspect='equal')
+        plt.grid('on')
+        plt.gca().invert_yaxis()
 
-    Parameters
-    --------------
-    images : list of ndarrays, ndarray
-        image(s) for comparing histograms.
-    masks : list of ndarrays, float, optional
-        If supplied, the data under each mask is plotted separately.
-    strict : boolean
-        If true, the mask takes values >= only. If false, the mask takes all
-        values > 0.
-    """
-    if type(images) is not list:
-        images = [images]
-
-    hgrams = []  # holds histograms before plotting
-    labels = []  # holds legend labels for plotting
-    abet = string.ascii_uppercase
-
-    if masks == None:
-        for i in range(len(images)):
-            hgrams.append(images[i])
-            labels.append(abet[i])
+    # Plot geometry using correct method
+    if isinstance(feature.geometry, Mesh):
+        plot_mesh(feature.geometry, axis, feature.value)
+    elif isinstance(feature.geometry, CurvedEntity):
+        plot_curve(feature.geometry, axis, feature.value)
+    elif isinstance(feature.geometry, Polygon):
+        plot_polygon(feature.geometry, axis, feature.value)
     else:
-        for i in range(len(masks)):
-            for j in range(len(images)):
-                m = masks[i]
-                A = images[j]
-                assert(A.shape == m.shape)
-                # convert probability mask to boolean mask
-                mA = A[m >= thresh]
-                #h = np.histogram(m, bins='auto', density=True)
-                hgrams.append(mA)
-                labels.append(abet[j] + str(i))
+        raise ValueError
 
-    plt.figure()
-    # autobins feature doesn't work because one of the groups is all zeros?
-    plt.hist(hgrams, bins=25, normed=True, stacked=False)
-    plt.legend(labels)
-    plt.show()
+
+def plot_mesh(mesh, axis=None, alpha=None, c='blue'):
+    """Plots a mesh to the given axis.
+    Parameters
+    ---------
+    alpha : float
+        The plot opaqueness. 0 is transparent. 1 is opaque.
+    c : matplotlib color specifier
+        See http://matplotlib.org/api/colors_api.html
+    """
+    assert(isinstance(mesh, Mesh))
+    if axis is None:
+        fig = plt.figure(figsize=(8, 8), facecolor='w')
+        axis = fig.add_subplot(111, aspect='equal')
+        plt.grid('on')
+        plt.gca().invert_yaxis()
+
+    # Plot each face separately
+    for f in mesh.faces:
+        plot_polygon(f, axis, alpha, c)
+
+
+def plot_polygon(polygon, axis=None, alpha=None, c='blue'):
+    """Plots a polygon to the given axis.
+    Parameters
+    ---------
+    alpha : float
+        The plot opaqueness. 0 is transparent. 1 is opaque.
+    c : matplotlib color specifier
+        See http://matplotlib.org/api/colors_api.html
+    """
+    assert(isinstance(polygon, Polygon))
+    if axis is None:
+        fig = plt.figure(figsize=(8, 8), facecolor='w')
+        axis = fig.add_subplot(111, aspect='equal')
+        plt.grid('on')
+        plt.gca().invert_yaxis()
+
+    p = polygon.patch
+    p.set_alpha(alpha)
+    p.set_color(c)
+    axis.add_patch(p)
+
+
+def plot_curve(curve, axis=None, alpha=None, c='blue'):
+    """Plots a curve to the given axis.
+    Parameters
+    ---------
+    alpha : float
+        The plot opaqueness. 0 is transparent. 1 is opaque.
+    c : matplotlib color specifier
+        See http://matplotlib.org/api/colors_api.html
+    """
+    assert(isinstance(curve, CurvedEntity))
+    if axis is None:
+        fig = plt.figure(figsize=(8, 8), facecolor='w')
+        axis = fig.add_subplot(111, aspect='equal')
+        plt.grid('on')
+        plt.gca().invert_yaxis()
+
+    p = curve.patch
+    p.set_alpha(alpha)
+    p.set_color(c)
+    axis.add_patch(p)
+
+
+def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
+    """Returns discrete representation of the phantom. The values of
+    overlapping shapes are additive.
+
+    Parameters
+    ------------
+    size : scalar
+        The side length in pixels of the resulting square image.
+    bitdepth : scalar, optional
+        The bitdepth of resulting representation. Depths less than 32 are
+        returned as integers, and depths greater than 32 are returned as
+        floats.
+    ratio : scalar, optional
+        The antialiasing works by supersampling. This parameter controls
+        how many pixels in the larger representation are averaged for the
+        final representation. e.g. if ratio = 8, then the final pixel
+        values are the average of 64 pixels.
+    uniform : boolean, optional
+        When set to False, changes the way pixels are averaged from a
+        uniform weights to gaussian weights.
+
+    Returns
+    ------------
+    image : numpy.ndarray
+        The discrete representation of the phantom.
+    """
+
+    # Make a higher resolution grid to sample the continuous space
+    _x = np.arange(0, 1, 1 / size / ratio)
+    _y = np.arange(0, 1, 1 / size / ratio)
+    px, py = np.meshgrid(_x, _y)
+
+    # Draw the shapes at the higher resolution.
+    image = np.zeros((size * ratio, size * ratio), dtype=np.float)
+
+    # Rasterize all features in the phantom.
+    for f in phantom.feature:
+        image = _discrete_feature(f, image, px, py)
+
+    # Resample down to the desired size
+    if uniform:
+        image = scipy.ndimage.uniform_filter(image, ratio)
+    else:
+        image = scipy.ndimage.gaussian_filter(image, ratio / 4.)
+    image = image[::ratio, ::ratio]
+
+    # Rescale to proper bitdepth
+    if bitdepth < 32:
+        image = image * (2**bitdepth - 1)
+        image = image.astype(int)
+
+    return image
+
+
+def _discrete_feature(feature, image, px, py):
+    """Helper function for discrete_phantom. Rasterizes the geometry of the
+    feature."""
+    assert(isinstance(feature, Feature))
+    new_feature = feature.geometry.contains(px, py) * feature.value
+    return image + new_feature
 
 
 def plot_metrics(imqual):
-    """Plots metrics of ImageQuality data
+    """Plots full reference metrics of ImageQuality data.
 
+    References
+    ------------------
+    Colors taken from this gist <https://gist.github.com/thriveth/8560036>
     """
-    colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(imqual))))
+    plt.figure(0)  # cycle through 126 unique styles
+    styles = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
+                                    '#f781bf', '#a65628', '#984ea3',
+                                    '#999999', '#e41a1c', '#dede00']) +
+              63 * cycler('linestyle', ['-', '--']) +
+              18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
+    plt.rc('axes', prop_cycle=styles)
+
     for i in range(0, len(imqual)):
         # Draw a plot of the mean quality vs scale using different colors for
         # each reconstruction.
         plt.figure(0)
-        plt.scatter(imqual[i].scales, imqual[i].qualities, color=next(colors))
+        plt.plot(imqual[i].scales, imqual[i].qualities)
 
         # Plot the reconstruction
         f = plt.figure(i + 1)
@@ -164,8 +279,9 @@ def plot_metrics(imqual):
         for j in range(1, N):
             plt.subplot2grid((p[j][0], p[j][0]), p[j][1], colspan=p[j][2],
                              rowspan=p[j][2])
-            im = plt.imshow(imqual[i].maps[j - 1], cmap=plt.cm.viridis, vmin=lo,
-                            vmax=1, interpolation="none", aspect='equal')
+            im = plt.imshow(imqual[i].maps[j - 1], cmap=plt.cm.viridis,
+                            vmin=lo, vmax=1, interpolation="none",
+                            aspect='equal')
             # plt.colorbar()
             plt.annotate(r'$\sigma$ =' + str(imqual[i].scales[j - 1]),
                          xy=(0.05, 0.05), xycoords='axes fraction',
@@ -187,14 +303,14 @@ def plot_metrics(imqual):
     plt.ylabel('Quality')
     plt.xlabel('Scale')
     plt.ylim([0, 1])
+    plt.grid(True)
     plt.legend([str(x) for x in range(1, len(imqual) + 1)])
     plt.title("Comparison of Reconstruction Methods")
 
-    plt.show(block=True)
-
 
 def _pyramid(N):
-    """Generates the corner positions, grid size, and column/row spans for a pyramid image.
+    """Generates the corner positions, grid size, and column/row spans for
+    a pyramid image.
 
     Parameters
     --------------
@@ -231,3 +347,46 @@ def _pyramid(N):
         # print(params[n])
 
     return params
+
+
+def plot_histograms(images, masks=None, thresh=0.025):
+    """Plots the normalized histograms for the pixel intensity under each
+    mask.
+
+    Parameters
+    --------------
+    images : list of ndarrays, ndarray
+        image(s) for comparing histograms.
+    masks : list of ndarrays, float, optional
+        If supplied, the data under each mask is plotted separately.
+    strict : boolean
+        If true, the mask takes values >= only. If false, the mask takes all
+        values > 0.
+    """
+    if type(images) is not list:
+        images = [images]
+
+    hgrams = []  # holds histograms before plotting
+    labels = []  # holds legend labels for plotting
+    abet = string.ascii_uppercase
+
+    if masks is None:
+        for i in range(len(images)):
+            hgrams.append(images[i])
+            labels.append(abet[i])
+    else:
+        for i in range(len(masks)):
+            for j in range(len(images)):
+                m = masks[i]
+                A = images[j]
+                assert(A.shape == m.shape)
+                # convert probability mask to boolean mask
+                mA = A[m >= thresh]
+                # h = np.histogram(m, bins='auto', density=True)
+                hgrams.append(mA)
+                labels.append(abet[j] + str(i))
+
+    plt.figure()
+    # autobins feature doesn't work because one of the groups is all zeros?
+    plt.hist(hgrams, bins=25, normed=True, stacked=False)
+    plt.legend(labels)

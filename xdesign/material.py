@@ -53,6 +53,7 @@ import numpy as np
 import logging
 from xdesign.phantom import *
 from xdesign.geometry import *
+from xdesign.feature import *
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,8 @@ class Material(object):
 
     @property
     def reduced_energy_ratio(self, energy):
-        """Energy ratio of the incident x-ray and the electron energy [Unitless]."""
+        """Energy ratio of the incident x-ray and the electron energy
+        [Unitless]."""
         raise NotImplementedError
 
     @property
@@ -138,8 +140,8 @@ class Material(object):
 
 class HyperbolicConcentric(Phantom):
     """Generates a series of cocentric alternating black and white circles whose
-    radii are changing at a parabolic rate. These lines whose spacing covers a
-    range scales can be used to estimate the Modulation Transfer Function (MTF).
+    radii are changing at a parabolic rate. These line spacings cover a range
+    of scales and can be used to estimate the Modulation Transfer Function.
     """
 
     def __init__(self, min_width=0.1, exponent=1 / 2):
@@ -153,7 +155,7 @@ class HyperbolicConcentric(Phantom):
         """
         super(HyperbolicConcentric, self).__init__(shape='circle')
         center = Point(0.5, 0.5)
-        #exponent = 1/2
+        # exponent = 1/2
         Nmax_rings = 512
 
         radii = [0]
@@ -163,7 +165,8 @@ class HyperbolicConcentric(Phantom):
             if radius > 0.5 and ring % 2:
                 break
 
-            self.append(Circle(center, radius, value=(-1.)**(ring % 2)))
+            self.append(Feature(
+                        Circle(center, radius), value=(-1.)**(ring % 2)))
             # record information about the rings
             widths.append(radius - radii[-1])
             radii.append(radius)
@@ -210,11 +213,13 @@ class DynamicRange(Phantom):
             # place the circles
             for i in range(0, steps):
                 center = Point(px[i] + jitters[0, i], py[i] + jitters[1, i])
-                self.append(Circle(center, radius, value=colors[i]))
+                self.append(Feature(
+                            Circle(center, radius), value=colors[i]))
         else:
             # completely random
             for i in range(0, steps):
-                if 1 > self.sprinkle(1, radius, gap=radius * 0.9, value=colors[i]):
+                if 1 > self.sprinkle(1, radius, gap=radius * 0.9,
+                                     value=colors[i]):
                     None
                     # TODO: ensure that all circles are placed
 
@@ -224,7 +229,8 @@ class UnitCircle(Phantom):
 
     def __init__(self, radius=0.5, value=1):
         super(UnitCircle, self).__init__()
-        self.append(Circle(Point(0.5, 0.5), radius, value))
+        self.append(Feature(
+                    Circle(Point(0.5, 0.5), radius), value))
 
 
 class Soil(Phantom):
@@ -243,7 +249,7 @@ class Soil(Phantom):
         # use overlap to approximate area opening transform because opening is
         # not discrete
         self.sprinkle(100, 0.02, 0.01, value=-.25)
-        background = Circle(Point(0.5, 0.5), 0.5, value=0.5)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), value=0.5)
         self.insert(0, background)
 
 
@@ -253,7 +259,7 @@ class Foam(Phantom):
     def __init__(self):
         super(Foam, self).__init__(shape='circle')
         self.sprinkle(300, [0.05, 0.01], 0, value=-1)
-        background = Circle(Point(0.5, 0.5), 0.5, value=1)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), value=1)
         self.insert(0, background)
 
 
