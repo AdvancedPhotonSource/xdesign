@@ -77,8 +77,15 @@ __all__ = ['plot_phantom',
            'discrete_phantom']
 
 
-def plot_phantom(phantom, axis=None):
-    """Plots a phantom to the given axis."""
+def plot_phantom(phantom, axis=None, labels=None):
+    """Plots a phantom to the given axis.
+
+    Parameters
+    ----------
+    labels : bool
+        Each feature is numbered according to its index in the phantom.
+    """
+    # IDEA: Allow users to provide list or generator for labels.
     assert(isinstance(phantom, Phantom))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -87,13 +94,25 @@ def plot_phantom(phantom, axis=None):
         plt.gca().invert_yaxis()
 
     # Draw all features in the phantom.
+    i = 0
     for f in phantom.feature:
         plot_feature(f, a)
+        if labels is not None:
+            a.annotate(str(i), xy=(f.center.x, f.center.y),
+                       ha='center', va='center', color='white')
+            i += 1
 
 
-def plot_feature(feature, axis=None):
-    """Plots a feature on the given axis. Currently, the value property of the
-    feature is mapped to the transparency of the plotted geometry."""
+def plot_feature(feature, axis=None, alpha=None, c='blue'):
+    """Plots a feature on the given axis.
+
+    Parameters
+    ----------
+    alpha : float
+        The plot opaqueness. 0 is transparent. 1 is opaque.
+    c : matplotlib color specifier
+        See http://matplotlib.org/api/colors_api.html
+    """
     assert(isinstance(feature, Feature))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -103,19 +122,20 @@ def plot_feature(feature, axis=None):
 
     # Plot geometry using correct method
     if isinstance(feature.geometry, Mesh):
-        plot_mesh(feature.geometry, axis, feature.value)
+        plot_mesh(feature.geometry, axis, alpha, c)
     elif isinstance(feature.geometry, CurvedEntity):
-        plot_curve(feature.geometry, axis, feature.value)
+        plot_curve(feature.geometry, axis, alpha, c)
     elif isinstance(feature.geometry, Polygon):
-        plot_polygon(feature.geometry, axis, feature.value)
+        plot_polygon(feature.geometry, axis, alpha, c)
     else:
         raise ValueError
 
 
 def plot_mesh(mesh, axis=None, alpha=None, c='blue'):
     """Plots a mesh to the given axis.
+
     Parameters
-    ---------
+    ----------
     alpha : float
         The plot opaqueness. 0 is transparent. 1 is opaque.
     c : matplotlib color specifier
@@ -135,8 +155,9 @@ def plot_mesh(mesh, axis=None, alpha=None, c='blue'):
 
 def plot_polygon(polygon, axis=None, alpha=None, c='blue'):
     """Plots a polygon to the given axis.
+
     Parameters
-    ---------
+    ----------
     alpha : float
         The plot opaqueness. 0 is transparent. 1 is opaque.
     c : matplotlib color specifier
@@ -157,8 +178,9 @@ def plot_polygon(polygon, axis=None, alpha=None, c='blue'):
 
 def plot_curve(curve, axis=None, alpha=None, c='blue'):
     """Plots a curve to the given axis.
+
     Parameters
-    ---------
+    ----------
     alpha : float
         The plot opaqueness. 0 is transparent. 1 is opaque.
     c : matplotlib color specifier
@@ -242,8 +264,13 @@ def _discrete_feature(feature, image, px, py):
 def plot_metrics(imqual):
     """Plots full reference metrics of ImageQuality data.
 
+    Parameters
+    ----------
+    imqual : ImageQuality
+        The data to plot.
+
     References
-    ------------------
+    ----------
     Colors taken from this gist <https://gist.github.com/thriveth/8560036>
     """
     plt.figure(0)  # cycle through 126 unique styles

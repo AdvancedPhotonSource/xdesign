@@ -363,6 +363,9 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
 
 def compute_neq(phantom, A, B):
     '''Calculates the NEQ according to recommendations by JT Dobbins.
+
+    Parameters
+    -------------
     phantom : UnitCircle
         The unit circle class with radius less than 0.5
     A : ndarray
@@ -660,7 +663,7 @@ def compute_quality(reference, reconstructions, method="MSSSIM", L=1):
 
 
 def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
-    """ Calculates the Visual Information Fidelity (VIFp) between two images in
+    """Calculates the Visual Information Fidelity (VIFp) between two images in
     in a multiscale pixel domain with scalar.
 
 -----------COPYRIGHT NOTICE STARTS WITH THIS LINE------------
@@ -697,7 +700,9 @@ MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
     Returns
     -----------
-
+    imQual : ImageQuality
+        A struct used to organize image quality information. NOTE: the valid
+        range for VIFp is (0, 1].
     """
     ref = imQual.orig
     dist = imQual.recon
@@ -765,21 +770,18 @@ def _compute_fsim(imQual, nlevels=5, nwavelets=16, L=None):
     --------------------------
     imQual : ImageQuality
     imageRef : numpy.ndarray
-        the first image being compared
+        The first image being compared.
     imageDis : numpy.ndarray
-        the second image being compared. Given 2 test images img1 and img2.
-        For gray-scale images, their dynamic range should be 0-255. For
-        colorful images, the dynamic range of each color channel should be
-        0-255.
+        The second image being compared. Given 2 test images img1 and img2.
+        For gray-scale images, their dynamic range should be 0-255. This
+        implementation only considers the luminance component of images.
+        For multichannel images, convert to grayscale first.
 
     Returns
     ------------------
-    FSIM : scalar
-        the similarty score calculated using FSIM algorithm. FSIM only
-        considers the luminance component of images. For colorful images,
-        convert to grayscale first.
-    FSIMmap : numpy.ndarray
-        local similarity score
+    imQual : ImageQuality
+        A struct used to organize image quality information. NOTE: the valid
+        range for FSIM is (0, 1].
     """
 
     Y1 = imQual.orig
@@ -865,7 +867,8 @@ def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
     Returns
     --------------
     imQual : ImageQuality
-        A struct used to organize image quality information.
+        A struct used to organize image quality information. NOTE: the valid
+        range for SSIM is [-1, 1].
     '''
     img1 = imQual.orig
     img2 = imQual.recon
@@ -923,7 +926,8 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     Returns
     ----------
     imQual : ImageQuality
-        A struct used to organize image quality information.
+        A struct used to organize image quality information. NOTE: the valid
+        range for SSIM is [-1, 1].
     """
     if scale is None:
         scale = sigma
