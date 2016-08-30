@@ -278,7 +278,7 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
     051907-9 (2013). http://dx.doi.org/10.1118/1.4800795
 
     Parameters
-    ---------------
+    ----------
     phantom : UnitCircle
         The unit circle phantom.
     A : ndarray
@@ -290,6 +290,17 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
     plot_type : string
         'histogram' returns a plot binned by radial coordinate wavenumber
         'frequency' returns a wavenumber vs wavenumber plot
+
+    returns
+    -------
+    bins :
+        Bins for the radially binned NPS
+    counts :
+        NPS values for the radially binned NPS
+    X, Y :
+        Frequencies for the 2D frequency plot NPS
+    NPS : 2Darray
+        the NPS for the 2D frequency plot
     '''
     image = A
     if B is not None:
@@ -365,7 +376,7 @@ def compute_neq(phantom, A, B):
     '''Calculates the NEQ according to recommendations by JT Dobbins.
 
     Parameters
-    -------------
+    ----------
     phantom : UnitCircle
         The unit circle class with radius less than 0.5
     A : ndarray
@@ -374,6 +385,13 @@ def compute_neq(phantom, A, B):
         The reconstruction of the above phantom with different noise. This
         second reconstruction enables allows use of trend subtraction instead
         of zero mean normalization.
+
+    Returns
+    -------
+    mu_b :
+        The spatial frequencies
+    NEQ :
+        the Noise Equivalent Quanta
     '''
 
     mu_a, NPS = compute_nps(phantom, A, B, plot_type='histogram')
