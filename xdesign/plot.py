@@ -49,16 +49,18 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import logging
 import time
 import string
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import scipy.ndimage
+from cycler import cycler
 from xdesign.phantom import Phantom
 from xdesign.geometry import CurvedEntity, Polygon, Mesh
 from xdesign.feature import Feature
-import scipy.ndimage
+
 
 logger = logging.getLogger(__name__)
 
@@ -238,13 +240,25 @@ def _discrete_feature(feature, image, px, py):
 
 
 def plot_metrics(imqual):
-    """Plots full reference metrics of ImageQuality data"""
-    colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(imqual))))
+    """Plots full reference metrics of ImageQuality data
+
+    References
+    ------------------
+    Colors taken from this gist <https://gist.github.com/thriveth/8560036>
+    """
+    plt.figure(0)  # cycle through 18 unique styles
+    styles = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
+                                    '#f781bf', '#a65628', '#984ea3',
+                                    '#999999', '#e41a1c', '#dede00']) +
+              63 * cycler('linestyle', ['-', '--']) +
+              18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
+    plt.rc('axes', prop_cycle=styles)
+
     for i in range(0, len(imqual)):
         # Draw a plot of the mean quality vs scale using different colors for
         # each reconstruction.
         plt.figure(0)
-        plt.scatter(imqual[i].scales, imqual[i].qualities, color=next(colors))
+        plt.plot(imqual[i].scales, imqual[i].qualities)
 
         # Plot the reconstruction
         f = plt.figure(i + 1)
@@ -289,6 +303,7 @@ def plot_metrics(imqual):
     plt.ylabel('Quality')
     plt.xlabel('Scale')
     plt.ylim([0, 1])
+    plt.grid(True)
     plt.legend([str(x) for x in range(1, len(imqual) + 1)])
     plt.title("Comparison of Reconstruction Methods")
 
