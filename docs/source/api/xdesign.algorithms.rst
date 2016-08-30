@@ -14,4 +14,4 @@
       art
       sirt
       mlem
-      streamSuperellipse
+      stream
