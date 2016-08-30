@@ -240,13 +240,13 @@ def _discrete_feature(feature, image, px, py):
 
 
 def plot_metrics(imqual):
-    """Plots full reference metrics of ImageQuality data
+    """Plots full reference metrics of ImageQuality data.
 
     References
     ------------------
     Colors taken from this gist <https://gist.github.com/thriveth/8560036>
     """
-    plt.figure(0)  # cycle through 18 unique styles
+    plt.figure(0)  # cycle through 126 unique styles
     styles = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
                                     '#f781bf', '#a65628', '#984ea3',
                                     '#999999', '#e41a1c', '#dede00']) +
