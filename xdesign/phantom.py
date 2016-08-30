@@ -244,67 +244,6 @@ class Phantom(object):
                         Circle(Point(arr[m, 0], arr[m, 1]), arr[m, 2]),
                         arr[m, 3]))
 
-    def discrete(self, size, bitdepth=32, ratio=8, uniform=True):
-        """Returns discrete representation of the phantom. The values of
-        overlapping shapes are additive.
-
-        Parameters
-        ------------
-        size : scalar
-            The side length in pixels of the resulting square image.
-        bitdepth : scalar, optional
-            The bitdepth of resulting representation. Depths less than 32 are
-            returned as integers, and depths greater than 32 are returned as
-            floats.
-        ratio : scalar, optional
-            The discretization works by supersampling. This parameter controls
-            how many pixels in the larger representation are averaged for the
-            final representation. e.g. if ratio = 8, then the final pixel
-            values are the average of 64 pixels.
-        uniform : boolean, optional
-            When set to False, changes the way pixels are averaged from a
-            uniform weights to gaussian weights.
-
-        Returns
-        ------------
-        image : numpy.ndarray
-            The discrete representation of the phantom.
-        """
-        # error = 1./ratio**2
-        # warnings.warn("Discrete conversion is approximate. " +
-        #              "True values will be within " + str(error) + " %")
-
-        # Make a higher resolution grid to sample the continuous space
-        _x = np.arange(0, 1, 1 / size / ratio)
-        _y = np.arange(0, 1, 1 / size / ratio)
-        px, py = np.meshgrid(_x, _y)
-
-        # Draw the shapes at the higher resolution. The order in which shapes
-        # are drawn is preserved.
-        image = np.zeros((size * ratio, size * ratio), dtype=np.float)
-        for m in range(self.population):
-            x = self.feature[m].center.x
-            y = self.feature[m].center.y
-            rad = self.feature[m].radius
-            val = self.feature[m].value
-            # image *= ((px - x)**2 + (py - y)**2 >= rad**2) # support for
-            # partial overlap
-            image += ((px - x)**2 + (py - y)**2 < rad**2) * val
-
-        # Resample down to the desired size
-        if uniform:
-            image = scipy.ndimage.uniform_filter(image, ratio)
-        else:
-            image = scipy.ndimage.gaussian_filter(image, ratio / 4.)
-        image = image[::ratio, ::ratio]
-
-        # Rescale to proper bitdepth
-        if bitdepth < 32:
-            image = image * (2**bitdepth - 1)
-            image = image.astype(int)
-
-        return image
-
     # PRIVATE METHODS
     def _random_point(self, margin=0, region=None):
         """Generate a random point in the given region.

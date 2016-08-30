@@ -50,9 +50,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from xdesign.geometry import *
-import numpy as np
 import logging
-from cached_property import cached_property
 
 logger = logging.getLogger(__name__)
 
@@ -63,55 +61,53 @@ __all__ = ['Feature']
 
 
 class Feature(object):
-    '''A container object for geometry objects. It is a mesh or grid object.
-    Maybe it is a base class for meshes and grids?
+    '''A 2D geometric region(s) and associated materials properti(es).
+    Properties and geometry can be manipulated from this level, but rendering
+    must access the geometry directly.
+
+    Attributes
+    ----------------
+    geometry : Entity
+        Defines an 2D region(s) where the properties are valid.
     '''
-    def __init__(self, entity, value=1):
-        assert(isinstance(entity, Circle))
-        # TODO: Add a base class for all entities with area?
-        self.e_values = [value]
-        self.entities = [entity]
+    def __init__(self, geometry, value=1):
+        self.geometry = geometry
+        self.value = value
 
-    @cached_property
-    def area(self):
-        """Returns the total area of the feature"""
-        total_area = 0
-        for e in self.entities:
-            total_area += e.area
-        return total_area
+    def add_property(self, name, function):
+        """Adds a property by name to the Feature.
+        NOTE: Properties added here are not cached because they are probably
+        never called with the same parameters ever or the property is static
+        so it doesnt need caching.
+        """
+        setattr(self, name, function)
 
-    @cached_property
-    def value(self):
-        """Returns the area average value of the feature."""
-        total_value = 0
-        for i in range(0, len(self.entities)):
-            total_value += self.e_values[i]*self.entities[i].area
-        return total_value / self.area
-
-    @cached_property
+    @property
     def center(self):
-        """Returns the area center of mass."""
-        center = Point(0, 0)
-        for i in range(0, len(self.entities)):
-            center += self.entities[i].center*self.entities[i].area
-        return center / self.area
+        """Returns the centroid of the feature."""
+        return self.geometry.center
 
-    @cached_property
+    @property
     def radius(self):
         """Returns the radius of the smallest boundary circle"""
-        radius = 0
-        for i in range(0, len(self.entities)):
-            d = self.entities[i].center - self.center
-            radius = max(radius, d.norm + self.entities[i].radius)
-        return radius
+        return self.geometry.radius
 
-    def translate(self, dx, dy):
-        """Translate feature."""
-        del self.__dict__['center']
-        for e in self.entities:
-            e.translate(dx, dy)
+    @property
+    def area(self):
+        """Returns the total surface area of the feature"""
+        return self.geometry.area
 
-    def rotate(self, theta, point):
-        """Rotate feature around a point."""
-        for e in self.entities:
-            e.rotate(theta, point)
+    @property
+    def volume(self):
+        """Returns the volume of the feature"""
+        return self.geometry.volume
+
+    def translate(self, x, y):
+        """Translate feature geometry. Translating property functions is not
+        supported."""
+        self.geometry.translate(x, y)
+
+    def rotate(self, theta, p):
+        """Rotate feature geometry around a line. Rotating property
+        functions is not supported."""
+        self.geometry.rotate(theta, p)

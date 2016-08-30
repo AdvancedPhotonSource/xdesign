@@ -51,6 +51,9 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 import logging
+from cached_property import cached_property
+import matplotlib.pyplot as plt
+from matplotlib.path import Path
 
 logger = logging.getLogger(__name__)
 
@@ -67,29 +70,16 @@ __all__ = ['Point',
            'Ray',
            'Triangle',
            'Rectangle',
-           'Square']
+           'Square',
+           'Mesh']
 
 
 class Entity(object):
-    """Base class for all geometric entities."""
+    """Base class for all geometric entities. All geometric entities should
+    have these methods."""
 
     def __init__(self):
         pass
-
-    @property
-    def equation(self):
-        """Analytical equation of the entity."""
-        raise NotImplementedError
-
-    @property
-    def list(self):
-        """Return list representation."""
-        raise NotImplementedError
-
-    @property
-    def numpy(self):
-        """Return Numpy representation."""
-        return np.array(self.list)
 
     def translate(self, dx, dy):
         """Translate entity."""
@@ -101,6 +91,10 @@ class Entity(object):
 
     def scale(self, val):
         """Scale entity."""
+        raise NotImplementedError
+
+    def contains(self, x, y):
+        """Returns true if the points are contained by the entity"""
         raise NotImplementedError
 
     def collision(self, entity):
@@ -148,8 +142,7 @@ class Point(Entity):
         """Scalar division."""
         return Point(self.x / c, self.y / c)
 
-    @property
-    def equation(self):
+    def __str__(self):
         return "(%s, %s)" % (self.x, self.y)
 
     @property
@@ -227,7 +220,7 @@ class LinearEntity(Entity):
             return (self.p2.y - self.p1.y) / (self.p2.x - self.p1.x)
 
     @property
-    def equation(self):
+    def __str__(self):
         """Return line equation."""
         raise NotImplementedError
 
@@ -315,7 +308,7 @@ class Line(LinearEntity):
             return self.p1.y - self.slope * self.p1.x
 
     @property
-    def equation(self):
+    def __str__(self):
         """Return line equation."""
         if self.vertical:
             return "x = %s" % self.p1.x
@@ -391,7 +384,8 @@ class Segment(LinearEntity):
 
 
 class CurvedEntity(Entity):
-    """Base class for curved entities in 2-D cartesian space.
+    """Base class for entities whose surface can be defined by a continuous
+    equation.
 
     Attributes
     ----------
@@ -403,7 +397,7 @@ class CurvedEntity(Entity):
         self.center = center
 
     @property
-    def equation(self):
+    def __str__(self):
         """Return analytical equation."""
         raise NotImplementedError
 
@@ -512,7 +506,7 @@ class Circle(Ellipse):
                                                  circle.radius)
 
     @property
-    def equation(self):
+    def __str__(self):
         """Return analytical equation."""
         return "(x-%s)^2 + (y-%s)^2 = %s^2" % (self.center.x, self.center.y,
                                                self.radius)
@@ -532,9 +526,17 @@ class Circle(Ellipse):
         """Return diameter."""
         return 2 * self.radius
 
+    @property
+    def patch(self):
+        return plt.Circle((self.center.x, self.center.y), self.radius)
+
     def scale(self, val):
         """Scale."""
         self.rad *= val
+
+    def contains(self, px, py):
+        return (((px-self.center.x)**2 + (py-self.center.y)**2) <=
+                self.radius**2)
 
 
 class Polygon(Entity):
@@ -592,6 +594,16 @@ class Polygon(Entity):
         ys = [p.y for p in self.vertices]
         return (min(xs), min(ys), max(xs), max(ys))
 
+    @property
+    def patch(self):
+        return plt.Polygon(self.numpy)
+
+    def contains(self, px, py):
+        points = np.vstack((px.flatten(), py.flatten())).transpose()
+        border = Path(self.numpy)
+        bools = border.contains_points(points)
+        return np.reshape(bools, px.shape)
+
 
 class Triangle(Polygon):
     """Triangle in 2-D cartesian space.
@@ -603,6 +615,19 @@ class Triangle(Polygon):
         verts = [p1, p2, p3]
         super(Triangle, self).__init__(verts)
         self.vertices = verts
+
+    @property
+    def center(self):
+        center = Point(0, 0)
+        for v in self.vertices:
+            center += v
+        return center / 3
+
+    @property
+    def area(self):
+        A = self.vertices[0] - self.vertices[1]
+        B = self.vertices[0] - self.vertices[2]
+        return 1/2 * np.abs(np.cross([A.x, A.y], [B.x, B.y]))
 
 
 class Rectangle(Polygon):
@@ -628,6 +653,82 @@ class Square(Rectangle):
         verts = [p1, p2, p3, p4]
         super(Rectangle, self).__init__(verts)
         self.vertices = verts
+
+
+class Mesh(Entity):
+    """A mesh object. It is a collection of polygons"""
+
+    def __init__(self):
+        self.faces = []
+        self.area = 0
+        self.population = 0
+        self.radius = 0
+
+    @cached_property
+    def center(self):
+        center = Point(0, 0)
+        if self.area > 0:
+            for f in self.faces:
+                center += f.center * f.area
+            center /= self.area
+        return center
+
+    def append(self, t):
+        """Add a triangle to the mesh."""
+        assert(isinstance(t, Polygon))
+        self.population += 1
+        self.center = ((self.center * self.area + t.center * t.area) /
+                       (self.area + t.area))
+        self.area += t.area
+        for v in t.vertices:
+            self.radius = max(self.radius, self.center.distance(v))
+        self.faces.append(t)
+
+    def pop(self, i=-1):
+        """Pop i-th triangle from the mesh."""
+        self.population -= 1
+        self.area -= self.faces[i].area
+        try:
+            del self.__dict__['center']
+        except KeyError:
+            pass
+        return self.faces.pop(i)
+
+    def translate(self, dx, dy):
+        """Translate entity."""
+        for t in self.faces:
+            t.translate(dx, dy)
+
+    def rotate(self, theta, point):
+        """Rotate entity around a point."""
+        for t in self.faces:
+            t.rotate(theta, point)
+
+    def scale(self, val):
+        """Scale entity."""
+        for t in self.faces:
+            t.scale(value)
+
+    def collision(self, entity):
+        """Check if entity collides with another entity."""
+        raise NotImplementedError
+
+    def distance(self, entity):
+        """Return the closest distance between entities."""
+        raise NotImplementedError
+
+    def contains(self, px, py):
+        bools = np.full(px.shape, False, dtype=bool)
+        for f in self.faces:
+            bools = np.logical_or(bools, f.contains(px, py))
+        return bools
+
+    @property
+    def patch(self):
+        patches = []
+        for f in self.faces:
+            patches.append(f.patch)
+        return patches
 
 
 def rotate(point, theta, origin):
