@@ -53,7 +53,6 @@ import numpy as np
 import scipy.ndimage
 import logging
 import warnings
-from xdesign.geometry import *
 import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
@@ -132,7 +131,10 @@ def _slice_propagate(wavefront, delta_nm, lat_nm, shape, lmda):
     u = _gen_mesh([u_max], [shape])
     u = u[0]
     H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
-    wavefront = np.fft.ifftn(np.fft.fftn(wavefront) * np.fft.fftshift(H))
+    wavefront = np.fft.ifftn(np.fft.fftshift(np.fft.fftshift(np.fft.fftn(wavefront)) * H))
+
+    # H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
+    # wavefront = np.fft.ifftn(np.fft.fftn(wavefront) * np.fft.fftshift(H))
 
     return wavefront
 
@@ -148,7 +150,7 @@ def plot_wavefront(wavefront, lat_nm):
     i = wavefront * np.conjugate(wavefront)
     shape = len(wavefront)
     half_len = lat_nm * shape / 2
-    x = np.linspace(-half_len, -half_len, shape)
+    x = np.linspace(-half_len, half_len, shape)
     fig = plt.figure()
     plt.plot(x, i)
     plt.show()
