@@ -257,7 +257,7 @@ def _discrete_feature(feature, image, px, py):
     """Helper function for discrete_phantom. Rasterizes the geometry of the
     feature."""
     assert(isinstance(feature, Feature))
-    new_feature = feature.geometry.contains(px, py) * feature.value
+    new_feature = feature.geometry.contains(px, py) * feature.mass_atten
     return image + new_feature
 
 

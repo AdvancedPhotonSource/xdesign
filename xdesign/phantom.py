@@ -103,7 +103,7 @@ class Phantom(object):
     @property
     def density(self):
         '''Returns the area density of the phantom. (Does not acount for
-        value.)
+        mass_atten.)
         '''
         if self.shape == 'square':
             return self.area
@@ -131,10 +131,10 @@ class Phantom(object):
         self.area += feature.area
         self.population += 1
 
-    def sort(self, param="value", reverse=False):
-        """Sorts the features by value or size"""
-        if param == "value":
-            def key(feature): return feature.value
+    def sort(self, param="mass_atten", reverse=False):
+        """Sorts the features by mass_atten or size"""
+        if param == "mass_atten":
+            def key(feature): return feature.mass_atten
         elif param == "size":
             def key(feature): return feature.area
         else:
@@ -145,7 +145,7 @@ class Phantom(object):
         """Reverse the features of the phantom"""
         self.feature.reverse()
 
-    def sprinkle(self, counts, radius, gap=0, region=None, value=1,
+    def sprinkle(self, counts, radius, gap=0, region=None, mass_atten=1,
                  max_density=1):
         """Sprinkle a number of circles.
 
@@ -161,8 +161,8 @@ class Phantom(object):
         region : Circle, optional
             The circles are confined to this shape. None if the circles are
             allowed anywhere.
-        value : scalar, optional
-            A value passed to the value parameter of the circles.
+        mass_atten : scalar, optional
+            A mass attenuation parameter passed to the circles.
 
         Returns
         ----------
@@ -191,7 +191,7 @@ class Phantom(object):
             center = self._random_point(radius[0], region=region)
 
             if collision:
-                self.append(Feature(Circle(center, radius[0]), value=value))
+                self.append(Feature(Circle(center, radius[0]), mass_atten=mass_atten))
                 n_added += 1
                 continue
 
@@ -199,7 +199,7 @@ class Phantom(object):
             overlap = self._collision(circle)
             if overlap <= radius[0] - radius[1]:
                 self.append(Feature(Circle(center, radius[0] - overlap),
-                                    value=value))
+                                    mass_atten=mass_atten))
                 n_added += 1
                 n_tries = 0
 
@@ -229,7 +229,7 @@ class Phantom(object):
                 self.feature[m].center.x,
                 self.feature[m].center.y,
                 self.feature[m].radius,
-                self.feature[m].value]
+                self.feature[m].mass_atten]
         return arr
 
     def save(self, filename):
