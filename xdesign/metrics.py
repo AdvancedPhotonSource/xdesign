@@ -102,7 +102,8 @@ def compute_mtf2(phantom, image):
     MTF : list
         MTF values
     """
-    assert(isinstance(phantom, HyperbolicConcentric))
+    if not isinstance(phantom, HyperbolicConcentric):
+        raise TypeError
 
     center = int(image.shape[0] / 2)  # assume square shape
     radii = np.array(phantom.radii) * image.shape[0]
@@ -146,6 +147,8 @@ def compute_mtf(phantom, image, Ntheta=4):
         Predefined phantom with single circle whose radius is less than 0.5.
     image : ndarray
         The reconstruction of the above phantom.
+    Ntheta : scalar
+        The number of directions at which to calculate the MTF.
 
     Returns
     --------------
@@ -162,8 +165,14 @@ def compute_mtf(phantom, image, Ntheta=4):
     of Radiology (ACR) accreditation phantom," Med. Phys. 40, 051907-1 -
     051907-9 (2013). http://dx.doi.org/10.1118/1.4800795
     '''
-    assert(isinstance(phantom, UnitCircle))
-    assert(phantom.feature[0].radius < 0.5)
+    if not isinstance(phantom, UnitCircle):
+        raise TypeError('MTF requires unit circle phantom.')
+    if phantom.feature[0].radius >= 0.5:
+        raise ValueError('Radius of the phantom should be less than 0.5.')
+    if Ntheta <= 0:
+        raise ValueError('Must calculate MTF in at least one direction.')
+    if not isinstance(image, np.ndarray):
+        raise TypeError('image must be numpy.ndarray')
 
     # convert pixel coordinates to length coordinates
     x = y = (np.arange(0, image.shape[0]) / image.shape[0] - 0.5)
@@ -278,7 +287,7 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
     051907-9 (2013). http://dx.doi.org/10.1118/1.4800795
 
     Parameters
-    ---------------
+    ----------
     phantom : UnitCircle
         The unit circle phantom.
     A : ndarray
@@ -290,7 +299,29 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
     plot_type : string
         'histogram' returns a plot binned by radial coordinate wavenumber
         'frequency' returns a wavenumber vs wavenumber plot
+
+    returns
+    -------
+    bins :
+        Bins for the radially binned NPS
+    counts :
+        NPS values for the radially binned NPS
+    X, Y :
+        Frequencies for the 2D frequency plot NPS
+    NPS : 2Darray
+        the NPS for the 2D frequency plot
     '''
+    if not isinstance(phantom, UnitCircle):
+        raise TypeError('NPS requires unit circle phantom.')
+    if not isinstance(A, np.ndarray):
+        raise TypeError('A must be numpy.ndarray.')
+    if not isinstance(B, np.ndarray):
+        raise TypeError('B must be numpy.ndarray.')
+    if A.shape != B.shape:
+        raise ValueError('A and B must be the same size!')
+    if not (plot_type == 'frequency' or plot_type == 'histogram'):
+        raise ValueError("plot type must be 'frequency' or 'histogram'.")
+
     image = A
     if B is not None:
         image = image - B
@@ -363,6 +394,9 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
 
 def compute_neq(phantom, A, B):
     '''Calculates the NEQ according to recommendations by JT Dobbins.
+
+    Parameters
+    ----------
     phantom : UnitCircle
         The unit circle class with radius less than 0.5
     A : ndarray
@@ -371,8 +405,14 @@ def compute_neq(phantom, A, B):
         The reconstruction of the above phantom with different noise. This
         second reconstruction enables allows use of trend subtraction instead
         of zero mean normalization.
-    '''
 
+    Returns
+    -------
+    mu_b :
+        The spatial frequencies
+    NEQ :
+        the Noise Equivalent Quanta
+    '''
     mu_a, NPS = compute_nps(phantom, A, B, plot_type='histogram')
     mu_b, MTF = compute_mtf(phantom, A, Ntheta=1)
 
@@ -562,7 +602,7 @@ def compute_background_ttest(image, masks):
 
 
 class ImageQuality(object):
-    """Stores information about image quality
+    """Stores information about image quality.
 
     Attributes
     ----------------
@@ -576,8 +616,13 @@ class ImageQuality(object):
     def __init__(self, original, reconstruction, method=''):
         self.orig = original.astype(np.float)
         self.recon = reconstruction.astype(np.float)
-        assert(self.orig.shape == self.recon.shape)
-        assert(self.orig.ndim == 2)
+
+        if self.orig.shape != self.recon.shape:
+            raise ValueError("original and reconstruction should be the " +
+                             "same shape")
+        if self.orig.ndim != 2:
+            raise ValueError("This function only support 2D images.")
+
         self.qualities = []
         self.maps = []
         self.scales = []
@@ -588,6 +633,9 @@ class ImageQuality(object):
                 "\nSCALES: " + str(self.scales))
 
     def __add__(self, other):
+        if not isinstance(other, ImageQuality):
+            raise TypeError("Can only add ImageQuality to ImageQuality")
+
         self.qualities += other.qualities
         self.maps += other.maps
         self.scales += other.scales
@@ -604,20 +652,24 @@ class ImageQuality(object):
         scale : scalar, list
             the size scale at which the quality was calculated
         '''
-        if type(quality) is list:
+        if (isinstance(quality, list) and isinstance(scale, list) and
+           (maps is None or isinstance(maps, list))):
             self.qualities += quality
             self.scales += scale
             if maps is None:
                 maps = [None] * len(quality)
             self.maps += maps
-        else:
+        elif (isinstance(quality, float) and isinstance(scale, float) and
+              (maps is None or isinstance(maps, np.ndarray))):
             self.qualities.append(quality)
             self.scales.append(scale)
             self.maps.append(maps)
+        else:
+            raise TypeError
 
     def sort(self):
-        """Sorts the qualities by scale. #STUB"""
-        warnings.warn("ImageQuality.sort is not yet implmemented.")
+        """Sorts the qualities by scale"""
+        raise NotImplementedError
 
 
 def compute_quality(reference, reconstructions, method="MSSSIM", L=1):
@@ -643,12 +695,17 @@ def compute_quality(reference, reconstructions, method="MSSSIM", L=1):
     ---------
     metrics : list of ImageQuality
     """
-    if not (type(reconstructions) is list):
+    if L < 1:
+        raise ValueError("Dynamic range must be >= 1.")
+    if not isinstance(reconstructions, list):
         reconstructions = [reconstructions]
 
     dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim,
                   "VIFp": _compute_vifp, "FSIM": _compute_fsim}
-    method_func = dictionary[method]
+    try:
+        method_func = dictionary[method]
+    except KeyError:
+        ValueError("That method is not implemented.")
 
     metrics = []
     for image in reconstructions:
@@ -660,7 +717,7 @@ def compute_quality(reference, reconstructions, method="MSSSIM", L=1):
 
 
 def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
-    """ Calculates the Visual Information Fidelity (VIFp) between two images in
+    """Calculates the Visual Information Fidelity (VIFp) between two images in
     in a multiscale pixel domain with scalar.
 
 -----------COPYRIGHT NOTICE STARTS WITH THIS LINE------------
@@ -694,11 +751,21 @@ MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
     Parameters
     -----------
+    imQual : ImageQuality
+        A struct used to organize image quality information.
+    nlevels : scalar
+        The number of levels to measure quality.
+    sigma : scalar
+        The size of the quality filter at the smallest scale.
 
     Returns
     -----------
-
+    imQual : ImageQuality
+        A struct used to organize image quality information. NOTE: the valid
+        range for VIFp is (0, 1].
     """
+    _full_reference_input_check(imQual, sigma, nlevels, L)
+
     ref = imQual.orig
     dist = imQual.recon
 
@@ -759,40 +826,31 @@ def _compute_fsim(imQual, nlevels=5, nwavelets=16, L=None):
 
     ----------------------------------------------------------------------
     An implementation of the algorithm for calculating the Feature SIMilarity
-    (FSIM) index was ported to Python.
+    (FSIM) index was ported to Python. This implementation only considers the
+    luminance component of images. For multichannel images, convert to
+    grayscale first. Dynamic range should be 0-255.
 
     Parameters
     --------------------------
     imQual : ImageQuality
-    imageRef : numpy.ndarray
-        the first image being compared
-    imageDis : numpy.ndarray
-        the second image being compared. Given 2 test images img1 and img2.
-        For gray-scale images, their dynamic range should be 0-255. For
-        colorful images, the dynamic range of each color channel should be
-        0-255.
+        A struct used to organize image quality information.
+    nlevels : scalar
+        The number of levels to measure quality.
+    nwavelets : scalar
+        The number of wavelets to use in the phase congruency calculation.
 
     Returns
     ------------------
-    FSIM : scalar
-        the similarty score calculated using FSIM algorithm. FSIM only
-        considers the luminance component of images. For colorful images,
-        convert to grayscale first.
-    FSIMmap : numpy.ndarray
-        local similarity score
+    imQual : ImageQuality
+        A struct used to organize image quality information. NOTE: the valid
+        range for FSIM is (0, 1].
     """
+    _full_reference_input_check(imQual, 1.2, nlevels, L)
+    if nwavelets < 1:
+        raise ValueError('There must be at least one wavelet level.')
 
     Y1 = imQual.orig
     Y2 = imQual.recon
-
-    # CHECK INPUTS FOR VALIDITY
-    # assert that there is at least one level requested
-    assert(nlevels > 0)
-    # assert that the image never becomes smaller than the filter
-    (M, N) = Y1.shape
-    min_img_width = min(M, N) / (2**(nlevels - 1))
-    max_filter_width = 1.2 * 2
-    assert(min_img_width >= max_filter_width)
 
     for scale in range(0, nlevels):
         # sigma = 1.2 is approximately correct because the width of the scharr
@@ -863,21 +921,15 @@ def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
         A list of two constants which help prevent division by zero.
 
     Returns
-    --------------
+    -------
     imQual : ImageQuality
-        A struct used to organize image quality information.
+        A struct used to organize image quality information. NOTE: the valid
+        range for SSIM is [-1, 1].
     '''
+    _full_reference_input_check(imQual, sigma, nlevels, L)
+
     img1 = imQual.orig
     img2 = imQual.recon
-
-    # CHECK INPUTS FOR VALIDITY
-    # assert that there is at least one level requested
-    assert(nlevels > 0)
-    # assert that the image never becomes smaller than the filter
-    (M, N) = img1.shape
-    min_img_width = min(M, N) / (2**(nlevels - 1))
-    max_filter_width = sigma * 2
-    assert(min_img_width >= max_filter_width)
 
     # The relative imporance of each level as determined by human experiment
     # weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
@@ -903,7 +955,7 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     http://isit.u-clermont1.fr/~anvacava
 
     References
-    -------------
+    ----------
     Z. Wang, A. C. Bovik, H. R. Sheikh and E. P. Simoncelli. Image quality
     assessment: From error visibility to structural similarity. IEEE
     Transactions on Image Processing, 13(4):600--612, 2004.
@@ -920,11 +972,17 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
         representations and 2^bitdepth for integer representations.
     sigma : list, optional
         The standard deviation of the gaussian filter.
+
     Returns
-    ----------
+    -------
     imQual : ImageQuality
-        A struct used to organize image quality information.
+        A struct used to organize image quality information. NOTE: the valid
+        range for SSIM is [-1, 1].
     """
+    _full_reference_input_check(imQual, sigma, 1, L)
+    if scale is not None and scale <= 0:
+        raise ValueError("Scale cannot be negative or zero.")
+
     if scale is None:
         scale = sigma
 
@@ -985,3 +1043,18 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     index = np.mean(ssim_map)
     imQual.add_quality(index, scale, maps=ssim_map)
     return imQual
+
+
+def _full_reference_input_check(imQual, sigma, nlevels, L):
+    """Checks full reference quality measures for valid inputs."""
+    if not isinstance(imQual, ImageQuality):
+        raise TypeError
+    if nlevels <= 0:
+        raise ValueError('nlevels must be >= 1.')
+    if sigma < 1.2:
+        raise ValueError('sigma < 1.2 is effective meaningless.')
+    if np.min(imQual.orig.shape) / (2**(nlevels - 1)) < sigma * 2:
+        raise ValueError("The image becomes smaller than the filter size! " +
+                         "Decrease the number of levels.")
+    if L is not None and L < 1:
+        raise ValueError("Dynamic range must be >= 1.")
