@@ -256,9 +256,11 @@ class Soil(Phantom):
 class Foam(Phantom):
     """Generates a phantom with structure similar to foam."""
 
-    def __init__(self):
+    def __init__(self, size_range=[0.05, 0.01], gap=0, porosity=0):
         super(Foam, self).__init__(shape='circle')
-        self.sprinkle(300, [0.05, 0.01], 0, value=-1)
+        if porosity < 0 or porosity > 1:
+            raise ValueError('Porosity must be in the range [0,1).')
+        self.sprinkle(300, size_range, gap, value=-1, max_density=1-porosity)
         background = Feature(Circle(Point(0.5, 0.5), 0.5), value=1)
         self.insert(0, background)
 
