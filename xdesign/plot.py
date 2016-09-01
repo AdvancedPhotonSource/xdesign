@@ -62,6 +62,7 @@ from xdesign.phantom import Phantom
 from xdesign.geometry import CurvedEntity, Polygon, Mesh
 from xdesign.feature import Feature
 from matplotlib.axis import Axis
+from itertools import product
 
 
 logger = logging.getLogger(__name__)
@@ -232,8 +233,8 @@ def plot_curve(curve, axis=None, alpha=None, c=DEFAULT_COLOR):
 
 
 def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
-    """Returns discrete representation of the phantom. The values of
-    overlapping shapes are additive.
+    """Returns discrete representation of the property function, prop, in the
+    phantom. The values of overlapping features are additive.
 
     Parameters
     ------------
@@ -246,19 +247,29 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
         values are the average of 64 pixels.
     uniform : boolean, optional
         When set to False, changes the way pixels are averaged from a
-        uniform weights to gaussian weights.
+        uniform weights to gaussian weigths.
     prop : str, optional
         The name of the property function to discretize
 
     Returns
     ------------
     image : numpy.ndarray
-        The discrete representation of the phantom.
+        The discrete representation of the phantom that is size x size.
     """
+    if not isinstance(phantom, Phantom):
+        raise TypeError('phantom must be type Phantom.')
+    if size <= 0:
+        raise ValueError('size must be greater than 0.')
+    if ratio < 1:
+        raise ValueError('ratio must be at least 1.')
+    if not isinstance(prop, str):
+        raise TypeError('property must be specified using str.')
+    ndims = 2
 
     # Make a higher resolution grid to sample the continuous space
-    _x = np.arange(0, 1, 1 / size / ratio)
-    _y = np.arange(0, 1, 1 / size / ratio)
+    grid_step = 1 / size / ratio
+    _x = np.arange(0, 1, grid_step) + grid_step / 2
+    _y = np.arange(0, 1, grid_step) + grid_step / 2
     px, py = np.meshgrid(_x, _y)
 
     # Draw the shapes at the higher resolution.
@@ -268,21 +279,133 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     for f in phantom.feature:
         image = _discrete_feature(f, image, px, py, prop)
 
-    # Resample down to the desired size
+    # Resample down to the desired size.
     if uniform:
         image = scipy.ndimage.uniform_filter(image, ratio)
     else:
-        image = scipy.ndimage.gaussian_filter(image, ratio / 4.)
+        image = scipy.ndimage.gaussian_filter(image, np.sqrt(ratio/2))
+    image = multiroll(image, [-ratio//2]*ndims)
     image = image[::ratio, ::ratio]
 
+    assert(image.shape[0] == size and image.shape[1] == size)
     return image
+
+
+def multiroll(x, shift, axis=None):
+    """Roll an array along each axis.
+
+    Parameters
+    ----------
+    x : array_like
+        Array to be rolled.
+    shift : sequence of int
+        Number of indices by which to shift each axis.
+    axis : sequence of int, optional
+        The axes to be rolled.  If not given, all axes is assumed, and
+        len(shift) must equal the number of dimensions of x.
+
+    Returns
+    -------
+    y : numpy array, with the same type and size as x
+        The rolled array.
+
+    Notes
+    -----
+    The length of x along each axis must be positive.  The function
+    does not handle arrays that have axes with length 0.
+
+    See Also
+    --------
+    numpy.roll
+
+    Example
+    -------
+    Here's a two-dimensional array:
+
+    >>> x = np.arange(20).reshape(4,5)
+    >>> x
+    array([[ 0,  1,  2,  3,  4],
+           [ 5,  6,  7,  8,  9],
+           [10, 11, 12, 13, 14],
+           [15, 16, 17, 18, 19]])
+
+    Roll the first axis one step and the second axis three steps:
+
+    >>> multiroll(x, [1, 3])
+    array([[17, 18, 19, 15, 16],
+           [ 2,  3,  4,  0,  1],
+           [ 7,  8,  9,  5,  6],
+           [12, 13, 14, 10, 11]])
+
+    That's equivalent to:
+
+    >>> np.roll(np.roll(x, 1, axis=0), 3, axis=1)
+    array([[17, 18, 19, 15, 16],
+           [ 2,  3,  4,  0,  1],
+           [ 7,  8,  9,  5,  6],
+           [12, 13, 14, 10, 11]])
+
+    Not all the axes must be rolled.  The following uses
+    the `axis` argument to roll just the second axis:
+
+    >>> multiroll(x, [2], axis=[1])
+    array([[ 3,  4,  0,  1,  2],
+           [ 8,  9,  5,  6,  7],
+           [13, 14, 10, 11, 12],
+           [18, 19, 15, 16, 17]])
+
+    which is equivalent to:
+
+    >>> np.roll(x, 2, axis=1)
+    array([[ 3,  4,  0,  1,  2],
+           [ 8,  9,  5,  6,  7],
+           [13, 14, 10, 11, 12],
+           [18, 19, 15, 16, 17]])
+
+    References
+    ----------
+    Warren Weckesser
+    http://stackoverflow.com/questions/30639656/numpy-roll-in-several-dimensions
+    """
+    x = np.asarray(x)
+    if axis is None:
+        if len(shift) != x.ndim:
+            raise ValueError("The array has %d axes, but len(shift) is only "
+                             "%d. When 'axis' is not given, a shift must be "
+                             "provided for all axes." % (x.ndim, len(shift)))
+        axis = range(x.ndim)
+    else:
+        # axis does not have to contain all the axes.  Here we append the
+        # missing axes to axis, and for each missing axis, append 0 to shift.
+        missing_axes = set(range(x.ndim)) - set(axis)
+        num_missing = len(missing_axes)
+        axis = tuple(axis) + tuple(missing_axes)
+        shift = tuple(shift) + (0,)*num_missing
+
+    # Use mod to convert all shifts to be values between 0 and the length
+    # of the corresponding axis.
+    shift = [s % x.shape[ax] for s, ax in zip(shift, axis)]
+
+    # Reorder the values in shift to correspond to axes 0, 1, ..., x.ndim-1.
+    shift = np.take(shift, np.argsort(axis))
+
+    # Create the output array, and copy the shifted blocks from x to y.
+    y = np.empty_like(x)
+    src_slices = [(slice(n-shft, n), slice(0, n-shft))
+                  for shft, n in zip(shift, x.shape)]
+    dst_slices = [(slice(0, shft), slice(shft, n))
+                  for shft, n in zip(shift, x.shape)]
+    src_blks = product(*src_slices)
+    dst_blks = product(*dst_slices)
+    for src_blk, dst_blk in zip(src_blks, dst_blks):
+        y[dst_blk] = x[src_blk]
+
+    return y
 
 
 def _discrete_feature(feature, image, px, py, prop):
     """Helper function for discrete_phantom. Rasterizes the geometry of the
     feature."""
-    if not isinstance(feature, Feature):
-        raise TypeError
     new_feature = feature.geometry.contains(px, py) * getattr(feature, prop)
     return image + new_feature
 

@@ -214,7 +214,7 @@ class Phantom(object):
         for m in range(self.population):
             self.feature[m].translate(dx, dy)
 
-    def rotate(self, theta, origin=Point(0, 0)):
+    def rotate(self, theta, origin=Point(0.5, 0.5)):
         """Rotate phantom around a point."""
         for m in range(self.population):
             self.feature[m].rotate(theta, origin)
