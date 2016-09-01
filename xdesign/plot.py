@@ -50,6 +50,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
+import types
 import time
 import string
 import numpy as np
@@ -60,6 +61,7 @@ from cycler import cycler
 from xdesign.phantom import Phantom
 from xdesign.geometry import CurvedEntity, Polygon, Mesh
 from xdesign.feature import Feature
+from matplotlib.axis import Axis
 
 
 logger = logging.getLogger(__name__)
@@ -76,34 +78,63 @@ __all__ = ['plot_phantom',
            'plot_metrics',
            'discrete_phantom']
 
+DEFAULT_COLOR = 'blue'
+DEFAULT_COLOR_MAP = plt.cm.viridis
 
-def plot_phantom(phantom, axis=None, labels=None):
+
+def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
     """Plots a phantom to the given axis.
 
     Parameters
     ----------
-    labels : bool
+    labels : bool, optional
         Each feature is numbered according to its index in the phantom.
+    c_props : list of str, optional
+        Tuple of feature properties to use for colormapping the geometries.
+    c_map : function, optional
+        A function which takes the a list of prop(s) for a Feature as input and
+        returns a matplolib color.
     """
     # IDEA: Allow users to provide list or generator for labels.
-    assert(isinstance(phantom, Phantom))
+    if not isinstance(phantom, Phantom):
+        raise TypeError("Can only plot Phantoms.")
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
         a = fig.add_subplot(111, aspect='equal')
         plt.grid('on')
         plt.gca().invert_yaxis()
+    elif isinstance(axis, Axis):
+        a = axis
+    else:
+        raise TypeError("axis must be matplotlib.axis.Axis.")
+    if not isinstance(c_props, list):
+        raise TypeError('c_props must be list of str')
+    if c_map is not None and not isinstance(c_map, type.FunctionType):
+        raise TypeError('c_map must be a function.')
+    if len(c_props) > 0 and c_map is None:
+        c_map = DEFAULT_COLOR_MAP
 
-    # Draw all features in the phantom.
+    props = c_props.copy()
+    num_props = range(0, len(c_props))
     i = 0
+    # Draw all features in the phantom.
     for f in phantom.feature:
-        plot_feature(f, a)
+        if c_map is not None:
+            # use the colormap to determine the color
+            for j in num_props:
+                props[j] = getattr(f, c_props[j])
+            color = c_map(props)[0]
+        else:
+            color = DEFAULT_COLOR
+
+        plot_feature(f, a, c=color)
         if labels is not None:
             a.annotate(str(i), xy=(f.center.x, f.center.y),
                        ha='center', va='center', color='white')
             i += 1
 
 
-def plot_feature(feature, axis=None, alpha=None, c='blue'):
+def plot_feature(feature, axis=None, alpha=None, c=DEFAULT_COLOR):
     """Plots a feature on the given axis.
 
     Parameters
@@ -113,7 +144,8 @@ def plot_feature(feature, axis=None, alpha=None, c='blue'):
     c : matplotlib color specifier
         See http://matplotlib.org/api/colors_api.html
     """
-    assert(isinstance(feature, Feature))
+    if not isinstance(feature, Feature):
+        raise TypeError('Can only plot Features.')
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
         axis = fig.add_subplot(111, aspect='equal')
@@ -131,7 +163,7 @@ def plot_feature(feature, axis=None, alpha=None, c='blue'):
         raise ValueError
 
 
-def plot_mesh(mesh, axis=None, alpha=None, c='blue'):
+def plot_mesh(mesh, axis=None, alpha=None, c=DEFAULT_COLOR):
     """Plots a mesh to the given axis.
 
     Parameters
@@ -153,7 +185,7 @@ def plot_mesh(mesh, axis=None, alpha=None, c='blue'):
         plot_polygon(f, axis, alpha, c)
 
 
-def plot_polygon(polygon, axis=None, alpha=None, c='blue'):
+def plot_polygon(polygon, axis=None, alpha=None, c=DEFAULT_COLOR):
     """Plots a polygon to the given axis.
 
     Parameters
@@ -172,11 +204,11 @@ def plot_polygon(polygon, axis=None, alpha=None, c='blue'):
 
     p = polygon.patch
     p.set_alpha(alpha)
-    p.set_color(c)
+    p.set_facecolor(c)
     axis.add_patch(p)
 
 
-def plot_curve(curve, axis=None, alpha=None, c='blue'):
+def plot_curve(curve, axis=None, alpha=None, c=DEFAULT_COLOR):
     """Plots a curve to the given axis.
 
     Parameters
@@ -195,7 +227,7 @@ def plot_curve(curve, axis=None, alpha=None, c='blue'):
 
     p = curve.patch
     p.set_alpha(alpha)
-    p.set_color(c)
+    p.set_facecolor(c)
     axis.add_patch(p)
 
 

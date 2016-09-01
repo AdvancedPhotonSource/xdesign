@@ -61,7 +61,7 @@ __all__ = ['Feature']
 
 
 class Feature(object):
-    '''A 2D geometric region(s) and associated materials properti(es).
+    '''A geometric region(s) and associated materials properti(es).
     Properties and geometry can be manipulated from this level, but rendering
     must access the geometry directly.
 
