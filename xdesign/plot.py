@@ -231,7 +231,8 @@ def plot_curve(curve, axis=None, alpha=None, c=DEFAULT_COLOR):
     axis.add_patch(p)
 
 
-def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
+def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True,
+                     prop='mass_atten'):
     """Returns discrete representation of the phantom. The values of
     overlapping shapes are additive.
 
@@ -251,6 +252,8 @@ def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
     uniform : boolean, optional
         When set to False, changes the way pixels are averaged from a
         uniform weights to gaussian weights.
+    prop : str, optional
+        The name of the property function to discretize
 
     Returns
     ------------
@@ -268,7 +271,7 @@ def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
 
     # Rasterize all features in the phantom.
     for f in phantom.feature:
-        image = _discrete_feature(f, image, px, py)
+        image = _discrete_feature(f, image, px, py, prop)
 
     # Resample down to the desired size
     if uniform:
@@ -285,11 +288,12 @@ def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
     return image
 
 
-def _discrete_feature(feature, image, px, py):
+def _discrete_feature(feature, image, px, py, prop):
     """Helper function for discrete_phantom. Rasterizes the geometry of the
     feature."""
-    assert(isinstance(feature, Feature))
-    new_feature = feature.geometry.contains(px, py) * feature.mass_atten
+    if not isinstance(feature, Feature):
+        raise TypeError
+    new_feature = feature.geometry.contains(px, py) * getattr(feature, prop)
     return image + new_feature
 
 
