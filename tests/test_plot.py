@@ -46,29 +46,30 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy
 from xdesign import *
 from numpy.testing import *
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy
-
+import warnings
 
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 
 
+warnings.filterwarnings("ignore", "Reached*", RuntimeWarning)
 p = Soil()
 
 
 def test_plot_phantom_plain():
     plot_phantom(p)
-    plt.show(block=True)
+    # plt.show(block=True)
 
 
 def test_plot_phantom_color_map():
     plot_phantom(p, labels=True, c_props=['mass_atten'])
-    plt.show(block=True)
+    # plt.show(block=True)
 
 
 def test_discrete_phantom_uniform():
@@ -104,5 +105,5 @@ def test_discrete_phantom_gaussian():
     plt.imshow(d1-d0, interpolation=None)
     plt.colorbar()
 
-    plt.show(block=True)
+    # plt.show(block=True)
     assert_array_almost_equal(d0, d1)

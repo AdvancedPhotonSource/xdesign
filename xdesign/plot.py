@@ -63,7 +63,7 @@ from xdesign.geometry import CurvedEntity, Polygon, Mesh
 from xdesign.feature import Feature
 from matplotlib.axis import Axis
 from itertools import product
-
+from six import string_types
 
 logger = logging.getLogger(__name__)
 
@@ -262,7 +262,7 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
         raise ValueError('size must be greater than 0.')
     if ratio < 1:
         raise ValueError('ratio must be at least 1.')
-    if not isinstance(prop, str):
+    if not isinstance(prop, string_types):
         raise TypeError('property must be specified using str.')
     ndims = 2
 
