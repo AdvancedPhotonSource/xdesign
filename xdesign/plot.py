@@ -231,8 +231,7 @@ def plot_curve(curve, axis=None, alpha=None, c=DEFAULT_COLOR):
     axis.add_patch(p)
 
 
-def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True,
-                     prop='mass_atten'):
+def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     """Returns discrete representation of the phantom. The values of
     overlapping shapes are additive.
 
@@ -240,10 +239,6 @@ def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True,
     ------------
     size : scalar
         The side length in pixels of the resulting square image.
-    bitdepth : scalar, optional
-        The bitdepth of resulting representation. Depths less than 32 are
-        returned as integers, and depths greater than 32 are returned as
-        floats.
     ratio : scalar, optional
         The antialiasing works by supersampling. This parameter controls
         how many pixels in the larger representation are averaged for the
@@ -279,11 +274,6 @@ def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True,
     else:
         image = scipy.ndimage.gaussian_filter(image, ratio / 4.)
     image = image[::ratio, ::ratio]
-
-    # Rescale to proper bitdepth
-    if bitdepth < 32:
-        image = image * (2**bitdepth - 1)
-        image = image.astype(int)
 
     return image
 
