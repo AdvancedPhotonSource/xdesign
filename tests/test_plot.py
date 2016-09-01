@@ -4,7 +4,7 @@
 # #########################################################################
 # Copyright (c) 2016, UChicago Argonne, LLC. All rights reserved.         #
 #                                                                         #
-# Copyright 2016. UChicago Argonne, LLC. This software was produced       #
+# Copyright 2015. UChicago Argonne, LLC. This software was produced       #
 # under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
 # Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
 # U.S. Department of Energy. The U.S. Government has rights to use,       #
@@ -46,72 +46,63 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from xdesign import *
+from numpy.testing import *
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy
 
-from xdesign.geometry import *
-import logging
 
-logger = logging.getLogger(__name__)
-
-__author__ = "Daniel Ching, Doga Gursoy"
+__author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Feature']
 
 
-class Feature(object):
-    '''A geometric region(s) and associated materials properti(es).
-    Properties and geometry can be manipulated from this level, but rendering
-    must access the geometry directly.
+p = Soil()
 
-    Attributes
-    ----------------
-    geometry : Entity
-        Defines a region where the properties are valid.
-    mass_atten : scalar
-        The mass attenuation coefficient of the Feature.
-    '''
-    def __init__(self, geometry, mass_atten=1):
-        if not isinstance(geometry, Entity):
-            raise TypeError("Feature must have a defined region.")
-        self.geometry = geometry
-        self.mass_atten = mass_atten
 
-    def add_property(self, name, function):
-        """Adds a property by name to the Feature.
-        NOTE: Properties added here are not cached because they are probably
-        never called with the same parameters ever or the property is static
-        so it doesnt need caching.
-        """
-        setattr(self, name, function)
+def test_plot_phantom_plain():
+    plot_phantom(p)
+    plt.show(block=True)
 
-    @property
-    def center(self):
-        """Returns the centroid of the feature."""
-        return self.geometry.center
 
-    @property
-    def radius(self):
-        """Returns the radius of the smallest boundary circle"""
-        return self.geometry.radius
+def test_plot_phantom_color_map():
+    plot_phantom(p, labels=True, c_props=['mass_atten'])
+    plt.show(block=True)
 
-    @property
-    def area(self):
-        """Returns the total surface area of the feature"""
-        return self.geometry.area
 
-    @property
-    def volume(self):
-        """Returns the volume of the feature"""
-        return self.geometry.volume
+def test_discrete_phantom_uniform():
+    """Tests if the uniform discrete phantom is the same after rotating the
+    phantom 90 degrees.
+    """
+    d0 = discrete_phantom(p, 100, ratio=10, prop='mass_atten')
 
-    def translate(self, x, y):
-        """Translate feature geometry. Translating property functions is not
-        supported."""
-        self.geometry.translate(x, y)
+    p.rotate(np.pi/2)
+    d1 = np.rot90(discrete_phantom(p, 100, ratio=10, prop='mass_atten'))
 
-    def rotate(self, theta, p):
-        """Rotate feature geometry around a line. Rotating property
-        functions is not supported."""
-        self.geometry.rotate(theta, p)
+    # plot the error
+    plt.figure()
+    plt.imshow(d1-d0, interpolation=None)
+    plt.colorbar()
+
+    # plt.show(block=True)
+    assert_array_almost_equal(d0, d1)
+
+
+def test_discrete_phantom_gaussian():
+    """Tests if the gaussian discrete phantom is the same after rotating the
+    phantom 90 degrees.
+    """
+    d0 = discrete_phantom(p, 100, ratio=10, uniform=False, prop='mass_atten')
+
+    p.rotate(np.pi/2)
+    d1 = np.rot90(discrete_phantom(p, 100, ratio=10, uniform=False,
+                  prop='mass_atten'))
+
+    # plot the error
+    plt.figure()
+    plt.imshow(d1-d0, interpolation=None)
+    plt.colorbar()
+
+    plt.show(block=True)
+    assert_array_almost_equal(d0, d1)

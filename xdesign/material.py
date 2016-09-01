@@ -76,7 +76,7 @@ class Material(object):
     """
 
     def __init__(self, formula, density):
-        # calculate the value based on the photon energy
+        # calculate the mass_atten based on the photon energy
         super(Material, self).__init__()
         self.formula = formula
         self.density = density
@@ -166,7 +166,7 @@ class HyperbolicConcentric(Phantom):
                 break
 
             self.append(Feature(
-                        Circle(center, radius), value=(-1.)**(ring % 2)))
+                        Circle(center, radius), mass_atten=(-1.)**(ring % 2)))
             # record information about the rings
             widths.append(radius - radii[-1])
             radii.append(radius)
@@ -214,12 +214,12 @@ class DynamicRange(Phantom):
             for i in range(0, steps):
                 center = Point(px[i] + jitters[0, i], py[i] + jitters[1, i])
                 self.append(Feature(
-                            Circle(center, radius), value=colors[i]))
+                            Circle(center, radius), mass_atten=colors[i]))
         else:
             # completely random
             for i in range(0, steps):
                 if 1 > self.sprinkle(1, radius, gap=radius * 0.9,
-                                     value=colors[i]):
+                                     mass_atten=colors[i]):
                     None
                     # TODO: ensure that all circles are placed
 
@@ -227,10 +227,10 @@ class DynamicRange(Phantom):
 class UnitCircle(Phantom):
     """Generates a phantom with a single circle in its center."""
 
-    def __init__(self, radius=0.5, value=1):
+    def __init__(self, radius=0.5, mass_atten=1):
         super(UnitCircle, self).__init__()
         self.append(Feature(
-                    Circle(Point(0.5, 0.5), radius), value))
+                    Circle(Point(0.5, 0.5), radius), mass_atten))
 
 
 class Soil(Phantom):
@@ -245,11 +245,12 @@ class Soil(Phantom):
 
     def __init__(self, porosity=0.412):
         super(Soil, self).__init__(shape='circle')
-        self.sprinkle(30, [0.1, 0.03], 0, value=0.5, max_density=1 - porosity)
+        self.sprinkle(30, [0.1, 0.03], 0, mass_atten=0.5,
+                      max_density=1-porosity)
         # use overlap to approximate area opening transform because opening is
         # not discrete
-        self.sprinkle(100, 0.02, 0.01, value=-.25)
-        background = Feature(Circle(Point(0.5, 0.5), 0.5), value=0.5)
+        self.sprinkle(100, 0.02, 0.01, mass_atten=-.25)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=0.5)
         self.insert(0, background)
 
 
@@ -260,8 +261,9 @@ class Foam(Phantom):
         super(Foam, self).__init__(shape='circle')
         if porosity < 0 or porosity > 1:
             raise ValueError('Porosity must be in the range [0,1).')
-        self.sprinkle(300, size_range, gap, value=-1, max_density=1-porosity)
-        background = Feature(Circle(Point(0.5, 0.5), 0.5), value=1)
+        self.sprinkle(300, size_range, gap, mass_atten=-1,
+                      max_density=1-porosity)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=1)
         self.insert(0, background)
 
 

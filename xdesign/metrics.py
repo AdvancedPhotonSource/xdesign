@@ -478,7 +478,7 @@ def probability_mask(phantom, size, ratio=8, uniform=True):
         x = phantom.feature[m].center.x
         y = phantom.feature[m].center.y
         rad = phantom.feature[m].radius
-        val = phantom.feature[m].value
+        val = phantom.feature[m].mass_atten
         # image *= ((px - x)**2 + (py - y)**2 >= rad**2) # partial overlap
         # support
         image += ((px - x)**2 + (py - y)**2 < rad**2) * val
