@@ -62,7 +62,8 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Point',
+__all__ = ['Entity',
+           'Point',
            'Superellipse',
            'Ellipse',
            'Circle',
@@ -738,7 +739,7 @@ class Mesh(Entity):
     def scale(self, val):
         """Scale entity."""
         for t in self.faces:
-            t.scale(value)
+            t.scale(val)
 
     def collision(self, entity):
         """Check if entity collides with another entity."""
