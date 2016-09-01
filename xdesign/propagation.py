@@ -85,6 +85,11 @@ def _gen_mesh(lengths, shape):
 
 def _initialize_wavefront(wvfnt_width):
     """Initialize wavefront.
+
+    Parameters:
+    -----------
+    wvfnt_width : int
+        Pixel width of wavefront.
     """
     wavefront = np.ones(wvfnt_width).astype('complex64')
     return wavefront
@@ -99,20 +104,27 @@ def _extract_slice(delta_grid, beta_grid, islice):
         As-constructed grid with defined phantoms filled with material delta values.
     beta_grid : ndarray
         As-constructed grid with defined phantoms filled with material beta values.
+    islice : int
+        Index of slice to be extracted.
     """
     pass
 
 
-## Add energy / wavelength attribute to probe class?
-def _slice_modify(delta_slice, beta_slice, probe, wavefront, delta_nm, lmda):
+def _slice_modify(delta_slice, beta_slice, wavefront, delta_nm, lmda):
     """Modify wavefront within a slice.
 
     Parameters:
     -----------
-    delta_grid : ndarray
+    delta_slice : ndarray
         Extracted slice filled with material delta values.
-    beta_grid : ndarray
+    beta_slice : ndarray
         Extracted slice filled with material beta values.
+    wavefront : ndarray
+        Wavefront.
+    delta_nm : float
+        Slice thickness in nm.
+    lmda : float
+        Wavelength in nm.
     """
     kz = 2 * np.pi * delta_nm / lmda
     wavefront = wavefront * np.exp((kz * delta_slice) * 1j) * np.exp(-kz * beta_slice)
@@ -120,22 +132,29 @@ def _slice_modify(delta_slice, beta_slice, probe, wavefront, delta_nm, lmda):
     return wavefront
 
 
-def _slice_propagate(wavefront, delta_nm, lat_nm, shape, lmda):
+def _slice_propagate(wavefront, delta_nm, lat_nm, wvfnt_width, lmda):
     """Free space propagation.
 
     Parameters:
     -----------
-
+    wavefront : ndarray
+        Wavefront.
+    delta_nm : float
+        Slice thickness in nm.
+    lat_nm : float
+        Lateral pixel length in nm.
+    wvfnt_width : int
+        Pixel width of wavefront.
+    lmda : float
+        Wavelength in nm.
     """
     u_max = 1. / (2. * lat_nm)
-    u = _gen_mesh([u_max], [shape])
+    u = _gen_mesh([u_max], [wvfnt_width])
     u = u[0]
     H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
     wavefront = np.fft.ifftn(np.fft.fftshift(np.fft.fftshift(np.fft.fftn(wavefront)) * H))
-
     # H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
     # wavefront = np.fft.ifftn(np.fft.fftn(wavefront) * np.fft.fftshift(H))
-
     return wavefront
 
 
@@ -146,12 +165,14 @@ def plot_wavefront(wavefront, lat_nm):
     -----------
     wavefront : ndarray
         Complex wavefront.
+    lat_nm : float
+        Lateral pixel length in nm.
     """
     i = wavefront * np.conjugate(wavefront)
     shape = len(wavefront)
     half_len = lat_nm * shape / 2
     x = np.linspace(-half_len, half_len, shape)
-    fig = plt.figure()
+    plt.figure()
     plt.plot(x, i)
     plt.show()
 
@@ -161,12 +182,12 @@ def multislice_propagate(delta_grid, beta_grid, probe, delta_nm, lat_nm):
 
     Parameters:
     -----------
-    probe : instance
-        Probe beam instance.
     delta_grid : ndarray
         As-constructed grid with defined phantoms filled with material delta values.
     beta_grid : ndarray
         As-constructed grid with defined phantoms filled with material beta values.
+    probe : instance
+        Probe beam instance.
     delta_nm : float
         Slice thickness in nm.
     lat_nm : float
@@ -176,11 +197,16 @@ def multislice_propagate(delta_grid, beta_grid, probe, delta_nm, lat_nm):
     wavefront = _initialize_wavefront(field_shape[1])
     # wavelength in nm
     lmda = probe.wavelength
+    # I assume Probe class has an attribute wavelength. E.g.:
+    # class Probe:
+    #     def __init__(self, energy):
+    #         self.energy = energy
+    #         self.wavelength = 1.23984/energy
     n_slice = delta_grid.shape[0]
     for i_slice in range(n_slice):
         delta_slice = delta_grid[i_slice, :]
         beta_slice = beta_grid[i_slice, :]
-        wavefront = _slice_modify(delta_slice, beta_slice, probe, wavefront, delta_nm, lmda)
+        wavefront = _slice_modify(delta_slice, beta_slice, wavefront, delta_nm, lmda)
         wavefront = _slice_propagate(wavefront, delta_nm, lat_nm, len(delta_slice), lmda)
 
     return wavefront
