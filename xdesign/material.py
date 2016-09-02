@@ -54,6 +54,7 @@ import logging
 from xdesign.phantom import *
 from xdesign.geometry import *
 from xdesign.feature import *
+from xdesign.constants import PI
 
 logger = logging.getLogger(__name__)
 
@@ -141,21 +142,29 @@ class Material(object):
 class HyperbolicConcentric(Phantom):
     """Generates a series of cocentric alternating black and white circles whose
     radii are changing at a parabolic rate. These line spacings cover a range
-    of scales and can be used to estimate the Modulation Transfer Function.
+    of scales and can be used to estimate the Modulation Transfer Function. The
+    radii change according to this function: r(n) = r0*(n+1)^k.
+
+    Attributes
+    ----------
+    radii : list
+        The list of radii of the circles
+    widths : list
+        The list of the widths of the bands
     """
 
-    def __init__(self, min_width=0.1, exponent=1 / 2):
+    def __init__(self, min_width=0.1, exponent=1/2):
         """
-        Attributes
-        -------------
-        radii : list
-            The list of radii of the circles
-        widths : list
-            The list of the widths of the bands
+        Parameters
+        ----------
+        min_width : scalar
+            The radius of the smallest ring in the series.
+        exponent : scalar
+            The exponent in the function r(n) = r0*(n+1)^k.
         """
+
         super(HyperbolicConcentric, self).__init__(shape='circle')
         center = Point(0.5, 0.5)
-        # exponent = 1/2
         Nmax_rings = 512
 
         radii = [0]
@@ -222,6 +231,105 @@ class DynamicRange(Phantom):
                                      mass_atten=colors[i]):
                     None
                     # TODO: ensure that all circles are placed
+
+
+class SlantedSquares(Phantom):
+    """Generates a collection of slanted squares. Squares are arranged in
+    concentric circles such that the space between squares is at least gap. The
+    size of the squares is adaptive such that they all remain within the unit
+    circle.
+
+    Attributes
+    ----------
+    angle : scalar
+        the angle of slant in radians
+    count : scalar
+        the total number of squares
+    gap : scalar
+        the minimum space between squares
+    side_length : scalar
+        the size of the squares
+    squares_per_level : list
+        the number of squares at each level
+    radius_per_level : list
+        the radius at each level
+    n_levels : scalar
+        the number of levels
+    """
+
+    def __init__(self, count=10, angle=5/360*2*PI, gap=0):
+        super(SlantedSquares, self).__init__(shape='circle')
+        if count < 1:
+            raise ValueError("There must be at least one square.")
+
+        # approximate the max diameter from total area available
+        d_max = np.sqrt(PI/4 / (2 * count))
+
+        if 1 < count and count < 5:
+            # bump all the squares to the 1st ring and calculate sizes
+            # as if there were 5 total squares
+            pass
+
+        while True:
+            squares_per_level = [1]
+            radius_per_level = [0]
+            remaining = count - 1
+            n_levels = 1
+            while remaining > 0:
+                # calculate next level capacity
+                radius_per_level.append(radius_per_level[n_levels-1] + d_max +
+                                        gap)
+                this_circumference = PI*2*radius_per_level[n_levels]
+                this_capacity = this_circumference//(d_max + gap)
+
+                # assign squares to levels
+                if remaining - this_capacity >= 0:
+                    squares_per_level.append(this_capacity)
+                    remaining -= this_capacity
+                else:
+                    squares_per_level.append(remaining)
+                    remaining = 0
+                n_levels += 1
+                assert(remaining >= 0)
+
+            # Make sure squares will not be outside the phantom, else
+            # decrease diameter by 5%
+            if radius_per_level[-1] < (0.5 - d_max/2 - gap):
+                break
+            d_max *= 0.95
+
+        assert(len(squares_per_level) == len(radius_per_level))
+
+        # determine center positions of squares
+        x, y = np.array([]), np.array([])
+        for level in range(0, n_levels):
+            radius = radius_per_level[level]
+            thetas = (((np.arange(0, squares_per_level[level]) /
+                      squares_per_level[level]) +
+                      1/(squares_per_level[level] * 2)) *
+                      2 * PI)
+            x = np.concatenate((x, radius*np.cos(thetas)))
+            y = np.concatenate((y, radius*np.sin(thetas)))
+
+        # move to center of phantom.
+        x += 0.5
+        y += 0.5
+
+        # add the squares to the phantom
+        side_length = d_max/np.sqrt(2)
+        for i in range(0, x.size):
+            center = Point(x[i], y[i])
+            s = Square(center, side_length)
+            s.rotate(angle, center)
+            self.append(Feature(s))
+
+        self.angle = angle
+        self.count = count
+        self.gap = gap
+        self.side_length = side_length
+        self.squares_per_level = squares_per_level
+        self.radius_per_level = radius_per_level
+        self.n_levels = n_levels
 
 
 class UnitCircle(Phantom):
