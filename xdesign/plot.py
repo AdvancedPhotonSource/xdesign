@@ -115,7 +115,7 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
     if len(c_props) > 0 and c_map is None:
         c_map = DEFAULT_COLOR_MAP
 
-    props = c_props.copy()
+    props = list(c_props)
     num_props = range(0, len(c_props))
     i = 0
     # Draw all features in the phantom.
