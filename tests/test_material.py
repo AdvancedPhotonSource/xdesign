@@ -53,6 +53,7 @@ from numpy.testing import assert_allclose, assert_raises, assert_equal
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
+import warnings
 
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -98,6 +99,7 @@ def test_DynamicRange():
 
 
 def test_Soil():
+    warnings.filterwarnings("ignore", "Reached*", RuntimeWarning)
     p0 = Phantom()
     p0.load('tests/Soil.txt')
     ref = discrete_phantom(p0, 100)
@@ -110,6 +112,7 @@ def test_Soil():
 
 
 def test_Foam():
+    warnings.filterwarnings("ignore", "Reached*", RuntimeWarning)
     p0 = Phantom()
     p0.load('tests/Foam.txt')
     ref = discrete_phantom(p0, 100)
