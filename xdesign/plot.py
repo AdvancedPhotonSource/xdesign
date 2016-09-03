@@ -104,10 +104,8 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
         a = fig.add_subplot(111, aspect='equal')
         plt.grid('on')
         plt.gca().invert_yaxis()
-    elif isinstance(axis, Axis):
-        a = axis
     else:
-        raise TypeError("axis must be matplotlib.axis.Axis.")
+        a = axis
     if not isinstance(c_props, list):
         raise TypeError('c_props must be list of str')
     if c_map is not None and not isinstance(c_map, type.FunctionType):
