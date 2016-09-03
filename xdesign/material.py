@@ -233,6 +233,79 @@ class DynamicRange(Phantom):
                     # TODO: ensure that all circles are placed
 
 
+class DogaCircles(Phantom):
+    """Rows of increasingly smaller circles. Initally arranged in an ordered
+    Latin square, the inital arrangement can be randomly shuffled.
+
+    Attributes
+    ----------
+    radii : ndarray
+        radii of circles
+    x : ndarray
+        x position of circles
+    y : ndarray
+        y position of circles
+    """
+    def __init__(self, n_sizes=5, size_ratio=0.5, n_shuffles=5):
+        """
+        Parameters
+        ----------
+        n_sizes : int
+            number of different sized circles
+        size_ratio : scalar
+            the nth size / the n-1th size
+        n_shuffles : int
+            The number of times to shuffles the latin square
+        """
+        super(DogaCircles, self).__init__(shape='square')
+
+        n_sizes = int(n_sizes)
+        if n_sizes <= 0:
+            raise ValueError('There must be at least one size.')
+        if size_ratio > 1 or size_ratio <= 0:
+            raise ValueError('size_ratio should be <= 1 and > 0.')
+        n_shuffles = int(n_shuffles)
+        if n_shuffles < 0:
+            raise ValueError('Cant shuffle a negative number of times')
+
+        # Seed a latin square, use integers to prevent rounding errors
+        top_row = np.array(range(0, n_sizes), dtype=int)
+        rowsum = np.sum(top_row)
+        lsquare = np.empty([n_sizes, n_sizes], dtype=int)
+        for i in range(0, n_sizes):
+            lsquare[:, i] = np.roll(top_row, i)
+
+        # Choose a row or column shuffle sequence
+        sequence = np.random.randint(0, 2, n_shuffles)
+
+        # Shuffle the square
+        for dim in sequence:
+            lsquare = np.rollaxis(lsquare, dim, 0)
+            np.random.shuffle(lsquare)
+
+        # Assert that it is still a latin square.
+        for i in range(0, n_sizes):
+            assert np.sum(lsquare[:, i]) == rowsum, \
+                "Column {0} is {1} and should be {2}".format(i, np.sum(
+                                                        lsquare[:, i]), rowsum)
+            assert np.sum(lsquare[i, :]) == rowsum, \
+                "Column {0} is {1} and should be {2}".format(i, np.sum(
+                                                        lsquare[i, :]), rowsum)
+
+        # Draw it
+        period = np.arange(0, n_sizes)/n_sizes + 1/(2*n_sizes)
+        _x, _y = np.meshgrid(period, period)
+        radii = 1/(2*n_sizes)*size_ratio**lsquare
+
+        for (k, x, y) in zip(radii.flatten(), _x.flatten(),
+                             _y.flatten()):
+            self.append(Feature(Circle(Point(x, y), k)))
+
+        self.radii = radii
+        self.x = _x
+        self.y = _y
+
+
 class SlantedSquares(Phantom):
     """Generates a collection of slanted squares. Squares are arranged in
     concentric circles such that the space between squares is at least gap. The
