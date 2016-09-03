@@ -63,7 +63,7 @@ from xdesign.geometry import CurvedEntity, Polygon, Mesh
 from xdesign.feature import Feature
 from matplotlib.axis import Axis
 from itertools import product
-
+from six import string_types
 
 logger = logging.getLogger(__name__)
 
@@ -104,10 +104,8 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
         a = fig.add_subplot(111, aspect='equal')
         plt.grid('on')
         plt.gca().invert_yaxis()
-    elif isinstance(axis, Axis):
-        a = axis
     else:
-        raise TypeError("axis must be matplotlib.axis.Axis.")
+        a = axis
     if not isinstance(c_props, list):
         raise TypeError('c_props must be list of str')
     if c_map is not None and not isinstance(c_map, type.FunctionType):
@@ -115,7 +113,7 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
     if len(c_props) > 0 and c_map is None:
         c_map = DEFAULT_COLOR_MAP
 
-    props = c_props.copy()
+    props = list(c_props)
     num_props = range(0, len(c_props))
     i = 0
     # Draw all features in the phantom.
@@ -262,7 +260,7 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
         raise ValueError('size must be greater than 0.')
     if ratio < 1:
         raise ValueError('ratio must be at least 1.')
-    if not isinstance(prop, str):
+    if not isinstance(prop, string_types):
         raise TypeError('property must be specified using str.')
     ndims = 2
 
