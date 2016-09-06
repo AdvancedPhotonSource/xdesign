@@ -140,7 +140,7 @@ class Probe(Beam):
         newdata = 0
         for m in range(phantom.population):
             newdata += (beamintersect(self, phantom.feature[m].geometry) *
-                        phantom.feature[m].value)
+                        phantom.feature[m].mass_atten)
         if noise > 0:
             newdata += newdata * noise * np.random.poisson(1)
         self.record()

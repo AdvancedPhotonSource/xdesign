@@ -50,6 +50,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from xdesign.geometry import *
+from xdesign.geometry import Entity
 from xdesign.feature import *
 import numpy as np
 import scipy.ndimage
@@ -81,14 +82,16 @@ class Phantom(object):
     """
     # OPERATOR OVERLOADS
     def __init__(self, shape='circle'):
-        assert(shape == 'circle' or shape == 'square')
+        if not (shape == 'circle' or shape == 'square'):
+            raise ValueError("Phantom must be a circle or square.")
         self.shape = shape
         self.population = 0
         self.area = 0
         self.feature = []
 
     def __add__(self, other):
-        assert(type(other) is Phantom)
+        if not isinstance(other, Phantom):
+            raise TypeError("Can only add phantoms to other phantoms.")
         self.population += other.population
         self.area += other.area
         self.feature += other.feature
@@ -103,7 +106,7 @@ class Phantom(object):
     @property
     def density(self):
         '''Returns the area density of the phantom. (Does not acount for
-        value.)
+        mass_atten.)
         '''
         if self.shape == 'square':
             return self.area
@@ -113,7 +116,8 @@ class Phantom(object):
     # FEATURE LIST MANIPULATION
     def append(self, feature):
         """Add a feature to the top of the phantom."""
-        assert(isinstance(feature, Feature))
+        if not isinstance(feature, Feature):
+            raise TypeError("Can only add Features to Phantoms.")
         self.feature.append(feature)
         self.area += feature.area
         self.population += 1
@@ -126,15 +130,16 @@ class Phantom(object):
 
     def insert(self, i, feature):
         """Insert a feature at a given depth."""
-        assert(isinstance(feature, Feature))
+        if not isinstance(feature, Feature):
+            raise TypeError("Can only add Features to Phantoms.")
         self.feature.insert(i, feature)
         self.area += feature.area
         self.population += 1
 
-    def sort(self, param="value", reverse=False):
-        """Sorts the features by value or size"""
-        if param == "value":
-            def key(feature): return feature.value
+    def sort(self, param="mass_atten", reverse=False):
+        """Sorts the features by mass_atten or size"""
+        if param == "mass_atten":
+            def key(feature): return feature.mass_atten
         elif param == "size":
             def key(feature): return feature.area
         else:
@@ -145,9 +150,10 @@ class Phantom(object):
         """Reverse the features of the phantom"""
         self.feature.reverse()
 
-    def sprinkle(self, counts, radius, gap=0, region=None, value=1,
+    def sprinkle(self, counts, radius, gap=0, region=None, mass_atten=1,
                  max_density=1):
-        """Sprinkle a number of circles.
+        """Sprinkle a number of circles. Uses various termination criteria to
+        determine when to stop trying to add circles.
 
         Parameters
         ----------
@@ -158,25 +164,33 @@ class Phantom(object):
         gap : float, optional
             The minimum distance between circle boundaries.
             A negative value allows overlapping edges.
-        region : Circle, optional
-            The circles are confined to this shape. None if the circles are
+        region : Entity, optional
+            The new circles are confined to this shape. None if the circles are
             allowed anywhere.
-        value : scalar, optional
-            A value passed to the value parameter of the circles.
+        max_density : scalar, optional
+            Stops adding circles when the geometric density of the phantom
+            reaches this ratio.
+        mass_atten : scalar, optional
+            A mass attenuation parameter passed to the circles.
 
         Returns
         ----------
         counts : scalar
             The number of circles successfully added.
         """
-        assert(counts >= 0)
+        if counts < 0:
+            ValueError('Cannot add negative number of circles.')
         if not isinstance(radius, list):
             radius = [radius, radius]
-        assert(len(radius) == 2 and radius[0] >= radius[1] and radius[1] > 0)
+        if len(radius) != 2 or radius[0] < radius[1] or radius[1] <= 0:
+            ValueError('Radius range must be larger than zero and largest' +
+                       'radius must be listed first.')
         if gap < 0:
             # Support for partially overlapping features is not yet supported
             # in the aquisition module
             raise NotImplementedError
+        if max_density < 0:
+            raise ValueError("Cannot stop at negative density.")
 
         collision = False
         if radius[0] + gap < 0:  # prevents circles with negative radius
@@ -191,7 +205,8 @@ class Phantom(object):
             center = self._random_point(radius[0], region=region)
 
             if collision:
-                self.append(Feature(Circle(center, radius[0]), value=value))
+                self.append(Feature(Circle(center, radius[0]),
+                            mass_atten=mass_atten))
                 n_added += 1
                 continue
 
@@ -199,14 +214,18 @@ class Phantom(object):
             overlap = self._collision(circle)
             if overlap <= radius[0] - radius[1]:
                 self.append(Feature(Circle(center, radius[0] - overlap),
-                                    value=value))
+                                    mass_atten=mass_atten))
                 n_added += 1
                 n_tries = 0
 
             n_tries += 1
 
-        assert(n_added <= counts)
-        return n_added == counts
+        if n_added != counts and n_tries == kTERM_CRIT:
+            warnings.warn("Reached termination criteria of " +
+                          str(kTERM_CRIT) + " attempts before adding " +
+                          "all of the circles.", RuntimeWarning)
+            # no warning for reaching max_density because that's settable
+        return n_added
 
     # GEOMETRIC TRANSFORMATIONS
     def translate(self, dx, dy):
@@ -214,7 +233,7 @@ class Phantom(object):
         for m in range(self.population):
             self.feature[m].translate(dx, dy)
 
-    def rotate(self, theta, origin=Point(0, 0)):
+    def rotate(self, theta, origin=Point(0.5, 0.5)):
         """Rotate phantom around a point."""
         for m in range(self.population):
             self.feature[m].rotate(theta, origin)
@@ -229,7 +248,7 @@ class Phantom(object):
                 self.feature[m].center.x,
                 self.feature[m].center.y,
                 self.feature[m].radius,
-                self.feature[m].value]
+                self.feature[m].mass_atten]
         return arr
 
     def save(self, filename):
@@ -246,14 +265,14 @@ class Phantom(object):
 
     # PRIVATE METHODS
     def _random_point(self, margin=0, region=None):
-        """Generate a random point in the given region.
+        """Generate a random point in the given geometric entity.
 
         Parameters
         ----------
         margin : scalar
             Determines the margin value of the shape.
             Points will not be created in the margin area.
-        region : Circle, optional
+        region : Entity, optional
             Determines where the point will be generated. None assumes it can
             be generated anywhere in the 1x1 phantom.
 
@@ -262,14 +281,11 @@ class Phantom(object):
         Point
             Random point.
         """
-        if isinstance(region, Feature):
-            radius = region.radius
-            center = region.center
-        elif region is None:
+        if isinstance(region, Entity):
+            raise NotImplementedError
+        else:
             radius = 0.5
             center = Point(0.5, 0.5)
-        else:
-            assert(False)  # Region is invalid
 
         if self.shape == 'square':
             x = np.random.uniform(margin - radius, radius - margin) + center.x
@@ -279,6 +295,7 @@ class Phantom(object):
             a = np.random.uniform(0, 2 * np.pi)
             x = r * np.cos(a) + center.x
             y = r * np.sin(a) + center.y
+
         return Point(x, y)
 
     def _collision(self, circle):
@@ -289,7 +306,8 @@ class Phantom(object):
         overlap : scalar
             The largest amount that the circle is overlapping
         """
-        assert(isinstance(circle, Feature))
+        if not isinstance(circle, Feature):
+            raise TypeErrorz
 
         overlap = 0
         for m in range(self.population):

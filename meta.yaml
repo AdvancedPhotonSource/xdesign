@@ -21,6 +21,7 @@ requirements:
     - matplotlib
     - phasepack
     - cached-property
+    - polytope
 
 test:
   # Python imports

@@ -49,16 +49,21 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import logging
+import types
+import time
+import string
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import logging
-import time
-import string
+import scipy.ndimage
+from cycler import cycler
 from xdesign.phantom import Phantom
 from xdesign.geometry import CurvedEntity, Polygon, Mesh
 from xdesign.feature import Feature
-import scipy.ndimage
+from matplotlib.axis import Axis
+from itertools import product
+from six import string_types
 
 logger = logging.getLogger(__name__)
 
@@ -67,40 +72,80 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['plot_phantom',
+           'plot_feature',
+           'plot_mesh',
+           'plot_polygon',
+           'plot_curve',
            'plot_metrics',
-           'plot_histograms',
            'discrete_phantom']
 
+DEFAULT_COLOR = 'blue'
+DEFAULT_COLOR_MAP = plt.cm.viridis
 
-def plot_phantom(phantom, axis=None, labels=None):
+
+def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
     """Plots a phantom to the given axis.
+
     Parameters
-    ---------------
-    labels : bool
-        When True, each feature is labelled according to its index in the
-        phantom. IDEA: Allow users to provide list or generator for labels.
+    ----------
+    labels : bool, optional
+        Each feature is numbered according to its index in the phantom.
+    c_props : list of str, optional
+        Tuple of feature properties to use for colormapping the geometries.
+    c_map : function, optional
+        A function which takes the a list of prop(s) for a Feature as input and
+        returns a matplolib color.
     """
-    assert(isinstance(phantom, Phantom))
+    # IDEA: Allow users to provide list or generator for labels.
+    if not isinstance(phantom, Phantom):
+        raise TypeError("Can only plot Phantoms.")
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
         a = fig.add_subplot(111, aspect='equal')
         plt.grid('on')
         plt.gca().invert_yaxis()
+    else:
+        a = axis
+    if not isinstance(c_props, list):
+        raise TypeError('c_props must be list of str')
+    if c_map is not None and not isinstance(c_map, type.FunctionType):
+        raise TypeError('c_map must be a function.')
+    if len(c_props) > 0 and c_map is None:
+        c_map = DEFAULT_COLOR_MAP
 
+    props = list(c_props)
+    num_props = range(0, len(c_props))
+    i = 0
     # Draw all features in the phantom.
     i = 0
     for f in phantom.feature:
-        plot_feature(f, a)
+        if c_map is not None:
+            # use the colormap to determine the color
+            for j in num_props:
+                props[j] = getattr(f, c_props[j])
+            color = c_map(props)[0]
+        else:
+            color = DEFAULT_COLOR
+
+        plot_feature(f, a, c=color)
         if labels is not None:
             a.annotate(str(i), xy=(f.center.x, f.center.y),
                        ha='center', va='center', color='white')
             i += 1
 
-    plt.show(block=False)
 
+def plot_feature(feature, axis=None, alpha=None, c=DEFAULT_COLOR):
+    """Plots a feature on the given axis.
 
-def plot_feature(feature, axis=None):
-    assert(isinstance(feature, Feature))
+    Parameters
+    ----------
+    alpha : float
+        The plot opaqueness. 0 is transparent. 1 is opaque.
+    c : matplotlib color specifier
+        See http://matplotlib.org/api/colors_api.html
+    """
+    if not isinstance(feature, Feature):
+        raise TypeError('Can only plot Features.')
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
         axis = fig.add_subplot(111, aspect='equal')
@@ -109,18 +154,25 @@ def plot_feature(feature, axis=None):
 
     # Plot geometry using correct method
     if isinstance(feature.geometry, Mesh):
-        plot_mesh(feature.geometry, axis)
+        plot_mesh(feature.geometry, axis, alpha, c)
     elif isinstance(feature.geometry, CurvedEntity):
-        plot_curve(feature.geometry, axis)
+        plot_curve(feature.geometry, axis, alpha, c)
     elif isinstance(feature.geometry, Polygon):
-        plot_polygon(feature.geometry, axis)
+        plot_polygon(feature.geometry, axis, alpha, c)
     else:
         raise ValueError
 
-    plt.show(block=False)
 
+def plot_mesh(mesh, axis=None, alpha=None, c=DEFAULT_COLOR):
+    """Plots a mesh to the given axis.
 
-def plot_mesh(mesh, axis=None):
+    Parameters
+    ----------
+    alpha : float
+        The plot opaqueness. 0 is transparent. 1 is opaque.
+    c : matplotlib color specifier
+        See http://matplotlib.org/api/colors_api.html
+    """
     assert(isinstance(mesh, Mesh))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -130,12 +182,19 @@ def plot_mesh(mesh, axis=None):
 
     # Plot each face separately
     for f in mesh.faces:
-        plot_polygon(f, axis)
-
-    plt.show(block=False)
+        plot_polygon(f, axis, alpha, c)
 
 
-def plot_polygon(polygon, axis=None):
+def plot_polygon(polygon, axis=None, alpha=None, c=DEFAULT_COLOR):
+    """Plots a polygon to the given axis.
+
+    Parameters
+    ----------
+    alpha : float
+        The plot opaqueness. 0 is transparent. 1 is opaque.
+    c : matplotlib color specifier
+        See http://matplotlib.org/api/colors_api.html
+    """
     assert(isinstance(polygon, Polygon))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -143,12 +202,22 @@ def plot_polygon(polygon, axis=None):
         plt.grid('on')
         plt.gca().invert_yaxis()
 
-    axis.add_patch(polygon.patch)
+    p = polygon.patch
+    p.set_alpha(alpha)
+    p.set_facecolor(c)
+    axis.add_patch(p)
 
-    plt.show(block=False)
 
+def plot_curve(curve, axis=None, alpha=None, c=DEFAULT_COLOR):
+    """Plots a curve to the given axis.
 
-def plot_curve(curve, axis=None):
+    Parameters
+    ----------
+    alpha : float
+        The plot opaqueness. 0 is transparent. 1 is opaque.
+    c : matplotlib color specifier
+        See http://matplotlib.org/api/colors_api.html
+    """
     assert(isinstance(curve, CurvedEntity))
     if axis is None:
         fig = plt.figure(figsize=(8, 8), facecolor='w')
@@ -156,23 +225,20 @@ def plot_curve(curve, axis=None):
         plt.grid('on')
         plt.gca().invert_yaxis()
 
-    axis.add_patch(curve.patch)
+    p = curve.patch
+    p.set_alpha(alpha)
+    p.set_facecolor(c)
+    axis.add_patch(p)
 
-    plt.show(block=False)
 
-
-def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
-    """Returns discrete representation of the phantom. The values of
-    overlapping shapes are additive.
+def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
+    """Returns discrete representation of the property function, prop, in the
+    phantom. The values of overlapping features are additive.
 
     Parameters
     ------------
     size : scalar
         The side length in pixels of the resulting square image.
-    bitdepth : scalar, optional
-        The bitdepth of resulting representation. Depths less than 32 are
-        returned as integers, and depths greater than 32 are returned as
-        floats.
     ratio : scalar, optional
         The antialiasing works by supersampling. This parameter controls
         how many pixels in the larger representation are averaged for the
@@ -180,17 +246,29 @@ def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
         values are the average of 64 pixels.
     uniform : boolean, optional
         When set to False, changes the way pixels are averaged from a
-        uniform weights to gaussian weights.
+        uniform weights to gaussian weigths.
+    prop : str, optional
+        The name of the property function to discretize
 
     Returns
     ------------
     image : numpy.ndarray
-        The discrete representation of the phantom.
+        The discrete representation of the phantom that is size x size.
     """
+    if not isinstance(phantom, Phantom):
+        raise TypeError('phantom must be type Phantom.')
+    if size <= 0:
+        raise ValueError('size must be greater than 0.')
+    if ratio < 1:
+        raise ValueError('ratio must be at least 1.')
+    if not isinstance(prop, string_types):
+        raise TypeError('property must be specified using str.')
+    ndims = 2
 
     # Make a higher resolution grid to sample the continuous space
-    _x = np.arange(0, 1, 1 / size / ratio)
-    _y = np.arange(0, 1, 1 / size / ratio)
+    grid_step = 1 / size / ratio
+    _x = np.arange(0, 1, grid_step) + grid_step / 2
+    _y = np.arange(0, 1, grid_step) + grid_step / 2
     px, py = np.meshgrid(_x, _y)
 
     # Draw the shapes at the higher resolution.
@@ -198,83 +276,164 @@ def discrete_phantom(phantom, size, bitdepth=32, ratio=8, uniform=True):
 
     # Rasterize all features in the phantom.
     for f in phantom.feature:
-        image = _discrete_feature(f, image, px, py)
+        image = _discrete_feature(f, image, px, py, prop)
 
-    # Resample down to the desired size
+    # Resample down to the desired size.
     if uniform:
         image = scipy.ndimage.uniform_filter(image, ratio)
     else:
-        image = scipy.ndimage.gaussian_filter(image, ratio / 4.)
+        image = scipy.ndimage.gaussian_filter(image, np.sqrt(ratio/2))
+    image = multiroll(image, [-ratio//2]*ndims)
     image = image[::ratio, ::ratio]
 
-    # Rescale to proper bitdepth
-    if bitdepth < 32:
-        image = image * (2**bitdepth - 1)
-        image = image.astype(int)
-
+    assert(image.shape[0] == size and image.shape[1] == size)
     return image
 
 
-def _discrete_feature(feature, image, px, py):
-    assert(isinstance(feature, Feature))
-    new_feature = feature.geometry.contains(px, py) * feature.value
+def multiroll(x, shift, axis=None):
+    """Roll an array along each axis.
+
+    Parameters
+    ----------
+    x : array_like
+        Array to be rolled.
+    shift : sequence of int
+        Number of indices by which to shift each axis.
+    axis : sequence of int, optional
+        The axes to be rolled.  If not given, all axes is assumed, and
+        len(shift) must equal the number of dimensions of x.
+
+    Returns
+    -------
+    y : numpy array, with the same type and size as x
+        The rolled array.
+
+    Notes
+    -----
+    The length of x along each axis must be positive.  The function
+    does not handle arrays that have axes with length 0.
+
+    See Also
+    --------
+    numpy.roll
+
+    Example
+    -------
+    Here's a two-dimensional array:
+
+    >>> x = np.arange(20).reshape(4,5)
+    >>> x
+    array([[ 0,  1,  2,  3,  4],
+           [ 5,  6,  7,  8,  9],
+           [10, 11, 12, 13, 14],
+           [15, 16, 17, 18, 19]])
+
+    Roll the first axis one step and the second axis three steps:
+
+    >>> multiroll(x, [1, 3])
+    array([[17, 18, 19, 15, 16],
+           [ 2,  3,  4,  0,  1],
+           [ 7,  8,  9,  5,  6],
+           [12, 13, 14, 10, 11]])
+
+    That's equivalent to:
+
+    >>> np.roll(np.roll(x, 1, axis=0), 3, axis=1)
+    array([[17, 18, 19, 15, 16],
+           [ 2,  3,  4,  0,  1],
+           [ 7,  8,  9,  5,  6],
+           [12, 13, 14, 10, 11]])
+
+    Not all the axes must be rolled.  The following uses
+    the `axis` argument to roll just the second axis:
+
+    >>> multiroll(x, [2], axis=[1])
+    array([[ 3,  4,  0,  1,  2],
+           [ 8,  9,  5,  6,  7],
+           [13, 14, 10, 11, 12],
+           [18, 19, 15, 16, 17]])
+
+    which is equivalent to:
+
+    >>> np.roll(x, 2, axis=1)
+    array([[ 3,  4,  0,  1,  2],
+           [ 8,  9,  5,  6,  7],
+           [13, 14, 10, 11, 12],
+           [18, 19, 15, 16, 17]])
+
+    References
+    ----------
+    Warren Weckesser
+    http://stackoverflow.com/questions/30639656/numpy-roll-in-several-dimensions
+    """
+    x = np.asarray(x)
+    if axis is None:
+        if len(shift) != x.ndim:
+            raise ValueError("The array has %d axes, but len(shift) is only "
+                             "%d. When 'axis' is not given, a shift must be "
+                             "provided for all axes." % (x.ndim, len(shift)))
+        axis = range(x.ndim)
+    else:
+        # axis does not have to contain all the axes.  Here we append the
+        # missing axes to axis, and for each missing axis, append 0 to shift.
+        missing_axes = set(range(x.ndim)) - set(axis)
+        num_missing = len(missing_axes)
+        axis = tuple(axis) + tuple(missing_axes)
+        shift = tuple(shift) + (0,)*num_missing
+
+    # Use mod to convert all shifts to be values between 0 and the length
+    # of the corresponding axis.
+    shift = [s % x.shape[ax] for s, ax in zip(shift, axis)]
+
+    # Reorder the values in shift to correspond to axes 0, 1, ..., x.ndim-1.
+    shift = np.take(shift, np.argsort(axis))
+
+    # Create the output array, and copy the shifted blocks from x to y.
+    y = np.empty_like(x)
+    src_slices = [(slice(n-shft, n), slice(0, n-shft))
+                  for shft, n in zip(shift, x.shape)]
+    dst_slices = [(slice(0, shft), slice(shft, n))
+                  for shft, n in zip(shift, x.shape)]
+    src_blks = product(*src_slices)
+    dst_blks = product(*dst_slices)
+    for src_blk, dst_blk in zip(src_blks, dst_blks):
+        y[dst_blk] = x[src_blk]
+
+    return y
+
+
+def _discrete_feature(feature, image, px, py, prop):
+    """Helper function for discrete_phantom. Rasterizes the geometry of the
+    feature."""
+    new_feature = feature.geometry.contains(px, py) * getattr(feature, prop)
     return image + new_feature
 
 
-def plot_histograms(images, masks=None, thresh=0.025):
-    """Plots the normalized histograms for the pixel intensity under each
-    mask.
+def plot_metrics(imqual):
+    """Plots full reference metrics of ImageQuality data.
 
     Parameters
-    --------------
-    images : list of ndarrays, ndarray
-        image(s) for comparing histograms.
-    masks : list of ndarrays, float, optional
-        If supplied, the data under each mask is plotted separately.
-    strict : boolean
-        If true, the mask takes values >= only. If false, the mask takes all
-        values > 0.
+    ----------
+    imqual : ImageQuality
+        The data to plot.
+
+    References
+    ----------
+    Colors taken from this gist <https://gist.github.com/thriveth/8560036>
     """
-    if type(images) is not list:
-        images = [images]
+    plt.figure(0)  # cycle through 126 unique styles
+    styles = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
+                                    '#f781bf', '#a65628', '#984ea3',
+                                    '#999999', '#e41a1c', '#dede00']) +
+              63 * cycler('linestyle', ['-', '--']) +
+              18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
+    plt.rc('axes', prop_cycle=styles)
 
-    hgrams = []  # holds histograms before plotting
-    labels = []  # holds legend labels for plotting
-    abet = string.ascii_uppercase
-
-    if masks is None:
-        for i in range(len(images)):
-            hgrams.append(images[i])
-            labels.append(abet[i])
-    else:
-        for i in range(len(masks)):
-            for j in range(len(images)):
-                m = masks[i]
-                A = images[j]
-                assert(A.shape == m.shape)
-                # convert probability mask to boolean mask
-                mA = A[m >= thresh]
-                # h = np.histogram(m, bins='auto', density=True)
-                hgrams.append(mA)
-                labels.append(abet[j] + str(i))
-
-    plt.figure()
-    # autobins feature doesn't work because one of the groups is all zeros?
-    plt.hist(hgrams, bins=25, normed=True, stacked=False)
-    plt.legend(labels)
-    plt.show()
-
-
-def plot_metrics(imqual):
-    """Plots metrics of ImageQuality data
-
-    """
-    colors = iter(plt.cm.rainbow(np.linspace(0, 1, len(imqual))))
     for i in range(0, len(imqual)):
         # Draw a plot of the mean quality vs scale using different colors for
         # each reconstruction.
         plt.figure(0)
-        plt.scatter(imqual[i].scales, imqual[i].qualities, color=next(colors))
+        plt.plot(imqual[i].scales, imqual[i].qualities)
 
         # Plot the reconstruction
         f = plt.figure(i + 1)
@@ -321,10 +480,9 @@ def plot_metrics(imqual):
     plt.ylabel('Quality')
     plt.xlabel('Scale')
     plt.ylim([0, 1])
+    plt.grid(True)
     plt.legend([str(x) for x in range(1, len(imqual) + 1)])
     plt.title("Comparison of Reconstruction Methods")
-
-    plt.show(block=True)
 
 
 def _pyramid(N):
@@ -366,3 +524,46 @@ def _pyramid(N):
         # print(params[n])
 
     return params
+
+
+def plot_histograms(images, masks=None, thresh=0.025):
+    """Plots the normalized histograms for the pixel intensity under each
+    mask.
+
+    Parameters
+    --------------
+    images : list of ndarrays, ndarray
+        image(s) for comparing histograms.
+    masks : list of ndarrays, float, optional
+        If supplied, the data under each mask is plotted separately.
+    strict : boolean
+        If true, the mask takes values >= only. If false, the mask takes all
+        values > 0.
+    """
+    if type(images) is not list:
+        images = [images]
+
+    hgrams = []  # holds histograms before plotting
+    labels = []  # holds legend labels for plotting
+    abet = string.ascii_uppercase
+
+    if masks is None:
+        for i in range(len(images)):
+            hgrams.append(images[i])
+            labels.append(abet[i])
+    else:
+        for i in range(len(masks)):
+            for j in range(len(images)):
+                m = masks[i]
+                A = images[j]
+                assert(A.shape == m.shape)
+                # convert probability mask to boolean mask
+                mA = A[m >= thresh]
+                # h = np.histogram(m, bins='auto', density=True)
+                hgrams.append(mA)
+                labels.append(abet[j] + str(i))
+
+    plt.figure()
+    # autobins feature doesn't work because one of the groups is all zeros?
+    plt.hist(hgrams, bins=25, normed=True, stacked=False)
+    plt.legend(labels)
