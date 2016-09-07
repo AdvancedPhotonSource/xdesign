@@ -246,6 +246,9 @@ class DogaCircles(Phantom):
     y : ndarray
         y position of circles
     """
+    # IDEA: Use method in this reference to calculate uniformly distributed
+    # latin squares.
+    # DOI: 10.1002/(SICI)1520-6610(1996)4:6<405::AID-JCD3>3.0.CO;2-J
     def __init__(self, n_sizes=5, size_ratio=0.5, n_shuffles=5):
         """
         Parameters
