@@ -15,12 +15,13 @@ requirements:
 
   run:
     - python
-    - numpy    
+    - numpy
     - scipy
     - six
     - matplotlib
     - phasepack
     - cached-property
+    - polytope
 
 test:
   # Python imports

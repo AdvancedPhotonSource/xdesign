@@ -51,13 +51,13 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 import logging
-from cached_property import cached_property
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from numbers import Number
+import polytope as pt
+from cached_property import cached_property
 
 logger = logging.getLogger(__name__)
-
 
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -96,7 +96,13 @@ class Entity(object):
         raise NotImplementedError
 
     def contains(self, x, y):
-        """Returns true if the points are contained by the entity"""
+        """Returns True if the points are contained by the entity.
+
+        Parameters
+        ------------
+        x, y: numpy array like
+            A list of coordinates to query whether they are in within the
+            boundaries of the entity"""
         raise NotImplementedError
 
     def collision(self, entity):
@@ -333,6 +339,14 @@ class Line(LinearEntity):
         if self.vertical:
             return "x = %s" % self.p1.x
         return "y = %sx + %s" % (self.slope, self.yintercept)
+
+    @property
+    def standard(self):
+        """Returns coeffients for standard equation"""
+        A = self.p1.y-self.p2.y
+        B = self.p2.x-self.p1.x
+        C = B*self.p1.y + A*self.p1.x
+        return A, B, C
 
     def translate(self, dx, dy):
         """Translate."""
@@ -637,6 +651,28 @@ class Polygon(Entity):
         bools = border.contains_points(points)
         return np.reshape(bools, px.shape)
 
+    @cached_property
+    def half_space(self):
+        """Returns the half space polytope respresentation of the polygon."""
+        A = []
+        B = []
+
+        for i in range(0, self.numverts):
+            edge = Line(self.vertices[i], self.vertices[(i+1) % self.numverts])
+            a, b, c = edge.standard
+
+            # test for positive or negative side of line
+            if self.center.x*a + self.center.y*b > c:
+                a, b, c = -a, -b, -c
+
+            A += [a, b]
+            B += [c]
+
+        A = np.array(np.reshape(A, (self.numverts, 2)))
+        B = np.array(B)
+        p = pt.Polytope(A, B)
+        return p
+
 
 class Triangle(Polygon):
     """Triangle in 2-D cartesian space.
@@ -715,7 +751,7 @@ class Mesh(Entity):
         self.population = 0
         self.radius = 0
 
-    @cached_property
+    @property
     def center(self):
         center = Point(0, 0)
         if self.area > 0:
@@ -728,8 +764,8 @@ class Mesh(Entity):
         """Add a triangle to the mesh."""
         assert(isinstance(t, Polygon))
         self.population += 1
-        self.center = ((self.center * self.area + t.center * t.area) /
-                       (self.area + t.area))
+        # self.center = ((self.center * self.area + t.center * t.area) /
+        #                (self.area + t.area))
         self.area += t.area
         for v in t.vertices:
             self.radius = max(self.radius, self.center.distance(v))
@@ -781,6 +817,13 @@ class Mesh(Entity):
             patches.append(f.patch)
         return patches
 
+    @cached_property
+    def half_space(self):
+        regions = []
+        for face in self.faces:
+            regions.append(face.half_space)
+        return pt.Region(regions)
+
 
 def rotate(point, theta, origin):
     """Rotates a point in counter-clockwise around another point.
@@ -826,6 +869,26 @@ def segment(circle, x):
     """
     return circle.radius**2 * \
         np.arccos(x / circle.radius) - x * np.sqrt(circle.radius**2 - x**2)
+
+
+def beamintersect(beam, geometry):
+    """Intersection area of infinite beam with a geometry"""
+    if isinstance(geometry, Mesh):
+        return beammesh(beam, geometry)
+    elif isinstance(geometry, Polygon):
+        return beampoly(beam, geometry)
+    else:
+        return beamcirc(beam, geometry)
+
+
+def beammesh(beam, mesh):
+    """Intersection area of infinite beam with polygonal mesh"""
+    return beam.half_space.intersect(mesh.half_space).volume
+
+
+def beampoly(beam, poly):
+    """Intersection area of an infinite beam with a polygon"""
+    return beam.half_space.intersect(poly.half_space).volume
 
 
 def beamcirc(beam, circle):

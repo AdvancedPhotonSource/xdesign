@@ -51,8 +51,9 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 from xdesign.geometry import *
-from xdesign.geometry import beamcirc, rotate
+from xdesign.geometry import beamintersect, beamcirc, rotate
 import logging
+import polytope as pt
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,34 @@ class Beam(Line):
     def __str__(self):
         return super(Beam, self).__str__()
 
+    @property
+    def half_space(self):
+        """Returns the half space polytope respresentation of the infinite
+        beam."""
+        # add half beam width along the normal direction to each of the points
+        half = self.normal*self.size/2
+        edges = [Line(self.p1 + half, self.p2 + half),
+                 Line(self.p1 - half, self.p2 - half)]
+
+        # calculate the half-space for each edge
+        A = []
+        B = []
+
+        for edge in edges:
+            a, b, c = edge.standard
+
+            # test for positive or negative side of line
+            if self.p1.x*a + self.p1.y*b > c:
+                a, b, c = -a, -b, -c
+
+            A += [a, b]
+            B += [c]
+
+        A = np.array(np.reshape(A, (2, 2)))
+        B = np.array(B)
+        p = pt.Polytope(A, B)
+        return p
+
 
 class Probe(Beam):
 
@@ -110,7 +139,7 @@ class Probe(Beam):
         poisson noise is added to the returned measurement."""
         newdata = 0
         for m in range(phantom.population):
-            newdata += (beamcirc(self, phantom.feature[m]) *
+            newdata += (beamintersect(self, phantom.feature[m].geometry) *
                         phantom.feature[m].mass_atten)
         if noise > 0:
             newdata += newdata * noise * np.random.poisson(1)
