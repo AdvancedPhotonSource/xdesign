@@ -62,13 +62,13 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Material',
-           'HyperbolicConcentric',
+__all__ = ['HyperbolicConcentric',
            'DynamicRange',
+           'DogaCircles',
+           'SlantedSquares',
            'UnitCircle',
            'Soil',
-           'Foam',
-           'Electronics']
+           'Foam']
 
 
 class Material(object):

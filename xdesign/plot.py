@@ -76,8 +76,9 @@ __all__ = ['plot_phantom',
            'plot_mesh',
            'plot_polygon',
            'plot_curve',
-           'plot_metrics',
-           'discrete_phantom']
+           'discrete_phantom',
+           'sidebyside',
+           'plot_metrics']
 
 DEFAULT_COLOR = 'blue'
 DEFAULT_COLOR_MAP = plt.cm.viridis
@@ -289,6 +290,27 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     return image
 
 
+def _discrete_feature(feature, image, px, py, prop):
+    """Helper function for discrete_phantom. Rasterizes the geometry of the
+    feature."""
+    new_feature = feature.geometry.contains(px, py) * getattr(feature, prop)
+    return image + new_feature
+
+
+def sidebyside(p, size=100, labels=None, prop='mass_atten'):
+    '''Displays the geometry and the discrete property function of
+    the given phantom side by side.'''
+    fig = plt.figure(dpi=600)
+    axis = fig.add_subplot(121, aspect='equal')
+    plt.grid('on')
+    plt.gca().invert_yaxis()
+    plot_phantom(p, axis=axis, labels=labels)
+    plt.subplot(1, 2, 2)
+    plt.imshow(discrete_phantom(p, size, prop=prop), interpolation='none',
+               cmap=plt.cm.inferno)
+    fig.set_size_inches(6, 6)
+
+
 def multiroll(x, shift, axis=None):
     """Roll an array along each axis.
 
@@ -399,13 +421,6 @@ def multiroll(x, shift, axis=None):
         y[dst_blk] = x[src_blk]
 
     return y
-
-
-def _discrete_feature(feature, image, px, py, prop):
-    """Helper function for discrete_phantom. Rasterizes the geometry of the
-    feature."""
-    new_feature = feature.geometry.contains(px, py) * getattr(feature, prop)
-    return image + new_feature
 
 
 def plot_metrics(imqual):
