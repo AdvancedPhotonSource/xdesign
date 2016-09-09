@@ -70,6 +70,7 @@ __all__ = ['HyperbolicConcentric',
            'SlantedSquares',
            'UnitCircle',
            'WetCircles',
+           'SiemensStar',
            'Soil',
            'Foam']
 
@@ -519,6 +520,49 @@ def wet_circles(A, B, thetaA, thetaB):
                           Point(points[t[2], 0], points[t[2], 1])))
 
     return m
+
+
+class SiemensStar(Phantom):
+    """Generates a Siemens star.
+
+    Attributes
+    ----------
+    ratio : scalar
+        The width of a sector along tangent of circle divided by the radius of
+        the circle. ratio = t/r
+    """
+    def __init__(self, n_sectors=2, center=Point(0.5, 0.5), radius=0.5):
+        """
+        Parameters
+        ----------
+        n_sectors: int >= 2
+            The number of white triangles only.
+        center: Point
+        radius: scalar > 0
+        """
+        super(SiemensStar, self).__init__()
+        if n_sectors < 2:
+            raise ValueError("Must have more than 2 sectors.")
+        if radius <= 0:
+            raise ValueError("radius must be greater than zero.")
+        if not isinstance(center, Point):
+            raise TypeError("center must be of type Point.!")
+        n_points = 2 * n_sectors
+
+        # generate an even number of points around the unit circle
+        points = []
+        for t in (np.arange(0, n_points)/n_points) * 2 * np.pi:
+            x = radius*np.cos(t) + center.x
+            y = radius*np.sin(t) + center.y
+            points.append(Point(x, y))
+        assert(len(points) == n_points)
+
+        # connect pairs of points to the center to make triangles
+        for i in range(0, n_sectors):
+            f = Feature(Triangle(points[2*i], points[2*i+1], center))
+            self.append(f)
+
+        self.ratio = 2 * np.tan(np.pi/n_points)
 
 
 class Foam(Phantom):
