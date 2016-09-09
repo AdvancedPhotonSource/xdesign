@@ -54,6 +54,8 @@ import logging
 from xdesign.phantom import *
 from xdesign.geometry import *
 from xdesign.feature import *
+from xdesign.plot import *
+from scipy.spatial import Delaunay
 from xdesign.constants import PI
 
 logger = logging.getLogger(__name__)
@@ -67,6 +69,8 @@ __all__ = ['HyperbolicConcentric',
            'DogaCircles',
            'SlantedSquares',
            'UnitCircle',
+           'WetCircles',
+           'SiemensStar',
            'Soil',
            'Foam']
 
@@ -438,15 +442,138 @@ class Soil(Phantom):
         self.insert(0, background)
 
 
+class WetCircles(Phantom):
+    def __init__(self):
+        super(WetCircles, self).__init__(shape='circle')
+        porosity = 0.412
+        np.random.seed(0)
+
+        self.sprinkle(30, [0.1, 0.03], 0.005, mass_atten=0.5,
+                      max_density=1 - porosity)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=0.5)
+        self.insert(0, background)
+
+        pairs = [(23, 12), (12, 19), (29, 11), (22, 5), (1, 3), (21, 9),
+                 (8, 2), (2, 27)]
+        for p in pairs:
+            A = self.feature[p[0]].geometry
+            B = self.feature[p[1]].geometry
+
+            thetaA = [np.pi/2, 10]
+            thetaB = [np.pi/2, 10]
+
+            mesh = wet_circles(A, B, thetaA, thetaB)
+
+            self.append(Feature(mesh, mass_atten=-.25))
+
+
+def wet_circles(A, B, thetaA, thetaB):
+    """Generates a mesh that wets the surface of circles A and B.
+
+    Parameters
+    -------------
+    A,B : Circle
+    theta : list
+        the number of radians that the wet covers and number of the points on
+        the surface range
+    """
+
+    vector = B.center - A.center
+    if vector.x > 0:
+        angleA = np.arctan(vector.y/vector.x)
+        angleB = np.pi + angleA
+    else:
+        angleB = np.arctan(vector.y/vector.x)
+        angleA = np.pi + angleB
+    # print(vector)
+    rA = A.radius
+    rB = B.radius
+
+    points = []
+    for t in (np.arange(0, thetaA[1])/(thetaA[1]-1) - 0.5) * thetaA[0] + angleA:
+        x = rA*np.cos(t) + A.center.x
+        y = rA*np.sin(t) + A.center.y
+        points.append([x, y])
+
+    mid = len(points)
+    for t in (np.arange(0, thetaB[1])/(thetaB[1]-1) - 0.5) * thetaB[0] + angleB:
+        x = rB*np.cos(t) + B.center.x
+        y = rB*np.sin(t) + B.center.y
+        points.append([x, y])
+
+    points = np.array(points)
+
+    # Triangulate the polygon
+    tri = Delaunay(points)
+
+    # Remove extra triangles
+    # print(tri.simplices)
+    mask = np.sum(tri.simplices < mid, 1)
+    mask = np.logical_and(mask < 3, mask > 0)
+    tri.simplices = tri.simplices[mask, :]
+    # print(tri.simplices)
+
+    m = Mesh()
+    for t in tri.simplices:
+        m.append(Triangle(Point(points[t[0], 0], points[t[0], 1]),
+                          Point(points[t[1], 0], points[t[1], 1]),
+                          Point(points[t[2], 0], points[t[2], 1])))
+
+    return m
+
+
+class SiemensStar(Phantom):
+    """Generates a Siemens star.
+
+    Attributes
+    ----------
+    ratio : scalar
+        The width of a sector along tangent of circle divided by the radius of
+        the circle. ratio = t/r
+    """
+    def __init__(self, n_sectors=2, center=Point(0.5, 0.5), radius=0.5):
+        """
+        Parameters
+        ----------
+        n_sectors: int >= 2
+            The number of white triangles only.
+        center: Point
+        radius: scalar > 0
+        """
+        super(SiemensStar, self).__init__()
+        if n_sectors < 2:
+            raise ValueError("Must have more than 2 sectors.")
+        if radius <= 0:
+            raise ValueError("radius must be greater than zero.")
+        if not isinstance(center, Point):
+            raise TypeError("center must be of type Point.!")
+        n_points = 2 * n_sectors
+
+        # generate an even number of points around the unit circle
+        points = []
+        for t in (np.arange(0, n_points)/n_points) * 2 * np.pi:
+            x = radius*np.cos(t) + center.x
+            y = radius*np.sin(t) + center.y
+            points.append(Point(x, y))
+        assert(len(points) == n_points)
+
+        # connect pairs of points to the center to make triangles
+        for i in range(0, n_sectors):
+            f = Feature(Triangle(points[2*i], points[2*i+1], center))
+            self.append(f)
+
+        self.ratio = 2 * np.tan(np.pi/n_points)
+
+
 class Foam(Phantom):
     """Generates a phantom with structure similar to foam."""
 
-    def __init__(self, size_range=[0.05, 0.01], gap=0, porosity=0):
+    def __init__(self, size_range=[0.05, 0.01], gap=0, porosity=1):
         super(Foam, self).__init__(shape='circle')
         if porosity < 0 or porosity > 1:
             raise ValueError('Porosity must be in the range [0,1).')
         self.sprinkle(300, size_range, gap, mass_atten=-1,
-                      max_density=1-porosity)
+                      max_density=porosity)
         background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=1)
         self.insert(0, background)
 
