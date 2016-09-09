@@ -80,8 +80,11 @@ __all__ = ['plot_phantom',
            'sidebyside',
            'plot_metrics']
 
-DEFAULT_COLOR = 'blue'
 DEFAULT_COLOR_MAP = plt.cm.viridis
+DEFAULT_COLOR = DEFAULT_COLOR_MAP(0.25)
+DEFAULT_POLY_COLOR = DEFAULT_COLOR_MAP(0.8)
+DEFAULT_EDGE_COLOR = 'white'
+LABEL_COLOR = 'black'
 
 
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
@@ -125,16 +128,16 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
                 props[j] = getattr(f, c_props[j])
             color = c_map(props)[0]
         else:
-            color = DEFAULT_COLOR
+            color = None
 
         plot_feature(f, a, c=color)
         if labels is not None:
             a.annotate(str(i), xy=(f.center.x, f.center.y),
-                       ha='center', va='center', color='white')
+                       ha='center', va='center', color=LABEL_COLOR)
             i += 1
 
 
-def plot_feature(feature, axis=None, alpha=None, c=DEFAULT_COLOR):
+def plot_feature(feature, axis=None, alpha=None, c=None):
     """Plots a feature on the given axis.
 
     Parameters
@@ -163,7 +166,7 @@ def plot_feature(feature, axis=None, alpha=None, c=DEFAULT_COLOR):
         raise ValueError
 
 
-def plot_mesh(mesh, axis=None, alpha=None, c=DEFAULT_COLOR):
+def plot_mesh(mesh, axis=None, alpha=None, c=None):
     """Plots a mesh to the given axis.
 
     Parameters
@@ -185,7 +188,7 @@ def plot_mesh(mesh, axis=None, alpha=None, c=DEFAULT_COLOR):
         plot_polygon(f, axis, alpha, c)
 
 
-def plot_polygon(polygon, axis=None, alpha=None, c=DEFAULT_COLOR):
+def plot_polygon(polygon, axis=None, alpha=None, c=None):
     """Plots a polygon to the given axis.
 
     Parameters
@@ -201,14 +204,17 @@ def plot_polygon(polygon, axis=None, alpha=None, c=DEFAULT_COLOR):
         axis = fig.add_subplot(111, aspect='equal')
         plt.grid('on')
         plt.gca().invert_yaxis()
+    if c is None:
+        c = DEFAULT_POLY_COLOR
 
     p = polygon.patch
     p.set_alpha(alpha)
     p.set_facecolor(c)
+    p.set_edgecolor(DEFAULT_EDGE_COLOR)
     axis.add_patch(p)
 
 
-def plot_curve(curve, axis=None, alpha=None, c=DEFAULT_COLOR):
+def plot_curve(curve, axis=None, alpha=None, c=None):
     """Plots a curve to the given axis.
 
     Parameters
@@ -224,10 +230,13 @@ def plot_curve(curve, axis=None, alpha=None, c=DEFAULT_COLOR):
         axis = fig.add_subplot(111, aspect='equal')
         plt.grid('on')
         plt.gca().invert_yaxis()
+    if c is None:
+        c = DEFAULT_COLOR
 
     p = curve.patch
     p.set_alpha(alpha)
     p.set_facecolor(c)
+    p.set_edgecolor(DEFAULT_EDGE_COLOR)
     axis.add_patch(p)
 
 
