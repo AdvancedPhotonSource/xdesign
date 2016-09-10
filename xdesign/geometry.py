@@ -745,11 +745,27 @@ class Square(Rectangle):
 class Mesh(Entity):
     """A mesh object. It is a collection of polygons"""
 
-    def __init__(self):
+    def __init__(self, obj=None):
         self.faces = []
         self.area = 0
         self.population = 0
         self.radius = 0
+
+        if obj is not None:
+            self.import_triangle(obj)
+
+    def import_triangle(self, obj):
+        """Loads mesh data from a Python Triangle dict.
+        """
+        for face in obj['triangles']:
+            p0 = Point(obj['vertices'][face[0], 0],
+                       obj['vertices'][face[0], 1])
+            p1 = Point(obj['vertices'][face[1], 0],
+                       obj['vertices'][face[1], 1])
+            p2 = Point(obj['vertices'][face[2], 0],
+                       obj['vertices'][face[2], 1])
+            t = Triangle(p0, p1, p2)
+            self.append(t)
 
     @property
     def center(self):
