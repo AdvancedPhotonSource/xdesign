@@ -56,6 +56,7 @@ import string
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.patheffects as PathEffects
 import scipy.ndimage
 from cycler import cycler
 from xdesign.phantom import Phantom
@@ -134,7 +135,9 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
         plot_feature(f, a, c=color)
         if labels is not None:
             a.annotate(str(i), xy=(f.center.x, f.center.y),
-                       ha='center', va='center', color=LABEL_COLOR)
+                       ha='center', va='center', color=LABEL_COLOR,
+                       path_effects=[PathEffects.withStroke(
+                            linewidth=3, foreground=DEFAULT_EDGE_COLOR)])
             i += 1
 
 
