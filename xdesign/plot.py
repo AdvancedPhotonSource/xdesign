@@ -85,7 +85,10 @@ DEFAULT_COLOR_MAP = plt.cm.viridis
 DEFAULT_COLOR = DEFAULT_COLOR_MAP(0.25)
 DEFAULT_POLY_COLOR = DEFAULT_COLOR_MAP(0.8)
 DEFAULT_EDGE_COLOR = 'white'
+POLYGON_EDGE_COLOR = 'black'
 LABEL_COLOR = 'black'
+POLYGON_LINEWIDTH = 0.1
+CIRCLE_LINEWIDTH = 0.5
 
 
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
@@ -214,7 +217,8 @@ def plot_polygon(polygon, axis=None, alpha=None, c=None):
     p = polygon.patch
     p.set_alpha(alpha)
     p.set_facecolor(c)
-    p.set_edgecolor(DEFAULT_EDGE_COLOR)
+    p.set_edgecolor(POLYGON_EDGE_COLOR)
+    p.set_linewidth(POLYGON_LINEWIDTH)
     axis.add_patch(p)
 
 
@@ -241,6 +245,7 @@ def plot_curve(curve, axis=None, alpha=None, c=None):
     p.set_alpha(alpha)
     p.set_facecolor(c)
     p.set_edgecolor(DEFAULT_EDGE_COLOR)
+    p.set_linewidth(CIRCLE_LINEWIDTH)
     axis.add_patch(p)
 
 
