@@ -156,6 +156,8 @@ def compute_mtf(phantom, image, Ntheta=4):
         wavelenth in the scale of the original phantom
     MTF : ndarray
         MTF values
+    bin_centers : ndarray
+        the center of the bins if Ntheta >= 1
 
     References
     ---------------
@@ -257,20 +259,9 @@ def compute_mtf(phantom, image, Ntheta=4):
     nyquist = 0.5*image.shape[0]
 
     MTF = np.abs(T)
-    # Plot the MTF
-    plt.figure()
-    m = itertools.cycle(('+', ',', 'o', '.', '*'))
-    for i in range(0, MTF.shape[0]):
-        plt.plot(faxis, MTF[i, :], marker=next(m))
-    plt.axvline(nyquist)
-    plt.xlabel('spatial frequency [cycles/length]')
-    plt.ylabel('Radial MTF')
-    plt.axis([0, nyquist, 0, 1])
-    a = (Th_bins + Th_bin_width/2)/np.pi
-    plt.legend([str(n) + '$\pi$' for n in a])
-    plt.title("Modulation Tansfer Function for various angles")
-    # plt.show(block=True)
-    return faxis, MTF
+    bin_centers = Th_bins + Th_bin_width/2
+
+    return faxis, MTF, bin_centers
 
 
 def compute_nps(phantom, A, B=None, plot_type='frequency'):
@@ -372,23 +363,9 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
             if 0 < np.sum(mask):  # some bins may be empty
                 counts[i] = np.mean(NPS[mask])
 
-        plt.figure()
-        plt.bar(bins, counts, width=bin_width)
-        plt.xlabel('spatial frequency [cycles/length]')
-        plt.ylabel('value^2')
-        plt.title('Noise Power Spectrum')
-        # plt.show(block=False)
         return bins, counts
 
     elif plot_type == 'frequency':
-        plt.figure()
-        plt.contourf(X, Y, NPS, cmap='inferno')
-        plt.xlabel('spatial frequency [cycles/length]')
-        plt.ylabel('spatial frequency [cycles/length]')
-        plt.axis('equal')
-        plt.colorbar()
-        plt.title('Noise Power Spectrum')
-        # plt.show(block=False)
         return X, Y, NPS
 
 
@@ -414,7 +391,7 @@ def compute_neq(phantom, A, B):
         the Noise Equivalent Quanta
     '''
     mu_a, NPS = compute_nps(phantom, A, B, plot_type='histogram')
-    mu_b, MTF = compute_mtf(phantom, A, Ntheta=1)
+    mu_b, MTF, bins = compute_mtf(phantom, A, Ntheta=1)
 
     # remove negative MT
     MTF = MTF[:, mu_b > 0]
@@ -431,13 +408,6 @@ def compute_neq(phantom, A, B):
             NPS_binned[0, i] = np.sum(NPS[bucket])
 
     NEQ = MTF/np.sqrt(NPS_binned)  # or something similiar
-
-    plt.figure()
-    plt.plot(mu_b.flatten(), NEQ.flatten())
-    plt.xlabel('spatial frequency [cycles/length]')
-    plt.ylabel('value')
-    plt.xlim([0, A.shape[0]/2])
-    plt.title('Noise Equivalent Quanta')
 
     return mu_b, NEQ
 
