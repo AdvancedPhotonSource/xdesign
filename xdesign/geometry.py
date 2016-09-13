@@ -417,7 +417,7 @@ class Segment(LinearEntity):
         return Point.midpoint(self.p1, self.p2)
 
 
-class CurvedEntity(Entity):
+class Curve(Entity):
     """Base class for entities whose surface can be defined by a continuous
     equation.
 
@@ -427,7 +427,7 @@ class CurvedEntity(Entity):
     """
 
     def __init__(self, center):
-        super(CurvedEntity, self).__init__()
+        super(Curve, self).__init__()
         self.center = center
 
     @property
@@ -458,7 +458,7 @@ class CurvedEntity(Entity):
         raise NotImplementedError
 
 
-class Superellipse(CurvedEntity):
+class Superellipse(Curve):
     """Superellipse in 2-D cartesian space.
 
     Attributes
