@@ -49,8 +49,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from xdesign.material import HyperbolicConcentric
-from xdesign.material import UnitCircle
+from xdesign.material import HyperbolicConcentric, UnitCircle
 
 import scipy.ndimage
 import logging
@@ -59,6 +58,7 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 
+from scipy import optimize
 from scipy.stats import norm, exponnorm, expon, ttest_ind
 from phasepack import phasecongmono as _phasecongmono
 
@@ -75,7 +75,8 @@ __all__ = ['ImageQuality',
            'compute_background_ttest',
            'compute_mtf',
            'compute_nps',
-           'compute_neq']
+           'compute_neq',
+           'compute_mtf_siemens']
 
 
 def compute_mtf2(phantom, image):
@@ -271,6 +272,155 @@ def compute_mtf(phantom, image, Ntheta=4):
     plt.title("Modulation Tansfer Function for various angles")
     # plt.show(block=True)
     return faxis, MTF
+
+
+def compute_mtf_siemens(phantom, image):
+    """Calculates the MTF using the modulated Siemens Star method in
+    Loebich et al. (2007).
+    """
+    # Determine which radii to sample. Do not sample linearly because the
+    # spatial frequency changes as 1/r
+    Nradii = 100
+    Nangles = 256
+    radii = 1/1.05**np.arange(1, Nradii)
+
+    line, theta = get_line_at_radius(image, radii, Nangles)
+    M = fit_sinusoid(line, theta, p.n_sectors/2)
+
+    # convert from contrast as a function of radius to contrast as a function
+    # of spatial frequency
+    frequency = phantom.ratio/r
+
+    return frequency, M
+
+
+def get_line_at_radius(image, radius, N):
+    """Returns an Nx1 array of the values of the image at a radius.
+
+    parameters
+    ----------
+    image: ndarray
+        A centered image of the seimens star.
+    radius: float, Mx1 ndarray
+        The radius(i) at which to extract the line. Given as a float in the
+        range (0, 1)
+    N: integer > 0
+        the number of points to sample around the circumference of the circle
+
+    Returns
+    -------
+    line : NxM ndarray
+        the values from image at the radius
+    theta : Nx1 ndarray
+        the angles that were sampled in radians
+    """
+    if image.shape[0] != image.shape[1]:
+        raise ValueError('image must be square.')
+    if np.any(0 >= radius) or np.any(radius >= 1):
+        raise ValueError('radius must be in the range (0, 1)')
+    if N < 1:
+        raise ValueError('Sampling less than 1 point is not useful.')
+
+    # add singleton dimension to enable matrix multiplication
+    radius = np.expand_dims(np.array(radius), 0)
+    M = radius.size
+
+    # calculate the angles to sample
+    theta = np.expand_dims((np.arange(0, N)/N) * 2 * np.pi, 1)
+
+    # convert the angles to xy coordinates
+    x = radius*np.cos(theta)
+    y = radius*np.sin(theta)
+
+    # round to nearest integer location and shift to center
+    image_half = image.shape[0]/2
+    x = np.round((x + 1) * image_half)
+    y = np.round((y + 1) * image_half)
+
+    # extract from image
+    line = image[x.astype(int), y.astype(int)]
+
+    assert(line.shape == (N, M)), line.shape
+    assert(theta.shape == (N, 1)), theta.shape
+    return line, theta
+
+
+def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
+    """Fits a periodic function of known frequency, f, to the value and angle
+    data. value = Func(angle, f). NOTE: Because the fiting function is
+    sinusoidal instead of square, contrast values larger than unity are clipped
+    back to unity.
+
+    parameters
+    ----------
+    value : NxM ndarray
+        The value of the function at N angles and M radii
+    angle : Nx1 ndarray
+        The N angles at which the function was sampled
+    f : scalar
+        The expected angular frequency; the number of black/white pairs in
+        the siemens star. i.e. half the number of spokes
+    p0 : list, optional
+        The initial guesses for the parameters.
+
+    returns:
+    --------
+    MTFR: Mx1 ndarray
+        The modulation part of the MTF at each of the M radii
+    """
+    # Distance to the target function
+    def errorfunc(p, x, y): return periodic_function(p, x) - y
+
+    time = np.linspace(0, 2*np.pi, 100)
+
+    MTFR = np.ndarray(value.shape[1])
+    x = (f*angle).squeeze()
+    for radius in range(0, value.shape[1]):
+        p1, success = optimize.leastsq(errorfunc, p0[:],
+                                       args=(x, value[:, radius]))
+
+        # print(success)
+        # plt.figure()
+        # plt.plot(angle, value[:, radius], "ro",
+        #          time, periodic_function(p1, f*time), "r-")
+
+        MTFR[radius] = np.sqrt(p1[1]**2 + p1[2]**2)/p1[0]
+
+    # cap the MTF at unity
+    MTFR[MTFR > 1.] = 1.
+    assert(not np.any(MTFR < 0)), MTFR
+    return MTFR
+
+
+def periodic_function(p, x):
+    """periodic function for fitting to the spokes of the Siemens Star.
+
+    parameters
+    ----------
+    p[0] : scalar
+        the mean of the function
+    p[1], p[2] : scalar
+        the amplitudes of the function
+    x : Nx1 ndarray
+        the angular frequency multiplied by the angles for the function.
+        w * theta
+    w : scalar
+        the angular frequency; the number of black/white pairs in the siemens
+        star. i.e. half the number of spokes
+    theta : Nx1 ndarray
+        input angles for the function
+
+    returns
+    -------
+    value : Nx1 array
+        the values of the function at phi; cannot return NaNs.
+    """
+    # x = w * theta
+    value = p[0] + p[1] * np.sin(x) + p[2] * np.cos(x)
+    assert(value.shape == x.shape), (value.shape, theta.shape)
+    assert(not np.any(np.isnan(value)))
+    return value
+
 
 
 def compute_nps(phantom, A, B=None, plot_type='frequency'):
