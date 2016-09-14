@@ -456,13 +456,13 @@ def plot_metrics(imqual):
     ----------
     Colors taken from this gist <https://gist.github.com/thriveth/8560036>
     """
-    fig_lineplot = plt.figure()
+    fig_lineplot = plt.figure(0)
     plt.rc('axes', prop_cycle=PLOT_STYLES)
 
     for i in range(0, len(imqual)):
         # Draw a plot of the mean quality vs scale using different colors for
         # each reconstruction.
-        plt.figure(fig_lineplot)
+        plt.figure(fig_lineplot.number)
         plt.plot(imqual[i].scales, imqual[i].qualities)
 
         # Plot the reconstruction
@@ -506,7 +506,7 @@ def plot_metrics(imqual):
                    interpolation="none", aspect='equal')
         plt.title("Ideal")
         '''
-    plt.figure(fig_lineplot)
+    plt.figure(fig_lineplot.number)
     plt.ylabel('Quality')
     plt.xlabel('Scale')
     plt.ylim([0, 1])
