@@ -268,33 +268,46 @@ def compute_mtf(phantom, image, Ntheta=4):
 def compute_mtf_siemens(phantom, image):
     """Calculates the MTF using the modulated Siemens Star method in
     Loebich et al. (2007).
+
+    parameters
+    ----------
+    phantom : SiemensStar
+    image : ndarray
+        The reconstruciton of the SiemensStar
+
+    returns
+    -------
+    frequency : array
+        The spatial frequency in cycles per unit length
+    M : array
+        The MTF values for each frequency
     """
     # Determine which radii to sample. Do not sample linearly because the
     # spatial frequency changes as 1/r
     Nradii = 100
     Nangles = 256
-    radii = 1/1.05**np.arange(1, Nradii)
+    pradii = 1/1.05**np.arange(1, Nradii)  # proportional radii of the star
 
-    line, theta = get_line_at_radius(image, radii, Nangles)
+    line, theta = get_line_at_radius(image, pradii, Nangles)
     M = fit_sinusoid(line, theta, p.n_sectors/2)
 
     # convert from contrast as a function of radius to contrast as a function
     # of spatial frequency
-    frequency = phantom.ratio/r
+    frequency = phantom.ratio/pradii
 
     return frequency, M
 
 
-def get_line_at_radius(image, radius, N):
+def get_line_at_radius(image, fradius, N):
     """Returns an Nx1 array of the values of the image at a radius.
 
     parameters
     ----------
     image: ndarray
         A centered image of the seimens star.
-    radius: float, Mx1 ndarray
-        The radius(i) at which to extract the line. Given as a float in the
-        range (0, 1)
+    fradius: float, Mx1 ndarray
+        The radius(i) fractions of the image at which to extract the line.
+        Given as a float in the range (0, 1)
     N: integer > 0
         the number of points to sample around the circumference of the circle
 
@@ -307,21 +320,21 @@ def get_line_at_radius(image, radius, N):
     """
     if image.shape[0] != image.shape[1]:
         raise ValueError('image must be square.')
-    if np.any(0 >= radius) or np.any(radius >= 1):
-        raise ValueError('radius must be in the range (0, 1)')
+    if np.any(0 >= fradius) or np.any(fradius >= 1):
+        raise ValueError('fradius must be in the range (0, 1)')
     if N < 1:
         raise ValueError('Sampling less than 1 point is not useful.')
 
     # add singleton dimension to enable matrix multiplication
-    radius = np.expand_dims(np.array(radius), 0)
-    M = radius.size
+    fradius = np.expand_dims(np.array(fradius), 0)
+    M = fradius.size
 
     # calculate the angles to sample
     theta = np.expand_dims((np.arange(0, N)/N) * 2 * np.pi, 1)
 
     # convert the angles to xy coordinates
-    x = radius*np.cos(theta)
-    y = radius*np.sin(theta)
+    x = fradius*np.cos(theta)
+    y = fradius*np.sin(theta)
 
     # round to nearest integer location and shift to center
     image_half = image.shape[0]/2

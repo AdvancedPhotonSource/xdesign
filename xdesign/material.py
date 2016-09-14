@@ -528,8 +528,9 @@ class SiemensStar(Phantom):
     Attributes
     ----------
     ratio : scalar
-        The spatial frequency times the radius. e.g to get the frequency, f,
-        divide this ratio by the radius: f = ratio/radius
+        The spatial frequency times the proportional radius. e.g to get the
+        frequency, f, divide this ratio by some fraction of the maximum radius:
+        f = ratio/radius_fraction
     """
     def __init__(self, n_sectors=4, center=Point(0.5, 0.5), radius=0.5):
         """
@@ -562,8 +563,9 @@ class SiemensStar(Phantom):
             f = Feature(Triangle(points[2*i], points[2*i+1], center))
             self.append(f)
 
-        self.ratio = n_points / (4 * np.pi)
+        self.ratio = n_points / (4 * np.pi * radius)
         self.n_sectors = n_sectors
+
 
 class Foam(Phantom):
     """Generates a phantom with structure similar to foam."""
