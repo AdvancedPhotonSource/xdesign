@@ -528,26 +528,26 @@ class SiemensStar(Phantom):
     Attributes
     ----------
     ratio : scalar
-        The width of a sector along tangent of circle divided by the radius of
-        the circle. ratio = t/r
+        The spatial frequency times the radius. e.g to get the frequency, f,
+        divide this ratio by the radius: f = ratio/radius
     """
-    def __init__(self, n_sectors=2, center=Point(0.5, 0.5), radius=0.5):
+    def __init__(self, n_sectors=4, center=Point(0.5, 0.5), radius=0.5):
         """
         Parameters
         ----------
-        n_sectors: int >= 2
-            The number of white triangles only.
+        n_sectors: int >= 4
+            The number of spokes/blades on the star.
         center: Point
         radius: scalar > 0
         """
         super(SiemensStar, self).__init__()
-        if n_sectors < 2:
-            raise ValueError("Must have more than 2 sectors.")
+        if n_sectors < 4:
+            raise ValueError("Must have >= 4 sectors.")
         if radius <= 0:
             raise ValueError("radius must be greater than zero.")
         if not isinstance(center, Point):
             raise TypeError("center must be of type Point.!")
-        n_points = 2 * n_sectors
+        n_points = n_sectors
 
         # generate an even number of points around the unit circle
         points = []
@@ -558,12 +558,12 @@ class SiemensStar(Phantom):
         assert(len(points) == n_points)
 
         # connect pairs of points to the center to make triangles
-        for i in range(0, n_sectors):
+        for i in range(0, n_sectors//2):
             f = Feature(Triangle(points[2*i], points[2*i+1], center))
             self.append(f)
 
-        self.ratio = 2 * np.tan(np.pi/n_points)
-
+        self.ratio = n_points / (4 * np.pi)
+        self.n_sectors = n_sectors
 
 class Foam(Phantom):
     """Generates a phantom with structure similar to foam."""
