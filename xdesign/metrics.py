@@ -289,7 +289,7 @@ def compute_mtf_siemens(phantom, image):
     pradii = 1/1.05**np.arange(1, Nradii)  # proportional radii of the star
 
     line, theta = get_line_at_radius(image, pradii, Nangles)
-    M = fit_sinusoid(line, theta, p.n_sectors/2)
+    M = fit_sinusoid(line, theta, phantom.n_sectors/2)
 
     # convert from contrast as a function of radius to contrast as a function
     # of spatial frequency
@@ -369,17 +369,19 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
 
     returns:
     --------
-    MTFR: Mx1 ndarray
+    MTFR: 1xM ndarray
         The modulation part of the MTF at each of the M radii
     """
+    M = value.shape[1]
+
     # Distance to the target function
     def errorfunc(p, x, y): return periodic_function(p, x) - y
 
     time = np.linspace(0, 2*np.pi, 100)
 
-    MTFR = np.ndarray(value.shape[1])
+    MTFR = np.ndarray((1, M))
     x = (f*angle).squeeze()
-    for radius in range(0, value.shape[1]):
+    for radius in range(0, M):
         p1, success = optimize.leastsq(errorfunc, p0[:],
                                        args=(x, value[:, radius]))
 
@@ -388,11 +390,12 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
         # plt.plot(angle, value[:, radius], "ro",
         #          time, periodic_function(p1, f*time), "r-")
 
-        MTFR[radius] = np.sqrt(p1[1]**2 + p1[2]**2)/p1[0]
+        MTFR[:, radius] = np.sqrt(p1[1]**2 + p1[2]**2)/p1[0]
 
     # cap the MTF at unity
     MTFR[MTFR > 1.] = 1.
     assert(not np.any(MTFR < 0)), MTFR
+    assert(MTFR.shape == (1, M)), MTFR.shape
     return MTFR
 
 
