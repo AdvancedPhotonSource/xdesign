@@ -233,10 +233,10 @@ class Phantom(object):
         for m in range(self.population):
             self.feature[m].translate(dx, dy)
 
-    def rotate(self, theta, origin=Point(0.5, 0.5)):
+    def rotate(self, theta, origin=Point([0.5, 0.5]), axis=None):
         """Rotate phantom around a point."""
         for m in range(self.population):
-            self.feature[m].rotate(theta, origin)
+            self.feature[m].rotate(theta, origin, axis)
 
     # IMPORT AND EXPORT
     def numpy(self):
@@ -260,7 +260,7 @@ class Phantom(object):
         arr = np.loadtxt(filename, delimiter=',')
         for m in range(arr.shape[0]):
             self.append(Feature(
-                        Circle(Point(arr[m, 0], arr[m, 1]), arr[m, 2]),
+                        Circle(Point([arr[m, 0], arr[m, 1]]), arr[m, 2]),
                         arr[m, 3]))
 
     # PRIVATE METHODS
@@ -285,7 +285,7 @@ class Phantom(object):
             raise NotImplementedError
         else:
             radius = 0.5
-            center = Point(0.5, 0.5)
+            center = Point([0.5, 0.5])
 
         if self.shape == 'square':
             x = np.random.uniform(margin - radius, radius - margin) + center.x
@@ -296,7 +296,7 @@ class Phantom(object):
             x = r * np.cos(a) + center.x
             y = r * np.sin(a) + center.y
 
-        return Point(x, y)
+        return Point([x, y])
 
     def _collision(self, circle):
         """Check if a circle is collided with another circle.

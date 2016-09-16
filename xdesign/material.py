@@ -168,7 +168,7 @@ class HyperbolicConcentric(Phantom):
         """
 
         super(HyperbolicConcentric, self).__init__(shape='circle')
-        center = Point(0.5, 0.5)
+        center = Point([0.5, 0.5])
         Nmax_rings = 512
 
         radii = [0]
@@ -225,7 +225,7 @@ class DynamicRange(Phantom):
 
             # place the circles
             for i in range(0, steps):
-                center = Point(px[i] + jitters[0, i], py[i] + jitters[1, i])
+                center = Point([px[i] + jitters[0, i], py[i] + jitters[1, i]])
                 self.append(Feature(
                             Circle(center, radius), mass_atten=colors[i]))
         else:
@@ -306,7 +306,7 @@ class DogaCircles(Phantom):
 
         for (k, x, y) in zip(radii.flatten(), _x.flatten(),
                              _y.flatten()):
-            self.append(Feature(Circle(Point(x, y), k)))
+            self.append(Feature(Circle(Point([x, y]), k)))
 
         self.radii = radii
         self.x = _x
@@ -398,7 +398,7 @@ class SlantedSquares(Phantom):
         # add the squares to the phantom
         side_length = d_max/np.sqrt(2)
         for i in range(0, x.size):
-            center = Point(x[i], y[i])
+            center = Point([x[i], y[i]])
             s = Square(center, side_length)
             s.rotate(angle, center)
             self.append(Feature(s))
@@ -418,7 +418,7 @@ class UnitCircle(Phantom):
     def __init__(self, radius=0.5, mass_atten=1):
         super(UnitCircle, self).__init__()
         self.append(Feature(
-                    Circle(Point(0.5, 0.5), radius), mass_atten))
+                    Circle(Point([0.5, 0.5]), radius), mass_atten))
 
 
 class Soil(Phantom):
@@ -438,7 +438,7 @@ class Soil(Phantom):
         # use overlap to approximate area opening transform because opening is
         # not discrete
         self.sprinkle(100, 0.02, 0.01, mass_atten=-.25)
-        background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=0.5)
+        background = Feature(Circle(Point([0.5, 0.5]), 0.5), mass_atten=0.5)
         self.insert(0, background)
 
 
@@ -450,7 +450,7 @@ class WetCircles(Phantom):
 
         self.sprinkle(30, [0.1, 0.03], 0.005, mass_atten=0.5,
                       max_density=1 - porosity)
-        background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=0.5)
+        background = Feature(Circle(Point([0.5, 0.5]), 0.5), mass_atten=0.5)
         self.insert(0, background)
 
         pairs = [(23, 12), (12, 19), (29, 11), (22, 5), (1, 3), (21, 9),
@@ -515,9 +515,9 @@ def wet_circles(A, B, thetaA, thetaB):
 
     m = Mesh()
     for t in tri.simplices:
-        m.append(Triangle(Point(points[t[0], 0], points[t[0], 1]),
-                          Point(points[t[1], 0], points[t[1], 1]),
-                          Point(points[t[2], 0], points[t[2], 1])))
+        m.append(Triangle(Point([points[t[0], 0], points[t[0], 1]]),
+                          Point([points[t[1], 0], points[t[1], 1]]),
+                          Point([points[t[2], 0], points[t[2], 1]])))
 
     return m
 
@@ -531,7 +531,7 @@ class SiemensStar(Phantom):
         The width of a sector along tangent of circle divided by the radius of
         the circle. ratio = t/r
     """
-    def __init__(self, n_sectors=2, center=Point(0.5, 0.5), radius=0.5):
+    def __init__(self, n_sectors=2, center=Point([0.5, 0.5]), radius=0.5):
         """
         Parameters
         ----------
@@ -554,7 +554,7 @@ class SiemensStar(Phantom):
         for t in (np.arange(0, n_points)/n_points) * 2 * np.pi:
             x = radius*np.cos(t) + center.x
             y = radius*np.sin(t) + center.y
-            points.append(Point(x, y))
+            points.append(Point([x, y]))
         assert(len(points) == n_points)
 
         # connect pairs of points to the center to make triangles
@@ -574,7 +574,7 @@ class Foam(Phantom):
             raise ValueError('Porosity must be in the range [0,1).')
         self.sprinkle(300, size_range, gap, mass_atten=-1,
                       max_density=porosity)
-        background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=1)
+        background = Feature(Circle(Point([0.5, 0.5]), 0.5), mass_atten=1)
         self.insert(0, background)
 
 

@@ -51,7 +51,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 from xdesign.geometry import *
-from xdesign.geometry import beamintersect, beamcirc, rotate
+from xdesign.geometry import beamintersect, beamcirc
 import logging
 import polytope as pt
 
@@ -129,10 +129,10 @@ class Probe(Beam):
         self.p1 += vec
         self.p2 += vec
 
-    def rotate(self, theta, origin):
+    def rotate(self, theta, origin=None, axis=None):
         """Rotates beam around a given point."""
-        self.p1 = rotate(self.p1, theta, origin)
-        self.p2 = rotate(self.p2, theta, origin)
+        self.p1 = self.p1.rotate(theta, origin)
+        self.p2 = self.p2.rotate(theta, origin)
 
     def measure(self, phantom, noise=False):
         """Return the probe measurement given phantom. When noise is > 0,
@@ -228,7 +228,7 @@ def raster_scan(sx, sy):
             yield p
             p.translate(step)
         p.translate(-1)
-        p.rotate(theta, Point(0.5, 0.5))
+        p.rotate(theta, Point([0.5, 0.5]))
 
 
 def angle_scan(sx, sy):

@@ -56,6 +56,7 @@ from matplotlib.path import Path
 from numbers import Number
 import polytope as pt
 from cached_property import cached_property
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -81,129 +82,185 @@ class Entity(object):
     have these methods."""
 
     def __init__(self):
-        pass
+        self._dim = 0
 
-    def translate(self, dx, dy):
-        """Translate entity."""
+    @property
+    def dim(self):
+        """The dimensionality of the entity"""
+        return self._dim
+
+    def translate(self, vector):
+        """Translate entity along vector."""
         raise NotImplementedError
 
-    def rotate(self, theta, point):
-        """Rotate entity around a point."""
+    def rotate(self, theta, point=None, axis=None):
+        """Rotate entity around an axis which passes through a point by theta
+        radians."""
         raise NotImplementedError
 
-    def scale(self, val):
-        """Scale entity."""
+    def scale(self, vector):
+        """Scale entity in each dimension according to vector. Scaling is
+        centered on the origin."""
         raise NotImplementedError
 
-    def contains(self, x, y):
-        """Returns True if the points are contained by the entity.
-
-        Parameters
-        ------------
-        x, y: numpy array like
-            A list of coordinates to query whether they are in within the
-            boundaries of the entity"""
+    def contains(self, point):
+        """Returns True if the point is within the bounds of the entity."""
         raise NotImplementedError
 
-    def collision(self, entity):
-        """Check if entity collides with another entity."""
+    def collision(self, other):
+        """Returns True if this entity collides with another entity."""
         raise NotImplementedError
 
-    def distance(self, entity):
+    def distance(self, other):
         """Return the closest distance between entities."""
         raise NotImplementedError
 
+    def midpoint(self, other):
+        """Return the midpoint between entities."""
+        return self.distance(other) / 2.
+
 
 class Point(Entity):
-    """Point in 2-D cartesian space.
+    """A point in ND cartesian space.
 
     Attributes
     ----------
+    _x : 1darray
+        ND coordinates of the point.
     x : scalar
+        dimension 0 of the point.
     y : scalar
+        dimension 1 of the point.
+    z : scalar
+        dimension 2 of the point.
+    norm : scalar
+        The norm of the point.
     """
+    def __init__(self, x):
+        if not isinstance(x, (list, np.ndarray, Number)):
+            raise TypeError("x must be scalar, list, or array of coordinates.")
 
-    def __init__(self, x, y):
-        if not (isinstance(x, Number) and isinstance(x, Number)):
-            raise TypeError("x, y must be scalars.")
         super(Point, self).__init__()
-        self.x = float(x)
-        self.y = float(y)
+        self._x = np.array(x, dtype=float, ndmin=1)
+        self._x = np.ravel(self._x)
+        self._dim = self._x.size
 
+    @property
+    def x(self):
+        return self._x[0]
+
+    @property
+    def y(self):
+        return self._x[1]
+
+    @property
+    def z(self):
+        return self._x[2]
+
+    @property
+    def norm(self):
+        """Reference: http://stackoverflow.com/a/23576322"""
+        return np.sqrt(np.einsum('i,i', self._x, self._x))
+
+    @property
+    def dim(self):
+        return self._dim
+
+    def translate(self, vector):
+        """Translate point along vector."""
+        if not isinstance(vector, (List, np.ndarray)):
+            raise TypeError("vector must be arraylike.")
+
+        self._x += vector
+
+    def rotate(self, theta, origin=None, axis=None):
+        """Rotate entity around an axis by theta radians."""
+        if not isinstance(theta, Number):
+            raise TypeError("theta must be scalar.")
+        if origin is None:
+            center = np.zeros(self.dim)
+        elif isinstance(origin, Point):
+            center = origin._x
+        else:
+            raise TypeError("origin must be Point.")
+        if axis is not None:
+            raise NotImplementedError
+
+        # shift rotation center to origin
+        self._x -= center
+        # do rotation
+        R = np.array([[np.cos(theta), -np.sin(theta)],
+                      [np.sin(theta),  np.cos(theta)]])
+        self._x = np.dot(R, self._x)
+        # shift rotation center back
+        self._x += center
+
+    def scale(self, vector):
+        """Scale entity in each dimension according to vector. Scaling is
+        centered on the origin"""
+        if not isinstance(vector, (List, np.ndarray)):
+            raise TypeError("vector must be arraylike.")
+
+        self._x *= vector
+
+    def contains(self, other):
+        """Returns True if the point is within the bounds of the entity."""
+        if isinstance(other, Point):
+            return self == point
+        if isinstance(other, (List, np.ndarray)):
+            return np.all(self._x == other)
+        else:  # points can only contain points
+            return False
+
+    def collision(self, other):
+        """Returns True if this entity collides with another entity."""
+        if isinstance(other, Point):
+            return self == point
+        else:
+            raise NotImplementedError
+
+    def distance(self, other):
+        """Return the closest distance between entities."""
+        if not isinstance(other, Point):
+            raise NotImplementedError("Point to point distance only.")
+        d = self._x - other._x
+        return np.sqrt(np.einsum('i,i', d, d))
+
+    # OVERLOADS
     def __eq__(self, point):
-        return (self.x, self.y) == (point.x, point.y)
-
-    def __hash__(self):
-        return hash((self.x, self.y))
+        if not isinstance(point, Point):
+            raise TypeError("Points can only equal to other points.")
+        return np.array_equal(self._x, point._x)
 
     def __add__(self, point):
         """Addition."""
         if not isinstance(point, Point):
             raise TypeError("Points can only add to other points.")
-        return Point(self.x + point.x, self.y + point.y)
+        return Point(self._x + point._x)
 
     def __sub__(self, point):
         """Subtraction."""
         if not isinstance(point, Point):
             raise TypeError("Points can only subtract from other points.")
-        return Point(self.x - point.x, self.y - point.y)
+        return Point(self._x - point._x)
 
     def __mul__(self, c):
-        """Scalar multiplication."""
+        """Scalar, vector multiplication."""
         if not isinstance(c, Number):
             raise TypeError("Points can only multiply scalars.")
-        return Point(c * self.x, c * self.y)
+        return Point(self._x * c)
 
     def __truediv__(self, c):
-        """Scalar division."""
+        """Scalar, vector division."""
         if not isinstance(c, Number):
-            raise TypeError("Points can only divide by scalars.")
-        return Point(self.x / c, self.y / c)
+            raise TypeError("Points can only divide scalars.")
+        return Point(self._x / c)
 
     def __str__(self):
-        return "(%s, %s)" % (self.x, self.y)
+        return "Point(%s" % ', '.join([str(n) for n in self._x]) + ")"
 
-    @property
-    def list(self):
-        """Return list representation."""
-        return [self.x, self.y]
-
-    @property
-    def norm(self):
-        """Return the norm of the point."""
-        return np.hypot(self.x, self.y)
-
-    def translate(self, dx, dy):
-        """Translate."""
-        if not (isinstance(dx, Number) and isinstance(dy, Number)):
-            raise TypeError("dx, dy must be scalars.")
-        self.x += dx
-        self.y += dy
-
-    def rotate(self, theta, point=None):
-        """Rotate around a point."""
-        if not isinstance(theta, Number):
-            raise TypeError("theta must be scalar.")
-        if point is not None and not isinstance(point, Point):
-            raise TypeError("must rotate a point around a point.")
-        if point is None:
-            point = Point(0, 0)
-        dx = self.x - point.x
-        dy = self.y - point.y
-        px = dx * np.cos(theta) - dy * np.sin(theta)
-        py = dx * np.sin(theta) + dy * np.cos(theta)
-        self.x = px + point.x
-        self.y = py + point.y
-
-    def distance(self, entity):
-        """Return the distance from an entity."""
-        if not isinstance(entity, Point):
-            raise NotImplementedError("Point to point distance only.")
-        return np.hypot(self.x - entity.x, self.y - entity.y)
-
-    def midpoint(self, entity):
-        """Return the midpoint between entity and a point."""
-        return self.distance(entity) / 2.
+    def __hash__(self):
+        return hash(self._x[:])
 
 
 class LinearEntity(Entity):
@@ -213,29 +270,32 @@ class LinearEntity(Entity):
     ----------
     p1 : Point
     p2 : Point
+    vertical : bool
+    horizontal : bool
+    slope : scalar
+    points : list
+    normal : Point
+    tangent : Point
+    dim : scalar
     """
-
     def __init__(self, p1, p2):
         if p1 == p2:
             raise ValueError('Requires two unique points.')
+        if p1.dim != p2.dim:
+            raise ValueError('Two points must have same dimensionality.')
         self.p1 = p1
         self.p2 = p2
+        self._dim = p1.dim
 
     @property
     def vertical(self):
         """True if line is vertical."""
-        if self.p1.x == self.p2.x:
-            return True
-        else:
-            return False
+        return self.p1.x == self.p2.x
 
     @property
     def horizontal(self):
         """True if line is horizontal."""
-        if self.p1.y == self.p2.y:
-            return True
-        else:
-            return False
+        return self.p1.y == self.p2.y
 
     @property
     def slope(self):
@@ -243,39 +303,29 @@ class LinearEntity(Entity):
         if self.vertical:
             return np.inf
         else:
-            return (self.p2.y - self.p1.y) / (self.p2.x - self.p1.x)
-
-    @property
-    def __str__(self):
-        """Return line equation."""
-        raise NotImplementedError
-
-    @property
-    def list(self):
-        """Return list representation."""
-        return [self.p1.x, self.p1.y, self.p2.x, self.p2.y]
+            return ((self.p2.y - self.p1.y) /
+                    (self.p2.x - self.p1.x))
 
     @property
     def points(self):
         """The two points used to define this linear entity."""
         return (self.p1, self.p2)
 
-    @property
-    def bounds(self):
-        """Return a tuple (xmin, ymin, xmax, ymax) representing the
-        bounding rectangle for the geometric figure.
-        """
-        xs = [p.x for p in self.points]
-        ys = [p.y for p in self.points]
-        return (min(xs), min(ys), max(xs), max(ys))
+    # @property
+    # def bounds(self):
+    #     """Return a tuple (xmin, ymin, xmax, ymax) representing the
+    #     bounding rectangle for the geometric figure.
+    #     """
+    #     xs = [p.x for p in self.points]
+    #     ys = [p.y for p in self.points]
+    #     return (min(xs), min(ys), max(xs), max(ys))
 
     @property
     def tangent(self):
         """Return unit tangent vector."""
         length = self.p1.distance(self.p2)
-        dx = (self.p1.x - self.p2.x) / length
-        dy = (self.p1.y - self.p2.y) / length
-        return Point(dx, dy)
+        dx = (self.p1._x - self.p2._x) / length
+        return Point(dx)
 
     @property
     def normal(self):
@@ -283,17 +333,23 @@ class LinearEntity(Entity):
         length = self.p1.distance(self.p2)
         dx = (self.p1.x - self.p2.x) / length
         dy = (self.p1.y - self.p2.y) / length
-        return Point(-dy, dx)
+        return Point([-dy, dx])
 
-    def translate(self, dx, dy):
-        """Translate."""
-        self.p1 = translate(self.p1, dx, dy)
-        self.p2 = translate(self.p2, dx, dy)
+    @property
+    def dim(self):
+        """The dimensionality of the entity"""
+        return self._dim
 
-    def rotate(self, theta, point=Point(0, 0)):
-        """Rotate around a point."""
-        self.p1 = rotate(self.p1, theta, point)
-        self.p2 = rotate(self.p2, theta, point)
+    def translate(self, vector):
+        """Translate entity along vector."""
+        self.p1.translate(vector)
+        self.p2.translate(vector)
+
+    def rotate(self, theta, origin=None, axis=None):
+        """Rotate entity around an axis which passes through an origin by theta
+        radians."""
+        self.p1.rotate(theta, origin, axis)
+        self.p2.rotate(theta, origin, axis)
 
 
 class Line(LinearEntity):
@@ -309,10 +365,6 @@ class Line(LinearEntity):
 
     def __init__(self, p1, p2):
         super(Line, self).__init__(p1, p2)
-        if p1 == p2:
-            raise ValueError('Requires two unique points.')
-        self.p1 = p1
-        self.p2 = p2
 
     def __eq__(self, line):
         return (self.slope, self.yintercept) == (line.slope, line.yintercept)
@@ -348,16 +400,6 @@ class Line(LinearEntity):
         C = B*self.p1.y + A*self.p1.x
         return A, B, C
 
-    def translate(self, dx, dy):
-        """Translate."""
-        self.p1 = translate(self.p1, dx, dy)
-        self.p2 = translate(self.p2, dx, dy)
-
-    def rotate(self, theta, point=Point(0, 0)):
-        """Rotate around a point."""
-        self.p1 = rotate(self.p1, theta, point)
-        self.p2 = rotate(self.p2, theta, point)
-
 
 class Ray(LinearEntity):
     """Ray in 2-D cartesian space.
@@ -372,10 +414,6 @@ class Ray(LinearEntity):
 
     def __init__(self, p1, p2):
         super(Ray, self).__init__(p1, p2)
-        if p1 == p2:
-            raise ValueError('Requires two unique points.')
-        self.p1 = p1
-        self.p2 = p2
 
     @property
     def source(self):
@@ -401,10 +439,6 @@ class Segment(LinearEntity):
 
     def __init__(self, p1, p2):
         super(Segment, self).__init__(p1, p2)
-        if p1 == p2:
-            raise ValueError('Requires two unique points.')
-        self.p1 = p1
-        self.p2 = p2
 
     @property
     def length(self):
@@ -425,10 +459,25 @@ class CurvedEntity(Entity):
     ----------
     center : Point
     """
-
     def __init__(self, center):
+        if not isinstance(center, Point):
+            raise TypeError("center must be a Point.")
         super(CurvedEntity, self).__init__()
         self.center = center
+
+    def translate(self, vector):
+        """Translate."""
+        if not isinstance(vector, (Point, list, nd.array)):
+            raise TypeError("vector must be point, list, or array.")
+        self.center.translate(vector)
+
+    def rotate(self, theta, origin=None, axis=None):
+        """Rotate around a point."""
+        self.center.rotate(theta, origin, axis)
+
+    def scale(self, val):
+        """Scale."""
+        raise NotImplementedError
 
     @property
     def __str__(self):
@@ -445,18 +494,6 @@ class CurvedEntity(Entity):
         """Return Numpy representation."""
         return np.array(self.list)
 
-    def translate(self, dx, dy):
-        """Translate."""
-        self.center = translate(self.center, dx, dy)
-
-    def rotate(self, theta, point=Point(0, 0)):
-        """Rotate around a point."""
-        self.center = rotate(self.center, theta, point)
-
-    def scale(self, val):
-        """Scale."""
-        raise NotImplementedError
-
 
 class Superellipse(CurvedEntity):
     """Superellipse in 2-D cartesian space.
@@ -471,7 +508,6 @@ class Superellipse(CurvedEntity):
 
     def __init__(self, center, a, b, n):
         super(Superellipse, self).__init__(center)
-        self.center = center
         self.a = float(a)
         self.b = float(b)
         self.n = float(n)
@@ -499,7 +535,6 @@ class Ellipse(Superellipse):
 
     def __init__(self, center, a, b):
         super(Ellipse, self).__init__(center, a, b, 2)
-        self.center = center
         self.a = float(a)
         self.b = float(b)
 
@@ -532,7 +567,6 @@ class Circle(Ellipse):
 
     def __init__(self, center, radius):
         super(Circle, self).__init__(center, radius, radius)
-        self.center = center
         self.radius = float(radius)
 
     def __eq__(self, circle):
@@ -568,8 +602,14 @@ class Circle(Ellipse):
         """Scale."""
         self.rad *= val
 
-    def contains(self, px, py):
-        return (((px-self.center.x)**2 + (py-self.center.y)**2) <=
+    def contains(self, p):
+        if isinstance(p, Point):
+            x = p._x
+        elif isinstance(p, (np.ndarray, list)):
+            x = p
+        else:
+            raise TypeError("P must be point, array, or list")
+        return (((x[0]-self.center.x)**2 + (x[1]-self.center.y)**2) <=
                 self.radius**2)
 
 
@@ -635,17 +675,17 @@ class Polygon(Entity):
     def patch(self):
         return plt.Polygon(self.numpy)
 
-    def translate(self, dx, dy):
+    def translate(self, vector):
         """Translate polygon."""
         for v in self.vertices:
-            v.translate(dx, dy)
+            v.translate(vector)
 
-    def rotate(self, theta, point):
+    def rotate(self, theta, origin=None, axis=None):
         """Rotate polygon around a point."""
         for v in self.vertices:
-            v.rotate(theta, point)
+            v.rotate(theta, origin, axis)
 
-    def contains(self, px, py):
+    def contains(self, other):
         points = np.vstack((px.flatten(), py.flatten())).transpose()
         border = Path(self.numpy)
         bools = border.contains_points(points)
@@ -686,7 +726,7 @@ class Triangle(Polygon):
 
     @property
     def center(self):
-        center = Point(0, 0)
+        center = Point([0, 0])
         for v in self.vertices:
             center += v
         return center / 3
@@ -769,7 +809,7 @@ class Mesh(Entity):
 
     @property
     def center(self):
-        center = Point(0, 0)
+        center = Point([0, 0])
         if self.area > 0:
             for f in self.faces:
                 center += f.center * f.area
@@ -802,10 +842,10 @@ class Mesh(Entity):
         for t in self.faces:
             t.translate(dx, dy)
 
-    def rotate(self, theta, point):
+    def rotate(self, theta, origin=None, axis=None):
         """Rotate entity around a point."""
         for t in self.faces:
-            t.rotate(theta, point)
+            t.rotate(theta, origin, axis)
 
     def scale(self, val):
         """Scale entity."""
@@ -839,34 +879,6 @@ class Mesh(Entity):
         for face in self.faces:
             regions.append(face.half_space)
         return pt.Region(regions)
-
-
-def rotate(point, theta, origin):
-    """Rotates a point in counter-clockwise around another point.
-    Parameters
-    ----------
-    point : Point
-        An arbitrary point.
-    theta : scalar
-        Rotation angle in radians.
-    origin : Point
-        The origin of rotation axis.
-    Returns
-    -------
-    Point
-        Rotated point.
-    """
-    dx = point.x - origin.x
-    dy = point.y - origin.y
-    px = dx * np.cos(theta) - dy * np.sin(theta)
-    py = dx * np.sin(theta) + dy * np.cos(theta)
-    return Point(px + origin.x, py + origin.y)
-
-
-def translate(point, dx, dy):
-    """Translate point."""
-    point.x += dx
-    point.y += dy
 
 
 def segment(circle, x):
@@ -922,10 +934,10 @@ def beamcirc(beam, circle):
     """
 
     # Passive coordinate transformation.
-    _center = rotate(
-        point=circle.center,
+    _center = copy.copy(circle.center)
+    _center.rotate(
         theta=-np.arctan(beam.slope),
-        origin=Point(0, beam.yintercept))
+        origin=Point([0, beam.yintercept]))
 
     # Correction if line is vertical to x-axis.
     if beam.vertical:
