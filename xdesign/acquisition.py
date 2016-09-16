@@ -218,7 +218,7 @@ def raster_scan(sx, sy):
     theta = np.pi / sx
 
     # Fixed probe location.
-    p = Probe(Point(step / 2., -10), Point(step / 2., 10), step)
+    p = Probe(Point([step / 2., -10]), Point([step / 2., 10]), step)
 
     for m in range(sx):
         for n in range(sy):
@@ -246,15 +246,15 @@ def angle_scan(sx, sy):
     step = 0.1 / sy
 
     # Fixed rotation points.
-    p1 = Point(0, 0.5)
-    p2 = Point(0.5, 0.5)
+    p1 = Point([0, 0.5])
+    p2 = Point([0.5, 0.5])
 
     # Step size of the rotation angle.
     beta = np.pi / (sx + 1)
     alpha = np.pi / sy
 
     # Fixed probe location.
-    p = Probe(Point(step / 2., -10), Point(step / 2., 10), step)
+    p = Probe(Point([step / 2., -10]), Point([step / 2., 10]), step)
 
     for m in range(sx):
         for n in range(sy):

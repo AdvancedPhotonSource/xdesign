@@ -400,8 +400,15 @@ class Line(LinearEntity):
     def standard(self):
         """Returns coeffients for the first N-1 standard equation coefficients.
         The Nth is not returned and is assumed to be 1."""
-        A = np.vstack((self.p1._x, self.p2._x))
-        return calc_standard(A)
+        if self.vertical:
+            x = np.zeros(self.dim)
+            x[0] = 1./self.p1.x
+        elif self.horizontal:
+            x = np.zeros(self.dim)
+            x[1] = 1./self.p1.y
+        else:
+            A = np.vstack((self.p1._x, self.p2._x))
+            return calc_standard(A)
 
 
 class Ray(LinearEntity):
@@ -902,7 +909,14 @@ def calc_standard(A):
     if not isinstance(A, np.ndarray):
         raise TypeError("A must be square array.")
 
-    return scipy.linalg.solve(A, np.ones(A.shape[0]))
+    try:
+        x = scipy.linalg.solve(A, np.ones(A.shape[0]))
+    except scipy.linalg.LinAlgError:
+        print("")
+        print(A)
+        raise scipy.linalg.LinAlgError
+
+    return x
 
 
 def beamintersect(beam, geometry):
