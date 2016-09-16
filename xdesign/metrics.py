@@ -60,7 +60,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy.stats import norm, exponnorm, expon, ttest_ind
-from phasepack import phasecongmono as _phasecongmono
+#from phasepack import phasecongmono as _phasecongmono
 
 logger = logging.getLogger(__name__)
 

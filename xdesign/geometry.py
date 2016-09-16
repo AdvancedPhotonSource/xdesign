@@ -51,7 +51,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 import logging
-from cached_property import cached_property
+#from cached_property import cached_property
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from numbers import Number
@@ -715,7 +715,7 @@ class Mesh(Entity):
         self.population = 0
         self.radius = 0
 
-    @cached_property
+    #@cached_property
     def center(self):
         center = Point(0, 0)
         if self.area > 0:

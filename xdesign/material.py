@@ -56,7 +56,8 @@ from xdesign.geometry import *
 from xdesign.feature import *
 from xdesign.plot import *
 from scipy.spatial import Delaunay
-from xdesign.constants import PI
+from xdesign.constants import PI, AVOGADRO_NUMBER
+import xraylib
 
 logger = logging.getLogger(__name__)
 
@@ -86,55 +87,80 @@ class Material(object):
         self.formula = formula
         self.density = density
 
-    @property
+
+    #@property
+    def molecular_weight(self):
+        compound_data = xraylib.CompoundParser(self.formula)
+        mass_frac = compound_data['massFractions']
+        n_atoms = compound_data['nAtomsAll']
+        elements = compound_data['Elements']
+        n_elements = compound_data['nElements']
+        stoic = 0.
+        for i in range(n_elements):
+            stoic += mass_frac[i] / xraylib.AtomicWeight(elements[i])
+        mw = n_atoms / stoic
+        return mw
+
+    #@property
     def compton_cross_section(self, energy):
-        """Compton cross-section of the electron [cm^2]."""
-        raise NotImplementedError
+        """Compton cross-section of the electron [cm^2/g]."""
+        return xraylib.CS_Compt_CP(self.formula, energy)
 
-    @property
+    #@property
     def photoelectric_cross_section(self, energy):
-        raise NotImplementedError
+        return xraylib.CS_Photo_CP(self.formula, energy)
 
-    @property
-    def atomic_form_factor(self, energy):
+    #@property
+    def compton_atomic_form_factor(self, energy, theta):
         """Measure of the scattering amplitude of a wave by an isolated atom.
         Read from NIST database [Unitless]."""
         raise NotImplementedError
 
-    @property
-    def atom_concentration(self, energy):
-        """Number of atoms per unit volume [1/cm^3]."""
+    #@property
+    def rayleigh_atomic_form_factor(self, energy, theta):
+        """Measure of the scattering amplitude of a wave by an isolated atom.
+        Read from NIST database [Unitless]."""
         raise NotImplementedError
 
-    @property
+    #@property
+    def atom_concentration(self):
+        """Number of atoms per unit volume [1/cm^3]."""
+        mw = self.molecular_weight()
+        return self.density / mw * AVOGADRO_NUMBER
+
+    #@property
     def reduced_energy_ratio(self, energy):
         """Energy ratio of the incident x-ray and the electron energy
         [Unitless]."""
         raise NotImplementedError
 
-    @property
+    #@property
     def photoelectric_absorption(self, energy):
         """X-ray attenuation due to the photoelectric effect [1/cm]."""
         raise NotImplementedError
 
-    @property
+    #@property
     def compton_scattering(self, energy):
         """X-ray attenuation due to the Compton scattering [1/cm]."""
         raise NotImplementedError
 
-    @property
+    #@property
     def electron_density(self, energy):
         """Electron density [e/cm^3]."""
         raise NotImplementedError
 
-    @property
+    #@property
     def linear_attenuation(self, energy):
         """Total x-ray attenuation [1/cm]."""
         raise NotImplementedError
 
-    @property
-    def refractive_index(self, energy):
-        raise NotImplementedError
+    #@property
+    def refractive_index_delta(self, energy):
+        return 1 - xraylib.Refractive_Index_Re(self.formula, energy, self.density)
+
+    #@property
+    def refractive_index_beta(self, energy):
+        return -xraylib.Refractive_Index_Im(self.formula, energy, self.density)
 
     def mass_ratio(self):
         raise NotImplementedError
