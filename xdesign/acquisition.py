@@ -100,15 +100,15 @@ class Beam(Line):
                  Line(self.p1 - half, self.p2 - half)]
 
         A = np.ndarray((len(edges), self.dim))
-        B = np.ones(len(edges))
+        B = np.ndarray(len(edges))
 
         for i in range(0, 2):
-            A[i, :] = edges[i].standard
+            A[i, :], B[i] = edges[i].standard
 
             # test for positive or negative side of line
-            if np.einsum('i, i', self.p1._x, A[i, :]) > 1:
+            if np.einsum('i, i', self.p1._x, A[i, :]) > B[i]:
                 A[i, :] = -A[i, :]
-                B[i] = -1
+                B[i] = -B[i]
 
         p = pt.Polytope(A, B)
         return p
@@ -125,11 +125,6 @@ class Probe(Beam):
         vec = self.normal * dx
         self.p1 += vec
         self.p2 += vec
-
-    def rotate(self, theta, origin=None, axis=None):
-        """Rotates beam around a given point."""
-        self.p1 = self.p1.rotate(theta, origin)
-        self.p2 = self.p2.rotate(theta, origin)
 
     def measure(self, phantom, noise=False):
         """Return the probe measurement given phantom. When noise is > 0,

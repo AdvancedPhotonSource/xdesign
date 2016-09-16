@@ -72,6 +72,7 @@ __all__ = ['Entity',
            'Line',
            'Segment',
            'Ray',
+           'Polygon',
            'Triangle',
            'Rectangle',
            'Square',
@@ -280,6 +281,8 @@ class LinearEntity(Entity):
     dim : scalar
     """
     def __init__(self, p1, p2):
+        if not isinstance(p1, Point) or not isinstance(p2, Point):
+            raise TypeError("p1 and p2 must be points")
         if p1 == p2:
             raise ValueError('Requires two unique points.')
         if p1.dim != p2.dim:
@@ -335,6 +338,11 @@ class LinearEntity(Entity):
         dx = (self.p1.x - self.p2.x) / length
         dy = (self.p1.y - self.p2.y) / length
         return Point([-dy, dx])
+
+    @property
+    def list(self):
+        """Return list representation."""
+        return [self.p1.x, self.p1.y, self.p2.x, self.p2.y]
 
     @property
     def dim(self):
@@ -394,21 +402,15 @@ class Line(LinearEntity):
         elif self.dim == 2:
             return "y = %sx + %s" % (self.slope, self.yintercept)
         else:
-            return "%sx " % '+ '.join([str(n) for n in self.standard]) + "= 1"
+            A, B = self.standard
+            return "%sx " % '+ '.join([str(n) for n in A]) + "= " + str(B)
 
     @property
     def standard(self):
         """Returns coeffients for the first N-1 standard equation coefficients.
-        The Nth is not returned and is assumed to be 1."""
-        if self.vertical:
-            x = np.zeros(self.dim)
-            x[0] = 1./self.p1.x
-        elif self.horizontal:
-            x = np.zeros(self.dim)
-            x[1] = 1./self.p1.y
-        else:
-            A = np.vstack((self.p1._x, self.p2._x))
-            return calc_standard(A)
+        The Nth is returned separately."""
+        A = np.vstack((self.p1._x, self.p2._x))
+        return calc_standard(A)
 
 
 class Ray(LinearEntity):
@@ -714,16 +716,16 @@ class Polygon(Entity):
         """Returns the half space polytope respresentation of the polygon."""
         assert(self.dim > 0), self.dim
         A = np.ndarray((self.numverts, self.dim))
-        B = np.ones(self.numverts)
+        B = np.ndarray(self.numverts)
 
         for i in range(0, self.numverts):
             edge = Line(self.vertices[i], self.vertices[(i+1) % self.numverts])
-            A[i, :] = edge.standard
+            A[i, :], B[i] = edge.standard
 
             # test for positive or negative side of line
-            if np.einsum('i, i', self.center._x, A[i, :]) > 1:
+            if np.einsum('i, i', self.center._x, A[i, :]) > B[i]:
                 A[i, :] = -A[i, :]
-                B[i] = -1
+                B[i] = -B[i]
 
         p = pt.Polytope(A, B)
         return p
@@ -765,7 +767,7 @@ class Rectangle(Polygon):
 
     @property
     def center(self):
-        center = Point(0, 0)
+        center = Point([0, 0])
         for v in self.vertices:
             center += v
         return center / 4
@@ -897,26 +899,43 @@ class Mesh(Entity):
 
 
 def calc_standard(A):
-    """Returns the first N-1 standard equation coefficents for the hyper-plane
-    defined by the ND points in A. The Nth coefficents is not returned because
-    it is normalized to 1.
+    """Returns the standard equation (c0*x = c1) coefficents for the hyper-plane
+    defined by the row-wise ND points in A. Uses single value decomposition
+    (SVD) to solve the coefficents for the homogenous equations.
 
     Parameters
     ----------
-    A : ndarray
+    points : 2Darray
         Each row is an ND point.
+
+    Returns
+    ----------
+    c0 : 1Darray
+        The first N coeffients for the hyper-plane
+    c1 : 1Darray
+        The last coefficient for the hyper-plane
     """
     if not isinstance(A, np.ndarray):
-        raise TypeError("A must be square array.")
+        raise TypeError("A must be np.ndarray")
 
-    try:
-        x = scipy.linalg.solve(A, np.ones(A.shape[0]))
-    except scipy.linalg.LinAlgError:
-        print("")
-        print(A)
-        raise scipy.linalg.LinAlgError
+    if A.ndim == 1:  # Special case for 1D
+        return np.array([1]), A
+    if A.ndim != 2 or A.shape[0] != A.shape[1]:
+        raise ValueError("A must be 2D square.")
 
-    return x
+    # Add coordinate for last coefficient
+    A = np.pad(A, ((0, 0), (0, 1)), 'constant', constant_values=1)
+
+    atol = 1e-16
+    rtol = 0
+    u, s, vh = np.linalg.svd(A)
+    tol = max(atol, rtol * s[0])
+    nnz = (s >= tol).sum()
+    ns = vh[nnz:].conj().T
+
+    c = ns.squeeze()
+
+    return c[0:-1], -c[-1]
 
 
 def beamintersect(beam, geometry):
