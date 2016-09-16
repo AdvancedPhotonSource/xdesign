@@ -54,6 +54,7 @@ import logging
 from cached_property import cached_property
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
+from numbers import Number
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,8 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Point',
+__all__ = ['Entity',
+           'Point',
            'Superellipse',
            'Ellipse',
            'Circle',
@@ -116,6 +118,8 @@ class Point(Entity):
     """
 
     def __init__(self, x, y):
+        if not (isinstance(x, Number) and isinstance(x, Number)):
+            raise TypeError("x, y must be scalars.")
         super(Point, self).__init__()
         self.x = float(x)
         self.y = float(y)
@@ -128,18 +132,26 @@ class Point(Entity):
 
     def __add__(self, point):
         """Addition."""
+        if not isinstance(point, Point):
+            raise TypeError("Points can only add to other points.")
         return Point(self.x + point.x, self.y + point.y)
 
     def __sub__(self, point):
         """Subtraction."""
+        if not isinstance(point, Point):
+            raise TypeError("Points can only subtract from other points.")
         return Point(self.x - point.x, self.y - point.y)
 
     def __mul__(self, c):
         """Scalar multiplication."""
+        if not isinstance(c, Number):
+            raise TypeError("Points can only multiply scalars.")
         return Point(c * self.x, c * self.y)
 
     def __truediv__(self, c):
         """Scalar division."""
+        if not isinstance(c, Number):
+            raise TypeError("Points can only divide by scalars.")
         return Point(self.x / c, self.y / c)
 
     def __str__(self):
@@ -157,11 +169,17 @@ class Point(Entity):
 
     def translate(self, dx, dy):
         """Translate."""
+        if not (isinstance(dx, Number) and isinstance(dy, Number)):
+            raise TypeError("dx, dy must be scalars.")
         self.x += dx
         self.y += dy
 
     def rotate(self, theta, point=None):
         """Rotate around a point."""
+        if not isinstance(theta, Number):
+            raise TypeError("theta must be scalar.")
+        if point is not None and not isinstance(point, Point):
+            raise TypeError("must rotate a point around a point.")
         if point is None:
             point = Point(0, 0)
         dx = self.x - point.x
@@ -171,13 +189,15 @@ class Point(Entity):
         self.x = px + point.x
         self.y = py + point.y
 
-    def distance(self, point):
-        """Return the distance from a point."""
-        return np.hypot(self.x - point.x, self.y - point.y)
+    def distance(self, entity):
+        """Return the distance from an entity."""
+        if not isinstance(entity, Point):
+            raise NotImplementedError("Point to point distance only.")
+        return np.hypot(self.x - entity.x, self.y - entity.y)
 
-    def midpoint(self, point):
-        """Return the midpoint from a point."""
-        return self.distance(point) / 2.
+    def midpoint(self, entity):
+        """Return the midpoint between entity and a point."""
+        return self.distance(entity) / 2.
 
 
 class LinearEntity(Entity):
@@ -540,9 +560,9 @@ class Circle(Ellipse):
 
 
 class Polygon(Entity):
-    """Polygon in 2-D cartesian space.
+    """A convex polygon in 2-D cartesian space.
 
-    It is defined by n number of distinct points.
+    It is defined by a number of distinct points.
 
     Attributes
     ----------
@@ -550,6 +570,9 @@ class Polygon(Entity):
     """
 
     def __init__(self, vertices):
+        for v in vertices:
+            if not isinstance(v, Point):
+                raise TypeError("vertices must be of type Point.")
         super(Polygon, self).__init__()
         self.vertices = vertices
 
@@ -598,6 +621,16 @@ class Polygon(Entity):
     def patch(self):
         return plt.Polygon(self.numpy)
 
+    def translate(self, dx, dy):
+        """Translate polygon."""
+        for v in self.vertices:
+            v.translate(dx, dy)
+
+    def rotate(self, theta, point):
+        """Rotate polygon around a point."""
+        for v in self.vertices:
+            v.rotate(theta, point)
+
     def contains(self, px, py):
         points = np.vstack((px.flatten(), py.flatten())).transpose()
         border = Path(self.numpy)
@@ -614,7 +647,6 @@ class Triangle(Polygon):
     def __init__(self, p1, p2, p3):
         verts = [p1, p2, p3]
         super(Triangle, self).__init__(verts)
-        self.vertices = verts
 
     @property
     def center(self):
@@ -639,7 +671,18 @@ class Rectangle(Polygon):
     def __init__(self, p1, p2, p3, p4):
         verts = [p1, p2, p3, p4]
         super(Rectangle, self).__init__(verts)
-        self.vertices = verts
+
+    @property
+    def center(self):
+        center = Point(0, 0)
+        for v in self.vertices:
+            center += v
+        return center / 4
+
+    @property
+    def area(self):
+        return (self.vertices[0].distance(self.vertices[1]) *
+                self.vertices[1].distance(self.vertices[2]))
 
 
 class Square(Rectangle):
@@ -649,10 +692,18 @@ class Square(Rectangle):
     It is defined by four distinct points.
     """
 
-    def __init__(self, p1, p2, p3, p4):
-        verts = [p1, p2, p3, p4]
-        super(Rectangle, self).__init__(verts)
-        self.vertices = verts
+    def __init__(self, center, side_length):
+        if not isinstance(center, Point):
+            raise TypeError("center must be of type Point.")
+        if side_length <= 0:
+            raise ValueError("side_length must be greater than zero.")
+
+        s = side_length/2
+        p1 = Point(center.x + s, center.y + s)
+        p2 = Point(center.x - s, center.y + s)
+        p3 = Point(center.x - s, center.y - s)
+        p4 = Point(center.x + s, center.y - s)
+        super(Square, self).__init__(p1, p2, p3, p4)
 
 
 class Mesh(Entity):
@@ -707,7 +758,7 @@ class Mesh(Entity):
     def scale(self, val):
         """Scale entity."""
         for t in self.faces:
-            t.scale(value)
+            t.scale(val)
 
     def collision(self, entity):
         """Check if entity collides with another entity."""

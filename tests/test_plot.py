@@ -4,7 +4,7 @@
 # #########################################################################
 # Copyright (c) 2016, UChicago Argonne, LLC. All rights reserved.         #
 #                                                                         #
-# Copyright 2016. UChicago Argonne, LLC. This software was produced       #
+# Copyright 2015. UChicago Argonne, LLC. This software was produced       #
 # under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
 # Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
 # U.S. Department of Energy. The U.S. Government has rights to use,       #
@@ -46,39 +46,64 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-import setuptools
-from version_hashtag import append_dev_info
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy
+from xdesign import *
+from numpy.testing import *
+import warnings
 
-version_info = (0, 1, 0)
-version = '.'.join([str(x) for x in version_info])
-version = append_dev_info(version)
-with open('VERSION', 'w') as f:
-    f.write(version)
+__author__ = "Daniel Ching"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
 
-setuptools.setup(
-    name='xdesign',
-    version=version,
-    author='Doga Gursoy',
-    description='Benchmarking and optimization tools for tomography.',
-    packages=setuptools.find_packages(exclude=['docs']),
-    include_package_data=True,
-#    install_requires=['six', 'numpy'],
-    url='http://github.com/tomography/xdesign.git',
-    keywords=['xdesign', 'tomography'],
-    license='BSD-3',
-    platforms='Any',
-    classifiers=[
-        'Development Status :: 3 - Alpha',
-        'License :: OSI Approved :: BSD License',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-        'Operating System :: OS Independent',
-        'Topic :: Scientific/Engineering :: Physics',
-        'Topic :: Scientific/Engineering :: Chemistry',
-        'Topic :: Software Development :: Libraries',
-        'Intended Audience :: Science/Research',
-        'Intended Audience :: Education',
-        'Intended Audience :: Developers'
-    ]
-)
+
+warnings.filterwarnings("ignore", "Reached*", RuntimeWarning)
+p = Soil()
+
+
+def test_plot_phantom_plain():
+    plot_phantom(p)
+    # plt.show(block=True)
+
+
+def test_plot_phantom_color_map():
+    plot_phantom(p, labels=True, c_props=['mass_atten'])
+    # plt.show(block=True)
+
+
+def test_discrete_phantom_uniform():
+    """Tests if the uniform discrete phantom is the same after rotating the
+    phantom 90 degrees.
+    """
+    d0 = discrete_phantom(p, 100, ratio=10, prop='mass_atten')
+
+    p.rotate(np.pi/2)
+    d1 = np.rot90(discrete_phantom(p, 100, ratio=10, prop='mass_atten'))
+
+    # plot the error
+    plt.figure()
+    plt.imshow(d1-d0, interpolation=None)
+    plt.colorbar()
+
+    # plt.show(block=True)
+    assert_array_almost_equal(d0, d1)
+
+
+# def test_discrete_phantom_gaussian():
+#     """Tests if the gaussian discrete phantom is the same after rotating the
+#     phantom 90 degrees.
+#     """
+#     d0 = discrete_phantom(p, 100, ratio=10, uniform=False, prop='mass_atten')
+#
+#     p.rotate(np.pi/2)
+#     d1 = np.rot90(discrete_phantom(p, 100, ratio=10, uniform=False,
+#                   prop='mass_atten'))
+#
+#     # plot the error
+#     plt.figure()
+#     plt.imshow(d1-d0, interpolation=None)
+#     plt.colorbar()
+#
+#     # plt.show(block=True)
+#     assert_array_almost_equal(d0, d1)

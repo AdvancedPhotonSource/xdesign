@@ -54,6 +54,9 @@ import logging
 from xdesign.phantom import *
 from xdesign.geometry import *
 from xdesign.feature import *
+from xdesign.plot import *
+from scipy.spatial import Delaunay
+from xdesign.constants import PI
 
 logger = logging.getLogger(__name__)
 
@@ -61,13 +64,15 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Material',
-           'HyperbolicConcentric',
+__all__ = ['HyperbolicConcentric',
            'DynamicRange',
+           'DogaCircles',
+           'SlantedSquares',
            'UnitCircle',
+           'WetCircles',
+           'SiemensStar',
            'Soil',
-           'Foam',
-           'Electronics']
+           'Foam']
 
 
 class Material(object):
@@ -76,7 +81,7 @@ class Material(object):
     """
 
     def __init__(self, formula, density):
-        # calculate the value based on the photon energy
+        # calculate the mass_atten based on the photon energy
         super(Material, self).__init__()
         self.formula = formula
         self.density = density
@@ -141,21 +146,29 @@ class Material(object):
 class HyperbolicConcentric(Phantom):
     """Generates a series of cocentric alternating black and white circles whose
     radii are changing at a parabolic rate. These line spacings cover a range
-    of scales and can be used to estimate the Modulation Transfer Function.
+    of scales and can be used to estimate the Modulation Transfer Function. The
+    radii change according to this function: r(n) = r0*(n+1)^k.
+
+    Attributes
+    ----------
+    radii : list
+        The list of radii of the circles
+    widths : list
+        The list of the widths of the bands
     """
 
-    def __init__(self, min_width=0.1, exponent=1 / 2):
+    def __init__(self, min_width=0.1, exponent=1/2):
         """
-        Attributes
-        -------------
-        radii : list
-            The list of radii of the circles
-        widths : list
-            The list of the widths of the bands
+        Parameters
+        ----------
+        min_width : scalar
+            The radius of the smallest ring in the series.
+        exponent : scalar
+            The exponent in the function r(n) = r0*(n+1)^k.
         """
+
         super(HyperbolicConcentric, self).__init__(shape='circle')
         center = Point(0.5, 0.5)
-        # exponent = 1/2
         Nmax_rings = 512
 
         radii = [0]
@@ -166,7 +179,7 @@ class HyperbolicConcentric(Phantom):
                 break
 
             self.append(Feature(
-                        Circle(center, radius), value=(-1.)**(ring % 2)))
+                        Circle(center, radius), mass_atten=(-1.)**(ring % 2)))
             # record information about the rings
             widths.append(radius - radii[-1])
             radii.append(radius)
@@ -214,23 +227,198 @@ class DynamicRange(Phantom):
             for i in range(0, steps):
                 center = Point(px[i] + jitters[0, i], py[i] + jitters[1, i])
                 self.append(Feature(
-                            Circle(center, radius), value=colors[i]))
+                            Circle(center, radius), mass_atten=colors[i]))
         else:
             # completely random
             for i in range(0, steps):
                 if 1 > self.sprinkle(1, radius, gap=radius * 0.9,
-                                     value=colors[i]):
+                                     mass_atten=colors[i]):
                     None
                     # TODO: ensure that all circles are placed
+
+
+class DogaCircles(Phantom):
+    """Rows of increasingly smaller circles. Initally arranged in an ordered
+    Latin square, the inital arrangement can be randomly shuffled.
+
+    Attributes
+    ----------
+    radii : ndarray
+        radii of circles
+    x : ndarray
+        x position of circles
+    y : ndarray
+        y position of circles
+    """
+    # IDEA: Use method in this reference to calculate uniformly distributed
+    # latin squares.
+    # DOI: 10.1002/(SICI)1520-6610(1996)4:6<405::AID-JCD3>3.0.CO;2-J
+    def __init__(self, n_sizes=5, size_ratio=0.5, n_shuffles=5):
+        """
+        Parameters
+        ----------
+        n_sizes : int
+            number of different sized circles
+        size_ratio : scalar
+            the nth size / the n-1th size
+        n_shuffles : int
+            The number of times to shuffles the latin square
+        """
+        super(DogaCircles, self).__init__(shape='square')
+
+        n_sizes = int(n_sizes)
+        if n_sizes <= 0:
+            raise ValueError('There must be at least one size.')
+        if size_ratio > 1 or size_ratio <= 0:
+            raise ValueError('size_ratio should be <= 1 and > 0.')
+        n_shuffles = int(n_shuffles)
+        if n_shuffles < 0:
+            raise ValueError('Cant shuffle a negative number of times')
+
+        # Seed a latin square, use integers to prevent rounding errors
+        top_row = np.array(range(0, n_sizes), dtype=int)
+        rowsum = np.sum(top_row)
+        lsquare = np.empty([n_sizes, n_sizes], dtype=int)
+        for i in range(0, n_sizes):
+            lsquare[:, i] = np.roll(top_row, i)
+
+        # Choose a row or column shuffle sequence
+        sequence = np.random.randint(0, 2, n_shuffles)
+
+        # Shuffle the square
+        for dim in sequence:
+            lsquare = np.rollaxis(lsquare, dim, 0)
+            np.random.shuffle(lsquare)
+
+        # Assert that it is still a latin square.
+        for i in range(0, n_sizes):
+            assert np.sum(lsquare[:, i]) == rowsum, \
+                "Column {0} is {1} and should be {2}".format(i, np.sum(
+                                                        lsquare[:, i]), rowsum)
+            assert np.sum(lsquare[i, :]) == rowsum, \
+                "Column {0} is {1} and should be {2}".format(i, np.sum(
+                                                        lsquare[i, :]), rowsum)
+
+        # Draw it
+        period = np.arange(0, n_sizes)/n_sizes + 1/(2*n_sizes)
+        _x, _y = np.meshgrid(period, period)
+        radii = 1/(2*n_sizes)*size_ratio**lsquare
+
+        for (k, x, y) in zip(radii.flatten(), _x.flatten(),
+                             _y.flatten()):
+            self.append(Feature(Circle(Point(x, y), k)))
+
+        self.radii = radii
+        self.x = _x
+        self.y = _y
+
+
+class SlantedSquares(Phantom):
+    """Generates a collection of slanted squares. Squares are arranged in
+    concentric circles such that the space between squares is at least gap. The
+    size of the squares is adaptive such that they all remain within the unit
+    circle.
+
+    Attributes
+    ----------
+    angle : scalar
+        the angle of slant in radians
+    count : scalar
+        the total number of squares
+    gap : scalar
+        the minimum space between squares
+    side_length : scalar
+        the size of the squares
+    squares_per_level : list
+        the number of squares at each level
+    radius_per_level : list
+        the radius at each level
+    n_levels : scalar
+        the number of levels
+    """
+
+    def __init__(self, count=10, angle=5/360*2*PI, gap=0):
+        super(SlantedSquares, self).__init__(shape='circle')
+        if count < 1:
+            raise ValueError("There must be at least one square.")
+
+        # approximate the max diameter from total area available
+        d_max = np.sqrt(PI/4 / (2 * count))
+
+        if 1 < count and count < 5:
+            # bump all the squares to the 1st ring and calculate sizes
+            # as if there were 5 total squares
+            pass
+
+        while True:
+            squares_per_level = [1]
+            radius_per_level = [0]
+            remaining = count - 1
+            n_levels = 1
+            while remaining > 0:
+                # calculate next level capacity
+                radius_per_level.append(radius_per_level[n_levels-1] + d_max +
+                                        gap)
+                this_circumference = PI*2*radius_per_level[n_levels]
+                this_capacity = this_circumference//(d_max + gap)
+
+                # assign squares to levels
+                if remaining - this_capacity >= 0:
+                    squares_per_level.append(this_capacity)
+                    remaining -= this_capacity
+                else:
+                    squares_per_level.append(remaining)
+                    remaining = 0
+                n_levels += 1
+                assert(remaining >= 0)
+
+            # Make sure squares will not be outside the phantom, else
+            # decrease diameter by 5%
+            if radius_per_level[-1] < (0.5 - d_max/2 - gap):
+                break
+            d_max *= 0.95
+
+        assert(len(squares_per_level) == len(radius_per_level))
+
+        # determine center positions of squares
+        x, y = np.array([]), np.array([])
+        for level in range(0, n_levels):
+            radius = radius_per_level[level]
+            thetas = (((np.arange(0, squares_per_level[level]) /
+                      squares_per_level[level]) +
+                      1/(squares_per_level[level] * 2)) *
+                      2 * PI)
+            x = np.concatenate((x, radius*np.cos(thetas)))
+            y = np.concatenate((y, radius*np.sin(thetas)))
+
+        # move to center of phantom.
+        x += 0.5
+        y += 0.5
+
+        # add the squares to the phantom
+        side_length = d_max/np.sqrt(2)
+        for i in range(0, x.size):
+            center = Point(x[i], y[i])
+            s = Square(center, side_length)
+            s.rotate(angle, center)
+            self.append(Feature(s))
+
+        self.angle = angle
+        self.count = count
+        self.gap = gap
+        self.side_length = side_length
+        self.squares_per_level = squares_per_level
+        self.radius_per_level = radius_per_level
+        self.n_levels = n_levels
 
 
 class UnitCircle(Phantom):
     """Generates a phantom with a single circle in its center."""
 
-    def __init__(self, radius=0.5, value=1):
+    def __init__(self, radius=0.5, mass_atten=1):
         super(UnitCircle, self).__init__()
         self.append(Feature(
-                    Circle(Point(0.5, 0.5), radius), value))
+                    Circle(Point(0.5, 0.5), radius), mass_atten))
 
 
 class Soil(Phantom):
@@ -245,21 +433,148 @@ class Soil(Phantom):
 
     def __init__(self, porosity=0.412):
         super(Soil, self).__init__(shape='circle')
-        self.sprinkle(30, [0.1, 0.03], 0, value=0.5, max_density=1 - porosity)
+        self.sprinkle(30, [0.1, 0.03], 0, mass_atten=0.5,
+                      max_density=1-porosity)
         # use overlap to approximate area opening transform because opening is
         # not discrete
-        self.sprinkle(100, 0.02, 0.01, value=-.25)
-        background = Feature(Circle(Point(0.5, 0.5), 0.5), value=0.5)
+        self.sprinkle(100, 0.02, 0.01, mass_atten=-.25)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=0.5)
         self.insert(0, background)
+
+
+class WetCircles(Phantom):
+    def __init__(self):
+        super(WetCircles, self).__init__(shape='circle')
+        porosity = 0.412
+        np.random.seed(0)
+
+        self.sprinkle(30, [0.1, 0.03], 0.005, mass_atten=0.5,
+                      max_density=1 - porosity)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=0.5)
+        self.insert(0, background)
+
+        pairs = [(23, 12), (12, 19), (29, 11), (22, 5), (1, 3), (21, 9),
+                 (8, 2), (2, 27)]
+        for p in pairs:
+            A = self.feature[p[0]].geometry
+            B = self.feature[p[1]].geometry
+
+            thetaA = [np.pi/2, 10]
+            thetaB = [np.pi/2, 10]
+
+            mesh = wet_circles(A, B, thetaA, thetaB)
+
+            self.append(Feature(mesh, mass_atten=-.25))
+
+
+def wet_circles(A, B, thetaA, thetaB):
+    """Generates a mesh that wets the surface of circles A and B.
+
+    Parameters
+    -------------
+    A,B : Circle
+    theta : list
+        the number of radians that the wet covers and number of the points on
+        the surface range
+    """
+
+    vector = B.center - A.center
+    if vector.x > 0:
+        angleA = np.arctan(vector.y/vector.x)
+        angleB = np.pi + angleA
+    else:
+        angleB = np.arctan(vector.y/vector.x)
+        angleA = np.pi + angleB
+    # print(vector)
+    rA = A.radius
+    rB = B.radius
+
+    points = []
+    for t in (np.arange(0, thetaA[1])/(thetaA[1]-1) - 0.5) * thetaA[0] + angleA:
+        x = rA*np.cos(t) + A.center.x
+        y = rA*np.sin(t) + A.center.y
+        points.append([x, y])
+
+    mid = len(points)
+    for t in (np.arange(0, thetaB[1])/(thetaB[1]-1) - 0.5) * thetaB[0] + angleB:
+        x = rB*np.cos(t) + B.center.x
+        y = rB*np.sin(t) + B.center.y
+        points.append([x, y])
+
+    points = np.array(points)
+
+    # Triangulate the polygon
+    tri = Delaunay(points)
+
+    # Remove extra triangles
+    # print(tri.simplices)
+    mask = np.sum(tri.simplices < mid, 1)
+    mask = np.logical_and(mask < 3, mask > 0)
+    tri.simplices = tri.simplices[mask, :]
+    # print(tri.simplices)
+
+    m = Mesh()
+    for t in tri.simplices:
+        m.append(Triangle(Point(points[t[0], 0], points[t[0], 1]),
+                          Point(points[t[1], 0], points[t[1], 1]),
+                          Point(points[t[2], 0], points[t[2], 1])))
+
+    return m
+
+
+class SiemensStar(Phantom):
+    """Generates a Siemens star.
+
+    Attributes
+    ----------
+    ratio : scalar
+        The width of a sector along tangent of circle divided by the radius of
+        the circle. ratio = t/r
+    """
+    def __init__(self, n_sectors=2, center=Point(0.5, 0.5), radius=0.5):
+        """
+        Parameters
+        ----------
+        n_sectors: int >= 2
+            The number of white triangles only.
+        center: Point
+        radius: scalar > 0
+        """
+        super(SiemensStar, self).__init__()
+        if n_sectors < 2:
+            raise ValueError("Must have more than 2 sectors.")
+        if radius <= 0:
+            raise ValueError("radius must be greater than zero.")
+        if not isinstance(center, Point):
+            raise TypeError("center must be of type Point.!")
+        n_points = 2 * n_sectors
+
+        # generate an even number of points around the unit circle
+        points = []
+        for t in (np.arange(0, n_points)/n_points) * 2 * np.pi:
+            x = radius*np.cos(t) + center.x
+            y = radius*np.sin(t) + center.y
+            points.append(Point(x, y))
+        assert(len(points) == n_points)
+
+        # connect pairs of points to the center to make triangles
+        for i in range(0, n_sectors):
+            f = Feature(Triangle(points[2*i], points[2*i+1], center))
+            self.append(f)
+
+        self.ratio = 2 * np.tan(np.pi/n_points)
 
 
 class Foam(Phantom):
     """Generates a phantom with structure similar to foam."""
 
-    def __init__(self):
+    def __init__(self, size_range=[0.05, 0.01], gap=0, porosity=1):
         super(Foam, self).__init__(shape='circle')
-        self.sprinkle(300, [0.05, 0.01], 0, value=-1)
-        background = Feature(Circle(Point(0.5, 0.5), 0.5), value=1)
+        if porosity < 0 or porosity > 1:
+            raise ValueError('Porosity must be in the range [0,1).')
+        self.sprinkle(300, size_range, gap, mass_atten=-1,
+                      max_density=porosity)
+        background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=1)
         self.insert(0, background)
 
 

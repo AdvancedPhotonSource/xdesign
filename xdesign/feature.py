@@ -61,18 +61,22 @@ __all__ = ['Feature']
 
 
 class Feature(object):
-    '''A 2D geometric region(s) and associated materials properti(es).
+    '''A geometric region(s) and associated materials properti(es).
     Properties and geometry can be manipulated from this level, but rendering
     must access the geometry directly.
 
     Attributes
     ----------------
     geometry : Entity
-        Defines an 2D region(s) where the properties are valid.
+        Defines a region where the properties are valid.
+    mass_atten : scalar
+        The mass attenuation coefficient of the Feature.
     '''
-    def __init__(self, geometry, value=1):
+    def __init__(self, geometry, mass_atten=1):
+        if not isinstance(geometry, Entity):
+            raise TypeError("Feature must have a defined region.")
         self.geometry = geometry
-        self.value = value
+        self.mass_atten = mass_atten
 
     def add_property(self, name, function):
         """Adds a property by name to the Feature.
