@@ -50,6 +50,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
+from numbers import Number
 from xdesign.geometry import *
 from xdesign.geometry import beamintersect, beamcirc
 import logging
@@ -68,7 +69,6 @@ __all__ = ['Beam',
 
 
 class Beam(Line):
-
     """Beam (thick line) in 2-D cartesian space.
 
     It is defined by two distinct points.
@@ -82,37 +82,34 @@ class Beam(Line):
     """
 
     def __init__(self, p1, p2, size=0):
+        if not isinstance(size, Number):
+            raise TypeError("Size must be scalar.")
         super(Beam, self).__init__(p1, p2)
         self.size = float(size)
 
     def __str__(self):
-        return super(Beam, self).__str__()
+        return "Beam(" + super(Beam, self).__str__() + ")"
 
     @property
     def half_space(self):
         """Returns the half space polytope respresentation of the infinite
         beam."""
         # add half beam width along the normal direction to each of the points
-        half = self.normal*self.size/2
+        half = self.normal * self.size / 2
         edges = [Line(self.p1 + half, self.p2 + half),
                  Line(self.p1 - half, self.p2 - half)]
 
-        # calculate the half-space for each edge
-        A = []
-        B = []
+        A = np.ndarray((len(edges), self.dim))
+        B = np.ones(len(edges))
 
-        for edge in edges:
-            a, b, c = edge.standard
+        for i in range(0, 2):
+            A[i, :] = edges[i].standard
 
             # test for positive or negative side of line
-            if self.p1.x*a + self.p1.y*b > c:
-                a, b, c = -a, -b, -c
+            if np.einsum('i, i', self.p1._x, A[i, :]) > 1:
+                A[i, :] = -A[i, :]
+                B[i] = -1
 
-            A += [a, b]
-            B += [c]
-
-        A = np.array(np.reshape(A, (2, 2)))
-        B = np.array(B)
         p = pt.Polytope(A, B)
         return p
 

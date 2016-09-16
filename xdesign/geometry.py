@@ -57,6 +57,7 @@ from numbers import Number
 import polytope as pt
 from cached_property import cached_property
 import copy
+import scipy
 
 logger = logging.getLogger(__name__)
 
@@ -390,15 +391,17 @@ class Line(LinearEntity):
         """Return line equation."""
         if self.vertical:
             return "x = %s" % self.p1.x
-        return "y = %sx + %s" % (self.slope, self.yintercept)
+        elif self.dim == 2:
+            return "y = %sx + %s" % (self.slope, self.yintercept)
+        else:
+            return "%sx " % '+ '.join([str(n) for n in self.standard]) + "= 1"
 
     @property
     def standard(self):
-        """Returns coeffients for standard equation"""
-        A = self.p1.y-self.p2.y
-        B = self.p2.x-self.p1.x
-        C = B*self.p1.y + A*self.p1.x
-        return A, B, C
+        """Returns coeffients for the first N-1 standard equation coefficients.
+        The Nth is not returned and is assumed to be 1."""
+        A = np.vstack((self.p1._x, self.p2._x))
+        return calc_standard(A)
 
 
 class Ray(LinearEntity):
@@ -629,6 +632,7 @@ class Polygon(Entity):
                 raise TypeError("vertices must be of type Point.")
         super(Polygon, self).__init__()
         self.vertices = vertices
+        self._dim = vertices[0].dim
 
     @property
     def numverts(self):
@@ -675,6 +679,13 @@ class Polygon(Entity):
     def patch(self):
         return plt.Polygon(self.numpy)
 
+    def __str__(self):
+        return "Polygon(%s" % ', '.join([str(n) for n in self.vertices]) + ")"
+
+    @property
+    def dim(self):
+        return self._dim
+
     def translate(self, vector):
         """Translate polygon."""
         for v in self.vertices:
@@ -694,22 +705,19 @@ class Polygon(Entity):
     @cached_property
     def half_space(self):
         """Returns the half space polytope respresentation of the polygon."""
-        A = []
-        B = []
+        assert(self.dim > 0), self.dim
+        A = np.ndarray((self.numverts, self.dim))
+        B = np.ones(self.numverts)
 
         for i in range(0, self.numverts):
             edge = Line(self.vertices[i], self.vertices[(i+1) % self.numverts])
-            a, b, c = edge.standard
+            A[i, :] = edge.standard
 
             # test for positive or negative side of line
-            if self.center.x*a + self.center.y*b > c:
-                a, b, c = -a, -b, -c
+            if np.einsum('i, i', self.center._x, A[i, :]) > 1:
+                A[i, :] = -A[i, :]
+                B[i] = -1
 
-            A += [a, b]
-            B += [c]
-
-        A = np.array(np.reshape(A, (self.numverts, 2)))
-        B = np.array(B)
         p = pt.Polytope(A, B)
         return p
 
@@ -881,6 +889,44 @@ class Mesh(Entity):
         return pt.Region(regions)
 
 
+def calc_standard(A):
+    """Returns the first N-1 standard equation coefficents for the hyper-plane
+    defined by the ND points in A. The Nth coefficents is not returned because
+    it is normalized to 1.
+
+    Parameters
+    ----------
+    A : ndarray
+        Each row is an ND point.
+    """
+    if not isinstance(A, np.ndarray):
+        raise TypeError("A must be square array.")
+
+    return scipy.linalg.solve(A, np.ones(A.shape[0]))
+
+
+def beamintersect(beam, geometry):
+    """Intersection area of infinite beam with a geometry"""
+    if isinstance(geometry, Mesh):
+        return beammesh(beam, geometry)
+    elif isinstance(geometry, Polygon):
+        return beampoly(beam, geometry)
+    elif isinstance(geometry, Circle):
+        return beamcirc(beam, geometry)
+    else:
+        raise NotImplementedError
+
+
+def beammesh(beam, mesh):
+    """Intersection area of infinite beam with polygonal mesh"""
+    return beam.half_space.intersect(mesh.half_space).volume
+
+
+def beampoly(beam, poly):
+    """Intersection area of an infinite beam with a polygon"""
+    return beam.half_space.intersect(poly.half_space).volume
+
+
 def segment(circle, x):
     """Calculates intersection area of a vertical line segment in a circle.
 
@@ -897,26 +943,6 @@ def segment(circle, x):
     """
     return circle.radius**2 * \
         np.arccos(x / circle.radius) - x * np.sqrt(circle.radius**2 - x**2)
-
-
-def beamintersect(beam, geometry):
-    """Intersection area of infinite beam with a geometry"""
-    if isinstance(geometry, Mesh):
-        return beammesh(beam, geometry)
-    elif isinstance(geometry, Polygon):
-        return beampoly(beam, geometry)
-    else:
-        return beamcirc(beam, geometry)
-
-
-def beammesh(beam, mesh):
-    """Intersection area of infinite beam with polygonal mesh"""
-    return beam.half_space.intersect(mesh.half_space).volume
-
-
-def beampoly(beam, poly):
-    """Intersection area of an infinite beam with a polygon"""
-    return beam.half_space.intersect(poly.half_space).volume
 
 
 def beamcirc(beam, circle):
