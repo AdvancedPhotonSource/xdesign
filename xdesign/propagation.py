@@ -83,7 +83,7 @@ def _gen_mesh(lengths, shape):
     return res
 
 
-def _initialize_wavefront(wvfnt_width):
+def initialize_wavefront(wvfnt_width, **kwargs):
     """Initialize wavefront.
 
     Parameters:
@@ -91,7 +91,16 @@ def _initialize_wavefront(wvfnt_width):
     wvfnt_width : int
         Pixel width of wavefront.
     """
-    wavefront = np.ones(wvfnt_width).astype('complex64')
+    type = kwargs['type']
+    if type == 'plane':
+        wavefront = np.ones(wvfnt_width).astype('complex64')
+    if type == 'point':
+        wid = kwargs['width']
+        wavefront = np.zeros(wvfnt_width).astype('complex64')
+        center = int(wvfnt_width / 2)
+        radius = int(wid / 2)
+        wavefront[:wid] = 1.
+        wavefront = np.roll(wavefront, int((wvfnt_width - wid) / 2))
     return wavefront
 
 
@@ -152,13 +161,13 @@ def _slice_propagate(wavefront, delta_nm, lat_nm, wvfnt_width, lmda):
     u = _gen_mesh([u_max], [wvfnt_width])
     u = u[0]
     H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
-    wavefront = np.fft.ifftn(np.fft.fftshift(np.fft.fftshift(np.fft.fftn(wavefront)) * H))
+    wavefront = np.fft.ifftn(np.fft.ifftshift(np.fft.fftshift(np.fft.fftn(wavefront)) * H))
     # H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
     # wavefront = np.fft.ifftn(np.fft.fftn(wavefront) * np.fft.fftshift(H))
     return wavefront
 
 
-def plot_wavefront(wavefront, lat_nm):
+def plot_wavefront(wavefront, lat_nm, save_folder, fname):
     """Plot wavefront intensity.
 
     Parameters:
@@ -172,12 +181,15 @@ def plot_wavefront(wavefront, lat_nm):
     shape = len(wavefront)
     half_len = lat_nm * shape / 2
     x = np.linspace(-half_len, half_len, shape)
-    plt.figure()
+    fig = plt.figure(figsize=[9, 5])
     plt.plot(x, i)
+    plt.xlabel('Position (nm)')
+    plt.ylabel('Intensity')
     plt.show()
+    fig.savefig(save_folder+'/'+fname+'.png', type='png')
 
 
-def multislice_propagate(delta_grid, beta_grid, probe, delta_nm, lat_nm):
+def multislice_propagate(delta_grid, beta_grid, probe, delta_nm, lat_nm, wavefront):
     """Do multislice propagation for wave with specified properties in the constructed grid.
 
     Parameters:
@@ -194,7 +206,6 @@ def multislice_propagate(delta_grid, beta_grid, probe, delta_nm, lat_nm):
         Lateral pixel size in nm.
     """
     field_shape = delta_grid.shape
-    wavefront = _initialize_wavefront(field_shape[1])
     # wavelength in nm
     lmda = probe.wavelength
     # I assume Probe class has an attribute wavelength. E.g.:
