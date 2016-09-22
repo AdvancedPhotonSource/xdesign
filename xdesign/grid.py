@@ -6,34 +6,42 @@ from xdesign.geometry import Entity
 from xdesign.feature import *
 from xdesign.material import Material
 import numpy as np
+import numpy.linalg as nl
 import scipy.ndimage
 import logging
 import warnings
 import matplotlib.pyplot as plt
-np.set_printoptions(threshold=np.inf)
+#np.set_printoptions(threshold=np.inf)
+from scipy.ndimage.interpolation import rotate, shift
 
 
 class Grid3d(object):
 
-    def __init__(self, size, voxel, energy):
+    def __init__(self, size, voxel, matrix, energy):
         if not isinstance(size, np.ndarray):
             size = np.asarray(size)
         if not isinstance(voxel, np.ndarray):
             voxel = np.asarray(voxel)
+        assert isinstance(matrix, Material)
         if size.size != 3 or voxel.size != 3:
             raise ValueError
         self.energy = energy
-        self.grid_delta = self.grid_beta = np.zeros(size, dtype='float32')
+        self.grid_delta = np.zeros(size, dtype='float32')
+        self.grid_beta = np.zeros(size, dtype='float32')
+        self.grid_delta[:, :] = matrix.refractive_index_delta(energy)
+        self.grid_beta[:, :] = matrix.refractive_index_beta(energy)
         self.voxel_z, self.voxel_y, self.voxel_x = voxel
         y_lim, x_lim = (size[1:3] - 1) / 2 * voxel[1:3]
         z_lim = (size[0] - 1) * voxel[0]
-        z_range = np.linspace(0, z_lim, size[0])
-        y_range = np.linspace(-y_lim, y_lim, size[1])
-        x_range = np.linspace(-x_lim, x_lim, size[2])
-        self.yy, self.zz, self.xx = np.meshgrid(y_range, z_range, x_range)
+        self.z_range = np.linspace(0, z_lim, size[0])
+        self.y_range = np.linspace(-y_lim, y_lim, size[1])
+        self.x_range = np.linspace(-x_lim, x_lim, size[2])
+        self.yy, self.zz, self.xx = np.meshgrid(self.y_range, self.z_range, self.x_range)
 
-    def rotate(self, theta, axis):
-        raise NotImplementedError
+    def rotate(self, theta):
+        self.grid_delta = rotate(self.grid_delta, theta, axes=(0, 2), reshape=False)
+        self.grid_beta = rotate(self.grid_beta, theta, axes=(0, 2), reshape=False)
+        return self
 
     def translate(self, dir):
         raise NotImplementedError
@@ -48,5 +56,33 @@ class Grid3d(object):
                 (self.xx * self.voxel_x - center_x) ** 2 <= radius ** 2
         self.grid_delta[judge] = mat.refractive_index_delta(self.energy)
         self.grid_beta[judge] = mat.refractive_index_beta(self.energy)
+        return self
 
-        return self.grid_delta, self.grid_beta
+    def add_cylinder(self, pos, length, pitch, yaw, radius, mat):
+        assert isinstance(mat, Material)
+        judge = (self.xx * self.voxel_x) ** 2 + (self.yy * self.voxel_y) ** 2 <= radius ** 2
+        #judge = rotate(rotate(judge, pitch, axes=(1, 0)), yaw, axes=(2, 1))
+        #judge = shift(judge, pos)
+        self.grid_delta[judge] = mat.refractive_index_delta(self.energy)
+        self.grid_beta[judge] = mat.refractive_index_beta(self.energy)
+        return self
+
+    def add_rod(self, x1, x2, radius, mat):
+        assert isinstance(mat, Material)
+        x1 = np.asarray(x1)
+        x2 = np.asarray(x2)
+        x0 = np.empty(np.append(self.xx.shape, 3))
+        x0[:, :, :, 0] = self.zz
+        x0[:, :, :, 1] = self.yy
+        x0[:, :, :, 2] = self.xx
+        x2_x1 = x2 - x1
+        x1_x0 = x1 - x0
+        judge = np.cross(x2 - x1, x1 - x0)
+        judge = judge.reshape(int(judge.size / 3), 3)
+        judge = np.asarray(map(nl.norm, judge))
+        judge = judge.reshape(self.xx.shape)
+        judge = judge / nl.norm(x2 - x1) <= radius
+        self.grid_delta[judge] = mat.refractive_index_delta(self.energy)
+        self.grid_beta[judge] = mat.refractive_index_beta(self.energy)
+        return self
+
