@@ -17,19 +17,16 @@ from scipy.ndimage.interpolation import rotate, shift
 
 class Grid3d(object):
 
-    def __init__(self, size, voxel, matrix, energy):
+    def __init__(self, size, voxel, energy):
         if not isinstance(size, np.ndarray):
             size = np.asarray(size)
         if not isinstance(voxel, np.ndarray):
             voxel = np.asarray(voxel)
-        assert isinstance(matrix, Material)
         if size.size != 3 or voxel.size != 3:
             raise ValueError
         self.energy = energy
         self.grid_delta = np.zeros(size, dtype='float32')
         self.grid_beta = np.zeros(size, dtype='float32')
-        self.grid_delta[:, :] = matrix.refractive_index_delta(energy)
-        self.grid_beta[:, :] = matrix.refractive_index_beta(energy)
         self.voxel_z, self.voxel_y, self.voxel_x = voxel
         y_lim, x_lim = (size[1:3] - 1) / 2 * voxel[1:3]
         z_lim = (size[0] - 1) * voxel[0]
@@ -58,15 +55,6 @@ class Grid3d(object):
         self.grid_beta[judge] = mat.refractive_index_beta(self.energy)
         return self
 
-    def add_cylinder(self, pos, length, pitch, yaw, radius, mat):
-        assert isinstance(mat, Material)
-        judge = (self.xx * self.voxel_x) ** 2 + (self.yy * self.voxel_y) ** 2 <= radius ** 2
-        #judge = rotate(rotate(judge, pitch, axes=(1, 0)), yaw, axes=(2, 1))
-        #judge = shift(judge, pos)
-        self.grid_delta[judge] = mat.refractive_index_delta(self.energy)
-        self.grid_beta[judge] = mat.refractive_index_beta(self.energy)
-        return self
-
     def add_rod(self, x1, x2, radius, mat):
         assert isinstance(mat, Material)
         x1 = np.asarray(x1)
@@ -75,14 +63,21 @@ class Grid3d(object):
         x0[:, :, :, 0] = self.zz
         x0[:, :, :, 1] = self.yy
         x0[:, :, :, 2] = self.xx
-        x2_x1 = x2 - x1
-        x1_x0 = x1 - x0
         judge = np.cross(x2 - x1, x1 - x0)
         judge = judge.reshape(int(judge.size / 3), 3)
         judge = np.asarray(map(nl.norm, judge))
         judge = judge.reshape(self.xx.shape)
         judge = judge / nl.norm(x2 - x1) <= radius
+        judge_seg = -(x1 - x0).dot(x2 - x1) / nl.norm(x2 - x1) ** 2
+        judge = judge * (judge_seg >= 0) * (judge_seg <= 1)
         self.grid_delta[judge] = mat.refractive_index_delta(self.energy)
         self.grid_beta[judge] = mat.refractive_index_beta(self.energy)
         return self
 
+    def add_cuboid(self, x1, x2, mat):
+        assert isinstance(mat, Material)
+        judge = (self.zz >= x1[0]) * (self.zz <= x2[0]) * (self.yy >= x1[1]) * (self.yy <= x2[1]) * \
+                (self.xx >= x1[2]) * (self.xx <= x2[2])
+        self.grid_delta[judge] = mat.refractive_index_delta(self.energy)
+        self.grid_beta[judge] = mat.refractive_index_beta(self.energy)
+        return self

@@ -54,6 +54,8 @@ import scipy.ndimage
 import logging
 import warnings
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from xdesign.grid import *
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +64,11 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['multislice_propagate',
-           'plot_wavefront']
+           'plot_wavefront',
+           'initialize_wavefront']
 
 
-def _gen_mesh(lengths, shape):
+def _gen_mesh(max, shape):
     """Generate mesh grid.
 
     Parameters:
@@ -75,15 +78,15 @@ def _gen_mesh(lengths, shape):
     shape : ndarray
         Number of pixels in each dimension.
     """
-    dim = len(lengths)
-    axes = np.array([np.linspace(-lengths[0], lengths[0], shape[0])])
+    dim = len(max)
+    axes = [np.array([np.linspace(-max[0], max[0], shape[0])])]
     for i in range(1, dim):
-        np.append(axes, np.linspace(-lengths[i], lengths[i], shape[i]), axis=0)
+        axes.append(np.linspace(-max[i], max[i], shape[i]))
     res = np.meshgrid(*axes)
     return res
 
 
-def initialize_wavefront(wvfnt_width, **kwargs):
+def initialize_wavefront(grid, **kwargs):
     """Initialize wavefront.
 
     Parameters:
@@ -92,15 +95,16 @@ def initialize_wavefront(wvfnt_width, **kwargs):
         Pixel width of wavefront.
     """
     type = kwargs['type']
+    wave_shape = grid.grid_delta.shape[1:]
     if type == 'plane':
-        wavefront = np.ones(wvfnt_width).astype('complex64')
+        wavefront = np.ones(wave_shape).astype('complex64')
     if type == 'point':
         wid = kwargs['width']
-        wavefront = np.zeros(wvfnt_width).astype('complex64')
-        center = int(wvfnt_width / 2)
+        wavefront = np.zeros(wave_shape).astype('complex64')
+        center = int(wave_shape / 2)
         radius = int(wid / 2)
         wavefront[:wid] = 1.
-        wavefront = np.roll(wavefront, int((wvfnt_width - wid) / 2))
+        wavefront = np.roll(wavefront, int((wave_shape - wid) / 2))
     return wavefront
 
 
@@ -119,7 +123,7 @@ def _extract_slice(delta_grid, beta_grid, islice):
     pass
 
 
-def _slice_modify(delta_slice, beta_slice, wavefront, delta_nm, lmda):
+def _slice_modify(grid, delta_slice, beta_slice, wavefront, lmda):
     """Modify wavefront within a slice.
 
     Parameters:
@@ -135,13 +139,14 @@ def _slice_modify(delta_slice, beta_slice, wavefront, delta_nm, lmda):
     lmda : float
         Wavelength in nm.
     """
+    delta_nm = grid.voxel_z
     kz = 2 * np.pi * delta_nm / lmda
     wavefront = wavefront * np.exp((kz * delta_slice) * 1j) * np.exp(-kz * beta_slice)
 
     return wavefront
 
 
-def _slice_propagate(wavefront, delta_nm, lat_nm, wvfnt_width, lmda):
+def _slice_propagate(grid, wavefront, lmda):
     """Free space propagation.
 
     Parameters:
@@ -157,17 +162,18 @@ def _slice_propagate(wavefront, delta_nm, lat_nm, wvfnt_width, lmda):
     lmda : float
         Wavelength in nm.
     """
-    u_max = 1. / (2. * lat_nm)
-    u = _gen_mesh([u_max], [wvfnt_width])
-    u = u[0]
-    H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
+    delta_nm = grid.voxel_z
+    u_max = 1. / (2. * grid.voxel_x)
+    v_max = 1. / (2. * grid.voxel_y)
+    u, v = _gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
+    H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2  - lmda ** 2 * v ** 2))
     wavefront = np.fft.ifftn(np.fft.ifftshift(np.fft.fftshift(np.fft.fftn(wavefront)) * H))
     # H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
     # wavefront = np.fft.ifftn(np.fft.fftn(wavefront) * np.fft.fftshift(H))
     return wavefront
 
 
-def plot_wavefront(wavefront, lat_nm, save_folder, fname):
+def plot_wavefront(wavefront, grid, save_folder='simulation', fname='exiting_wave'):
     """Plot wavefront intensity.
 
     Parameters:
@@ -177,19 +183,17 @@ def plot_wavefront(wavefront, lat_nm, save_folder, fname):
     lat_nm : float
         Lateral pixel length in nm.
     """
-    i = wavefront * np.conjugate(wavefront)
-    shape = len(wavefront)
-    half_len = lat_nm * shape / 2
-    x = np.linspace(-half_len, half_len, shape)
-    fig = plt.figure(figsize=[9, 5])
-    plt.plot(x, i)
-    plt.xlabel('Position (nm)')
-    plt.ylabel('Intensity')
+    i = np.abs(wavefront * np.conjugate(wavefront))
+
+    fig = plt.figure(figsize=[9, 9])
+    plt.imshow(i, cmap='gray')
+    plt.xlabel('x (nm)')
+    plt.ylabel('y (nm)')
     plt.show()
-    fig.savefig(save_folder+'/'+fname+'.png', type='png')
+    #fig.savefig(save_folder+'/'+fname+'.png', type='png')
 
 
-def multislice_propagate(delta_grid, beta_grid, probe, delta_nm, lat_nm, wavefront):
+def multislice_propagate(grid, probe, wavefront):
     """Do multislice propagation for wave with specified properties in the constructed grid.
 
     Parameters:
@@ -205,19 +209,23 @@ def multislice_propagate(delta_grid, beta_grid, probe, delta_nm, lat_nm, wavefro
     lat_nm : float
         Lateral pixel size in nm.
     """
-    field_shape = delta_grid.shape
+    # 2d array should be reshaped to 3d.
+    assert isinstance(grid, Grid3d)
+    delta_grid = grid.grid_delta
+    beta_grid = grid.grid_beta
+
     # wavelength in nm
     lmda = probe.wavelength
-    # I assume Probe class has an attribute wavelength. E.g.:
+    # I assume Probe class has a wavelength attribute. E.g.:
     # class Probe:
     #     def __init__(self, energy):
     #         self.energy = energy
     #         self.wavelength = 1.23984/energy
     n_slice = delta_grid.shape[0]
     for i_slice in range(n_slice):
-        delta_slice = delta_grid[i_slice, :]
-        beta_slice = beta_grid[i_slice, :]
-        wavefront = _slice_modify(delta_slice, beta_slice, wavefront, delta_nm, lmda)
-        wavefront = _slice_propagate(wavefront, delta_nm, lat_nm, len(delta_slice), lmda)
+        delta_slice = delta_grid[i_slice, :, :]
+        beta_slice = beta_grid[i_slice, :, :]
+        wavefront = _slice_modify(grid, delta_slice, beta_slice, wavefront, lmda)
+        wavefront = _slice_propagate(grid, wavefront, lmda)
 
     return wavefront

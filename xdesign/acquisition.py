@@ -52,6 +52,7 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 from xdesign.geometry import *
 from xdesign.geometry import beamcirc, rotate
+from xdesign.grid import *
 import logging
 
 logger = logging.getLogger(__name__)
@@ -237,3 +238,12 @@ def angle_scan(sx, sy):
         p.rotate(np.pi, p1)
         p1.rotate(-beta, p2)
         p.rotate(-beta, p2)
+
+
+def tomography_3d(grid, ang_start, ang_end, ang_step):
+    assert isinstance(grid, Grid3d)
+    angles = np.arange(ang_start, ang_end + ang_step, ang_step)
+    for theta in angles:
+        print('\rNow at angle ', str(theta), end='')
+        # do multislice
+        grid.rotate(ang_step)
