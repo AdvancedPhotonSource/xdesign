@@ -24,6 +24,7 @@ class Grid3d(object):
             voxel = np.asarray(voxel)
         if size.size != 3 or voxel.size != 3:
             raise ValueError
+        self.size = size
         self.energy = energy
         self.grid_delta = np.zeros(size, dtype='float32')
         self.grid_beta = np.zeros(size, dtype='float32')
@@ -49,10 +50,11 @@ class Grid3d(object):
             center_z, center_y, center_x = center
         except:
             raise ValueError
-        judge = (self.zz * self.voxel_z - center_z) ** 2 + (self.yy * self.voxel_y - center_y) ** 2 + \
-                (self.xx * self.voxel_x - center_x) ** 2 <= radius ** 2
+        judge = (self.zz - center_z) ** 2 + (self.yy - center_y) ** 2 + \
+                (self.xx - center_x) ** 2 <= radius ** 2
         self.grid_delta[judge] = mat.refractive_index_delta(self.energy)
         self.grid_beta[judge] = mat.refractive_index_beta(self.energy)
+        print('Sphere added.')
         return self
 
     def add_rod(self, x1, x2, radius, mat):
@@ -72,6 +74,7 @@ class Grid3d(object):
         judge = judge * (judge_seg >= 0) * (judge_seg <= 1)
         self.grid_delta[judge] = mat.refractive_index_delta(self.energy)
         self.grid_beta[judge] = mat.refractive_index_beta(self.energy)
+        print('Rod added.')
         return self
 
     def add_cuboid(self, x1, x2, mat):
@@ -80,4 +83,5 @@ class Grid3d(object):
                 (self.xx >= x1[2]) * (self.xx <= x2[2])
         self.grid_delta[judge] = mat.refractive_index_delta(self.energy)
         self.grid_beta[judge] = mat.refractive_index_beta(self.energy)
+        print('Cuboid added.')
         return self

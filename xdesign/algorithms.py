@@ -50,7 +50,9 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
+from numpy.fft import fftn, ifftn, fftshift, ifftshift
 import logging
+from xdesign.util import gen_mesh
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +60,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['reconstruct', 'art', 'sirt', 'mlem', 'stream', 'update_progress']
+__all__ = ['reconstruct', 'art', 'sirt', 'mlem', 'stream', 'update_progress', 'mba']
 
 
 def update_progress(progress):
@@ -430,3 +432,17 @@ def stream(probe, data, init):
         # init[sumdist > 0] += np.true_divide(update[sumdist > 0], sumdist[sumdist > 0] * sy)
         init[sumdist > 0] *= np.true_divide(update[sumdist > 0], sumdist[sumdist > 0] * sy)
     return init
+
+
+def mba(input, lat_voxel, alpha=1):
+    """Modified Bronnikov algorithm for phase retrieval.
+    """
+    assert isinstance(input, np.ndarray)
+    g = input - 1
+    voxel_y, voxel_x = lat_voxel
+    u_max = 1. / (2. * voxel_x)
+    v_max = 1. / (2. * voxel_y)
+    u, v = gen_mesh([v_max, u_max], input.shape)
+    H = 1 / (u **2 + v ** 2 + alpha)
+    phase = np.real(ifftn(ifftshift(fftshift(fftn(g)) * H)))
+    return phase

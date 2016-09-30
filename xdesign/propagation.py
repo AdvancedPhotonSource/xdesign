@@ -56,6 +56,8 @@ import warnings
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from xdesign.grid import *
+from xdesign.util import gen_mesh
+from numpy.fft import fftn, ifftn, fftshift, ifftshift
 
 logger = logging.getLogger(__name__)
 
@@ -68,22 +70,7 @@ __all__ = ['multislice_propagate',
            'initialize_wavefront']
 
 
-def _gen_mesh(max, shape):
-    """Generate mesh grid.
 
-    Parameters:
-    -----------
-    lengths : ndarray
-        Half-lengths of axes in nm or nm^-1.
-    shape : ndarray
-        Number of pixels in each dimension.
-    """
-    dim = len(max)
-    axes = [np.array([np.linspace(-max[0], max[0], shape[0])])]
-    for i in range(1, dim):
-        axes.append(np.linspace(-max[i], max[i], shape[i]))
-    res = np.meshgrid(*axes)
-    return res
 
 
 def initialize_wavefront(grid, **kwargs):
@@ -165,12 +152,48 @@ def _slice_propagate(grid, wavefront, lmda):
     delta_nm = grid.voxel_z
     u_max = 1. / (2. * grid.voxel_x)
     v_max = 1. / (2. * grid.voxel_y)
-    u, v = _gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
+    u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
     H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2  - lmda ** 2 * v ** 2))
-    wavefront = np.fft.ifftn(np.fft.ifftshift(np.fft.fftshift(np.fft.fftn(wavefront)) * H))
+    wavefront = ifftn(ifftshift(fftshift(fftn(wavefront)) * H))
     # H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
     # wavefront = np.fft.ifftn(np.fft.fftn(wavefront) * np.fft.fftshift(H))
     return wavefront
+
+
+def _far_propagate(grid, wavefront, lmda, z):
+    """Free space propagation using double Fourier algorithm.
+    """
+    assert isinstance(grid, Grid3d)
+    y0 = grid.yy[0, :, :]
+    x0 = grid.xx[0, :, :]
+    y = y0 * (lmda * z) * (grid.size[1] * grid.voxel_y ** 2)
+    x = x0 * (lmda * z) * (grid.size[2] * grid.voxel_x ** 2)
+    wavefront = fftshift(fftn(wavefront * np.exp(-1j * 2 * np.pi / lmda * np.sqrt(z ** 2 + x0 ** 2 + y0 ** 2))))
+    wavefront = wavefront * np.exp(-1j * 2 * np.pi / lmda * np.sqrt(z ** 2 + x ** 2 + y ** 2))
+    return wavefront
+
+
+def _far_propagate_2(grid, wavefront, lmd, z_um):
+    """Free space propagation using double Fourier algorithm.
+    """
+    assert isinstance(grid, Grid3d)
+
+    N = grid.size[1]
+    M = grid.size[2]
+    D = N * grid.voxel_y
+    H = M * grid.voxel_x
+    f1 = wavefront
+
+    V = N/D
+    U = M/H
+    d = np.arange(-(N-1)/2,(N-1)/2+1,1)*D/N
+    h = np.arange(-(M-1)/2,(M-1)/2+1,1)*H/M
+    v = np.arange(-(N-1)/2,(N-1)/2+1,1)*V/N
+    u = np.arange(-(M-1)/2,(M-1)/2+1,1)*U/M
+
+    f2 = np.fft.fftshift(np.fft.fft2(f1*np.exp(-1j*2*np.pi/lmd*np.sqrt(z_um**2+d**2+h[:,np.newaxis]**2))))*np.exp(-1j*2*np.pi*z_um/lmd*np.sqrt(1.+lmd**2*(v**2+u[:,np.newaxis]**2)))/U/V/(lmd*z_um)*(-np.sqrt(1j))
+    d2,h2=v*lmd*z_um,u*lmd*z_um
+    return f2
 
 
 def plot_wavefront(wavefront, grid, save_folder='simulation', fname='exiting_wave'):
@@ -186,7 +209,7 @@ def plot_wavefront(wavefront, grid, save_folder='simulation', fname='exiting_wav
     i = np.abs(wavefront * np.conjugate(wavefront))
 
     fig = plt.figure(figsize=[9, 9])
-    plt.imshow(i, cmap='gray')
+    plt.imshow(np.log(i), cmap='gray')
     plt.xlabel('x (nm)')
     plt.ylabel('y (nm)')
     plt.show()
@@ -227,5 +250,4 @@ def multislice_propagate(grid, probe, wavefront):
         beta_slice = beta_grid[i_slice, :, :]
         wavefront = _slice_modify(grid, delta_slice, beta_slice, wavefront, lmda)
         wavefront = _slice_propagate(grid, wavefront, lmda)
-
     return wavefront
