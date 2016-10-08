@@ -162,7 +162,7 @@ class Point(Entity):
     @property
     def norm(self):
         """Reference: http://stackoverflow.com/a/23576322"""
-        return np.sqrt(np.einsum('i,i', self._x, self._x))
+        return np.sqrt(self._x.dot(self._x))
 
     @property
     def dim(self):
@@ -226,7 +226,7 @@ class Point(Entity):
         if not isinstance(other, Point):
             raise NotImplementedError("Point to point distance only.")
         d = self._x - other._x
-        return np.sqrt(np.einsum('i,i', d, d))
+        return np.sqrt(d.dot(d))
 
     # OVERLOADS
     def __eq__(self, point):
@@ -723,7 +723,7 @@ class Polygon(Entity):
             A[i, :], B[i] = edge.standard
 
             # test for positive or negative side of line
-            if np.einsum('i, i', self.center._x, A[i, :]) > B[i]:
+            if self.center._x.dot(A[i, :]) > B[i]:
                 A[i, :] = -A[i, :]
                 B[i] = -B[i]
 
