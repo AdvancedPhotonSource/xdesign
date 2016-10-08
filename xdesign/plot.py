@@ -56,10 +56,11 @@ import string
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.patheffects as PathEffects
 import scipy.ndimage
 from cycler import cycler
 from xdesign.phantom import Phantom
-from xdesign.geometry import CurvedEntity, Polygon, Mesh
+from xdesign.geometry import Curve, Polygon, Mesh
 from xdesign.feature import Feature
 from matplotlib.axis import Axis
 from itertools import product
@@ -78,13 +79,26 @@ __all__ = ['plot_phantom',
            'plot_curve',
            'discrete_phantom',
            'sidebyside',
-           'plot_metrics']
+           'plot_metrics',
+           'plot_mtf',
+           'plot_nps',
+           'plot_neq']
 
 DEFAULT_COLOR_MAP = plt.cm.viridis
 DEFAULT_COLOR = DEFAULT_COLOR_MAP(0.25)
-DEFAULT_POLY_COLOR = DEFAULT_COLOR_MAP(0.8)
+POLY_COLOR = DEFAULT_COLOR_MAP(0.8)
 DEFAULT_EDGE_COLOR = 'white'
+POLY_EDGE_COLOR = 'black'
 LABEL_COLOR = 'black'
+POLY_LINEWIDTH = 0.1
+CURVE_LINEWIDTH = 0.5
+
+# cycle through 126 unique line styles
+PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
+                                     '#f781bf', '#a65628', '#984ea3',
+                                     '#999999', '#e41a1c', '#dede00']) +
+               63 * cycler('linestyle', ['-', '--']) +
+               18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
 
 
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
@@ -95,21 +109,16 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
     labels : bool, optional
         Each feature is numbered according to its index in the phantom.
     c_props : list of str, optional
-        Tuple of feature properties to use for colormapping the geometries.
+        List of feature properties to use for colormapping the geometries.
     c_map : function, optional
         A function which takes the a list of prop(s) for a Feature as input and
-        returns a matplolib color.
+        returns a matplolib color specifier.
     """
     # IDEA: Allow users to provide list or generator for labels.
     if not isinstance(phantom, Phantom):
         raise TypeError("Can only plot Phantoms.")
     if axis is None:
-        fig = plt.figure(figsize=(8, 8), facecolor='w')
-        a = fig.add_subplot(111, aspect='equal')
-        plt.grid('on')
-        plt.gca().invert_yaxis()
-    else:
-        a = axis
+        fig, axis = _make_axis()
     if not isinstance(c_props, list):
         raise TypeError('c_props must be list of str')
     if c_map is not None and not isinstance(c_map, type.FunctionType):
@@ -121,7 +130,6 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
     num_props = range(0, len(c_props))
     i = 0
     # Draw all features in the phantom.
-    i = 0
     for f in phantom.feature:
         if c_map is not None:
             # use the colormap to determine the color
@@ -131,10 +139,12 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
         else:
             color = None
 
-        plot_feature(f, a, c=color)
+        plot_feature(f, axis, c=color)
         if labels is not None:
-            a.annotate(str(i), xy=(f.center.x, f.center.y),
-                       ha='center', va='center', color=LABEL_COLOR)
+            axis.annotate(str(i), xy=(f.center.x, f.center.y),
+                          ha='center', va='center', color=LABEL_COLOR,
+                          path_effects=[PathEffects.withStroke(
+                            linewidth=3, foreground=DEFAULT_EDGE_COLOR)])
             i += 1
 
 
@@ -151,20 +161,17 @@ def plot_feature(feature, axis=None, alpha=None, c=None):
     if not isinstance(feature, Feature):
         raise TypeError('Can only plot Features.')
     if axis is None:
-        fig = plt.figure(figsize=(8, 8), facecolor='w')
-        axis = fig.add_subplot(111, aspect='equal')
-        plt.grid('on')
-        plt.gca().invert_yaxis()
+        fig, axis = _make_axis()
 
     # Plot geometry using correct method
     if isinstance(feature.geometry, Mesh):
         plot_mesh(feature.geometry, axis, alpha, c)
-    elif isinstance(feature.geometry, CurvedEntity):
+    elif isinstance(feature.geometry, Curve):
         plot_curve(feature.geometry, axis, alpha, c)
     elif isinstance(feature.geometry, Polygon):
         plot_polygon(feature.geometry, axis, alpha, c)
     else:
-        raise ValueError
+        raise NotImplemented('Feature geometry is not Mesh, Curve or Polygon.')
 
 
 def plot_mesh(mesh, axis=None, alpha=None, c=None):
@@ -179,10 +186,7 @@ def plot_mesh(mesh, axis=None, alpha=None, c=None):
     """
     assert(isinstance(mesh, Mesh))
     if axis is None:
-        fig = plt.figure(figsize=(8, 8), facecolor='w')
-        axis = fig.add_subplot(111, aspect='equal')
-        plt.grid('on')
-        plt.gca().invert_yaxis()
+        fig, axis = _make_axis()
 
     # Plot each face separately
     for f in mesh.faces:
@@ -201,17 +205,15 @@ def plot_polygon(polygon, axis=None, alpha=None, c=None):
     """
     assert(isinstance(polygon, Polygon))
     if axis is None:
-        fig = plt.figure(figsize=(8, 8), facecolor='w')
-        axis = fig.add_subplot(111, aspect='equal')
-        plt.grid('on')
-        plt.gca().invert_yaxis()
+        fig, axis = _make_axis()
     if c is None:
-        c = DEFAULT_POLY_COLOR
+        c = POLY_COLOR
 
     p = polygon.patch
     p.set_alpha(alpha)
     p.set_facecolor(c)
-    p.set_edgecolor(DEFAULT_EDGE_COLOR)
+    p.set_edgecolor(POLY_EDGE_COLOR)
+    p.set_linewidth(POLY_LINEWIDTH)
     axis.add_patch(p)
 
 
@@ -225,12 +227,9 @@ def plot_curve(curve, axis=None, alpha=None, c=None):
     c : matplotlib color specifier
         See http://matplotlib.org/api/colors_api.html
     """
-    assert(isinstance(curve, CurvedEntity))
+    assert(isinstance(curve, Curve))
     if axis is None:
-        fig = plt.figure(figsize=(8, 8), facecolor='w')
-        axis = fig.add_subplot(111, aspect='equal')
-        plt.grid('on')
-        plt.gca().invert_yaxis()
+        fig, axis = _make_axis()
     if c is None:
         c = DEFAULT_COLOR
 
@@ -238,7 +237,17 @@ def plot_curve(curve, axis=None, alpha=None, c=None):
     p.set_alpha(alpha)
     p.set_facecolor(c)
     p.set_edgecolor(DEFAULT_EDGE_COLOR)
+    p.set_linewidth(CURVE_LINEWIDTH)
     axis.add_patch(p)
+
+
+def _make_axis():
+    """Makes an axis for plotting phantom module classes."""
+    fig = plt.figure(figsize=(8, 8), facecolor='w')
+    axis = fig.add_subplot(111, aspect='equal')
+    plt.grid('on')
+    plt.gca().invert_yaxis()
+    return fig, axis
 
 
 def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
@@ -246,7 +255,7 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     phantom. The values of overlapping features are additive.
 
     Parameters
-    ------------
+    ----------
     size : scalar
         The side length in pixels of the resulting square image.
     ratio : scalar, optional
@@ -261,7 +270,7 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
         The name of the property function to discretize
 
     Returns
-    ------------
+    -------
     image : numpy.ndarray
         The discrete representation of the phantom that is size x size.
     """
@@ -275,7 +284,8 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
         raise TypeError('property must be specified using str.')
     ndims = 2
 
-    # Make a higher resolution grid to sample the continuous space
+    # Make a higher resolution grid to sample the continuous space. Sample at
+    # the center of each pixel.
     grid_step = 1 / size / ratio
     _x = np.arange(0, 1, grid_step) + grid_step / 2
     _y = np.arange(0, 1, grid_step) + grid_step / 2
@@ -288,7 +298,8 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     for f in phantom.feature:
         image = _discrete_feature(f, image, px, py, prop)
 
-    # Resample down to the desired size.
+    # Resample down to the desired size. Roll image so that decimation chooses
+    # from the center of each pixel.
     if uniform:
         image = scipy.ndimage.uniform_filter(image, ratio)
     else:
@@ -310,15 +321,15 @@ def _discrete_feature(feature, image, px, py, prop):
 def sidebyside(p, size=100, labels=None, prop='mass_atten'):
     '''Displays the geometry and the discrete property function of
     the given phantom side by side.'''
-    fig = plt.figure(dpi=600)
+    fig = plt.figure(figsize=(6, 3), dpi=600)
     axis = fig.add_subplot(121, aspect='equal')
     plt.grid('on')
     plt.gca().invert_yaxis()
     plot_phantom(p, axis=axis, labels=labels)
     plt.subplot(1, 2, 2)
-    plt.imshow(discrete_phantom(p, size, prop=prop), interpolation='none',
-               cmap=plt.cm.inferno)
-    fig.set_size_inches(6, 6)
+    d = discrete_phantom(p, size, prop=prop)
+    plt.imshow(d, interpolation='none', cmap=plt.cm.inferno)
+    return d
 
 
 def multiroll(x, shift, axis=None):
@@ -445,18 +456,13 @@ def plot_metrics(imqual):
     ----------
     Colors taken from this gist <https://gist.github.com/thriveth/8560036>
     """
-    plt.figure(0)  # cycle through 126 unique styles
-    styles = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
-                                    '#f781bf', '#a65628', '#984ea3',
-                                    '#999999', '#e41a1c', '#dede00']) +
-              63 * cycler('linestyle', ['-', '--']) +
-              18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
-    plt.rc('axes', prop_cycle=styles)
+    fig_lineplot = plt.figure(0)
+    plt.rc('axes', prop_cycle=PLOT_STYLES)
 
     for i in range(0, len(imqual)):
         # Draw a plot of the mean quality vs scale using different colors for
         # each reconstruction.
-        plt.figure(0)
+        plt.figure(fig_lineplot.number)
         plt.plot(imqual[i].scales, imqual[i].qualities)
 
         # Plot the reconstruction
@@ -500,7 +506,7 @@ def plot_metrics(imqual):
                    interpolation="none", aspect='equal')
         plt.title("Ideal")
         '''
-    plt.figure(0)
+    plt.figure(fig_lineplot.number)
     plt.ylabel('Quality')
     plt.xlabel('Scale')
     plt.ylim([0, 1])
@@ -548,6 +554,48 @@ def _pyramid(N):
         # print(params[n])
 
     return params
+
+
+def plot_mtf(faxis, MTF, labels=None):
+    """Plots the MTF. Returns the figure reference."""
+    fig_lineplot = plt.figure()
+    plt.rc('axes', prop_cycle=PLOT_STYLES)
+
+    for i in range(0, MTF.shape[0]):
+        plt.plot(faxis, MTF[i, :])
+
+    plt.xlabel('spatial frequency [cycles/length]')
+    plt.ylabel('Radial MTF')
+    plt.gca().set_ylim([0, 1])
+
+    if labels is not None:
+        plt.legend([str(n) for n in labels])
+    plt.title("Modulation Tansfer Function for various angles")
+
+    return fig_lineplot
+
+
+def plot_nps(X, Y, NPS):
+    """Plots the 2D frequency plot for the NPS.
+    Returns the figure reference."""
+    fig_nps = plt.figure()
+    plt.contourf(X, Y, NPS, cmap='inferno')
+    plt.xlabel('spatial frequency [cycles/length]')
+    plt.ylabel('spatial frequency [cycles/length]')
+    plt.axis(tight=True)
+    plt.gca().set_aspect('equal')
+    plt.colorbar()
+    plt.title('Noise Power Spectrum')
+    return fig_nps
+
+
+def plot_neq(freq, NEQ):
+    """Plots the NEQ. Returns the figure reference."""
+    fig_neq = plt.figure()
+    plt.plot(freq.flatten(), NEQ.flatten())
+    plt.xlabel('spatial frequency [cycles/length]')
+    plt.title('Noise Equivalent Quanta')
+    return fig_neq
 
 
 def plot_histograms(images, masks=None, thresh=0.025):
