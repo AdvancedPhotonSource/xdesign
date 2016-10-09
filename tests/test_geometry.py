@@ -61,6 +61,57 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 
 
+# Transformations
+
+def rotate_around_self():
+    P0 = Point([0, 0])
+    origin = P0
+    P1 = rotate(P0, np.pi/2, origin)
+    assert_allclose([P1.x, P1.y], [0, 0])
+
+
+def rotate_around_other():
+    P0 = Point([0, 0])
+    origin = Point([1, 0])
+    P1 = rotate(P0, np.pi/2, origin)
+    assert_allclose([P1.x, P1.y], [1, -1])
+
+
+def test_Point_rotate_around_self():
+    P0 = Point([0, 0])
+    origin = P0
+    P0.rotate(np.pi/2, origin)
+    assert_allclose([P0.x, P0.y], [0, 0])
+
+
+def test_Point_rotate_around_other():
+    P0 = Point([0, 0])
+    origin = Point([1, 0])
+    P0.rotate(np.pi/2, origin)
+    assert_allclose([P0.x, P0.y], [1, -1])
+
+    P0 = Point([0, 0])
+    origin = Point([0, 1])
+    P0.rotate(np.pi/2, origin)
+    assert_allclose([P0.x, P0.y], [1, 1])
+
+    P0 = Point([0, 0])
+    origin = Point([-1, 0])
+    P0.rotate(np.pi/2, origin)
+    assert_allclose([P0.x, P0.y], [-1, 1])
+
+    P0 = Point([0, 0])
+    origin = Point([-1, -1])
+    P0.rotate(np.pi/2, origin)
+    assert_allclose([P0.x, P0.y], [-2, 0])
+
+
+def test_translate():
+    P0 = Point([0, 0])
+    P0.translate([2.3, 4.5])
+    assert_equal([P0.x, P0.y], [2.3, 4.5])
+
+
 # Nonintersecting beams
 
 def test_beamcirc_nonintersecting_top():
