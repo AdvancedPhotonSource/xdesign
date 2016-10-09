@@ -55,6 +55,7 @@ from xdesign.geometry import *
 from xdesign.geometry import beamintersect, beamcirc
 import logging
 import polytope as pt
+from copy import copy
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +140,7 @@ class Probe(Beam):
         return newdata
 
     def record(self):
-        self.history.append(self.list)
+        self.history.append(self.numpy)
 
 
 def sinogram(sx, sy, phantom, noise=False):
@@ -161,7 +162,6 @@ def sinogram(sx, sy, phantom, noise=False):
     scan = raster_scan(sx, sy)
     sino = np.zeros((sx, sy))
     for m in range(sx):
-        # print(m)
         for n in range(sy):
             sino[m, n] = next(scan).measure(phantom, noise)
     return sino
@@ -186,7 +186,6 @@ def angleogram(sx, sy, phantom, noise=False):
     scan = angle_scan(sx, sy)
     angl = np.zeros((sx, sy))
     for m in range(sx):
-        print(m)
         for n in range(sy):
             angl[m, n] = next(scan).measure(phantom, noise)
     return angl
@@ -217,7 +216,7 @@ def raster_scan(sx, sy):
 
     for m in range(sx):
         for n in range(sy):
-            yield p
+            yield copy(p)
             p.translate(step)
         p.translate(-1)
         p.rotate(theta, Point([0.5, 0.5]))

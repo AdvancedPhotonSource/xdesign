@@ -314,7 +314,10 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
 def _discrete_feature(feature, image, px, py, prop):
     """Helper function for discrete_phantom. Rasterizes the geometry of the
     feature."""
-    new_feature = feature.geometry.contains([px, py]) * getattr(feature, prop)
+    size = px.shape
+    x = np.vstack([px.flatten(), py.flatten()]).T
+    new_feature = feature.geometry.contains(x) * getattr(feature, prop)
+    new_feature = np.reshape(new_feature, size)
     return image + new_feature
 
 
