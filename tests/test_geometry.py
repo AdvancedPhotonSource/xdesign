@@ -233,7 +233,7 @@ def test_Line_slope_vertical():
 
 def test_Line_yintercept_vertical():
     line = Line(Point([0, -1]), Point([0, 1]))
-    assert_allclose(line.yintercept, 0, rtol=1e-6)
+    assert_allclose(line.yintercept, np.inf, rtol=1e-6)
 
 
 def test_Line_slope():

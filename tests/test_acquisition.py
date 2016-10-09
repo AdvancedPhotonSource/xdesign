@@ -7,8 +7,8 @@ import numpy as np
 
 
 def test_raster_scan():
-    positions = [p.list.flatten() for p in raster_scan(2, 2)]
-    positions = np.hstack(positions)
+    positions = [p.numpy.flatten() for p in raster_scan(2, 2)]
+    positions = np.hstack(np.hstack(positions))
 
     correct = np.array([0.25,  -10., 0.25,       10.,
                         0.75,  -10., 0.75,       10.,
