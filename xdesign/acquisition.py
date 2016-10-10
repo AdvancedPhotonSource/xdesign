@@ -132,6 +132,7 @@ class Probe(Beam):
         poisson noise is added to the returned measurement."""
         newdata = 0
         for m in range(phantom.population):
+            # print("%s Measure feature %i" % (str(self), m))
             newdata += (beamintersect(self, phantom.feature[m].geometry) *
                         phantom.feature[m].mass_atten)
         if noise > 0:

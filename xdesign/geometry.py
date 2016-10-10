@@ -57,6 +57,7 @@ from numbers import Number
 import polytope as pt
 from cached_property import cached_property
 import copy
+from math import sqrt, asin
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +168,7 @@ class Point(Entity):
     @property
     def norm(self):
         """Reference: http://stackoverflow.com/a/23576322"""
-        return np.sqrt(self._x.dot(self._x))
+        return sqrt(self._x.dot(self._x))
 
     @property
     def dim(self):
@@ -231,7 +232,7 @@ class Point(Entity):
         if not isinstance(other, Point):
             raise NotImplementedError("Point to point distance only.")
         d = self._x - other._x
-        return np.sqrt(d.dot(d))
+        return sqrt(d.dot(d))
 
     # OVERLOADS
     def __eq__(self, point):
@@ -431,6 +432,17 @@ class Line(LinearEntity):
         The Nth is returned separately."""
         A = np.vstack((self.p1._x, self.p2._x))
         return calc_standard(A)
+
+    def distance(self, other):
+        """Return the closest distance between entities.
+        REF: http://geomalgorithms.com/a02-_lines.html"""
+        if not isinstance(other, Point):
+            raise NotImplementedError("Line to point distance only.")
+        d = np.cross(self.tangent._x, other._x - self.p1._x)
+        if self.dim > 2:
+            return sqrt(d.dot(d))
+        else:
+            return abs(d)
 
 
 # class Ray(LinearEntity):
@@ -976,26 +988,12 @@ def beampoly(beam, poly):
     return beam.half_space.intersect(poly.half_space).volume
 
 
-def segment(circle, x):
-    """Calculates intersection area of a vertical line segment in a circle.
-
-    Parameters
-    ----------
-    circle : Circle
-    x : scalar
-        Intersection of the vertical line with x-axis.
-
-    Returns
-    -------
-    scalar
-        Area of the left region.
-    """
-    return circle.radius**2 * \
-        np.arccos(x / circle.radius) - x * np.sqrt(circle.radius**2 - x**2)
-
-
 def beamcirc(beam, circle):
-    """Intersection area of an infinite beam with a circle.
+    """Intersection area of a Beam (line with finite thickness) and a circle.
+
+    Reference
+    ---------
+    Glassner, A. S. (Ed.). (2013). Graphics gems. Elsevier.
 
     Parameters
     ----------
@@ -1004,35 +1002,71 @@ def beamcirc(beam, circle):
 
     Returns
     -------
-    scalar
+    a : scalar
         Area of the intersected region.
     """
+    r = circle.radius
+    w = beam.size/2
+    p = beam.distance(circle.center)
+    assert(p >= 0)
 
-    # Passive coordinate transformation.
-    _center = copy.copy(circle.center)
-    _center.rotate(-np.arctan(beam.slope), Point([0, beam.yintercept]))
+    # print("BEAMCIRC r = %f, w = %f, p = %f" % (r, w, p), end="")
 
-    # Correction if line is vertical to x-axis.
-    if beam.vertical:
-        dy = beam.p1.x
-    else:
-        dy = -beam.yintercept
+    if w == 0 or r == 0:
+        return 0
 
-    # Calculate the area deending on how the beam intersects the circle.
-    p1 = _center.y - beam.size / 2. + dy
-    p2 = _center.y + beam.size / 2. + dy
-    pmin = min(abs(p1), abs(p2))
-    pmax = max(abs(p1), abs(p2))
-    if pmin < circle.radius:
-        if pmax >= circle.radius:
-            if p1 * p2 > 0:
-                area = segment(circle, pmin)
-            else:
-                area = circle.area - segment(circle, pmin)
-        elif pmax < circle.radius:
-            area = abs(segment(circle, p1) - segment(circle, p2))
-    elif p1 * p2 < 0:
-        area = circle.area
-    else:
-        area = 0.
-    return area
+    if w < r:
+        if p < w:
+            f = 1 - halfspacecirc(w - p, r) - halfspacecirc(w + p, r)
+        elif p < r - w:  # and w <= p
+            f = halfspacecirc(p - w, r) - halfspacecirc(w + p, r)
+        else:  # r - w <= p
+            f = halfspacecirc(p - w, r)
+    else:  # w >= r
+        if p < w:
+            f = 1 - halfspacecirc(w - p, r)
+        else:  # w <= pd
+            f = halfspacecirc(p - w, r)
+
+    a = np.pi * r**2 * f
+    assert(a >= 0), a
+    # print()
+    return a
+
+
+def halfspacecirc(d, r):
+    """Area of intersection between circle and half-plane. Returns the smaller
+    fraction of a circle split by a line d units away from the center of the
+    circle.
+
+    Reference
+    ---------
+    Glassner, A. S. (Ed.). (2013). Graphics gems. Elsevier.
+
+    Parameters
+    ----------
+    d : scalar
+        The distance from the line to the center of the circle
+    r : scalar
+        The radius of the circle
+
+    Returns
+    -------
+    f : scalar
+        The proportion of the circle in the smaller half-space
+    """
+    assert(r > 0), "The radius must positive"
+    assert(d >= 0), "The distance must be positive or zero."
+
+    if d >= r:  # The line is too far away to overlap!
+        return 0
+
+    f = 0.5 - d*sqrt(r**2 - d**2)/(np.pi*r**2) - asin(d/r)/np.pi
+
+    # Returns the smaller fraction of the circle, so it can be at most 1/2.
+    try:
+        assert(0 <= f and f <= 0.5), f
+    except:
+        RuntimeWarning("halfspacecirc was out of bounds, %f" % f)
+        f = 0
+    return f
