@@ -356,6 +356,11 @@ class LinearEntity(Entity):
         return np.vstack((self.p1._x, self.p2._x))
 
     @property
+    def list(self):
+        """Return list representation."""
+        return np.hstack((self.p1._x, self.p2._x))
+
+    @property
     def dim(self):
         """The dimensionality of the entity"""
         return self._dim

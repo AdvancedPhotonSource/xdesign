@@ -141,7 +141,7 @@ class Probe(Beam):
         return newdata
 
     def record(self):
-        self.history.append(self.numpy)
+        self.history.append(self.list)
 
 
 def sinogram(sx, sy, phantom, noise=False):
