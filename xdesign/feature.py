@@ -111,7 +111,7 @@ class Feature(object):
         supported."""
         self.geometry.translate(x, y)
 
-    def rotate(self, theta, p):
+    def rotate(self, theta, p, axis=None):
         """Rotate feature geometry around a line. Rotating property
         functions is not supported."""
         self.geometry.rotate(theta, p)

@@ -50,9 +50,12 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
+from numbers import Number
 from xdesign.geometry import *
-from xdesign.geometry import beamcirc, rotate
+from xdesign.geometry import beamintersect, beamcirc
 import logging
+import polytope as pt
+from copy import copy
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +70,6 @@ __all__ = ['Beam',
 
 
 class Beam(Line):
-
     """Beam (thick line) in 2-D cartesian space.
 
     It is defined by two distinct points.
@@ -81,11 +83,36 @@ class Beam(Line):
     """
 
     def __init__(self, p1, p2, size=0):
+        if not isinstance(size, Number):
+            raise TypeError("Size must be scalar.")
         super(Beam, self).__init__(p1, p2)
         self.size = float(size)
 
     def __str__(self):
-        return super(Beam, self).__str__()
+        return "Beam(" + super(Beam, self).__str__() + ")"
+
+    @property
+    def half_space(self):
+        """Returns the half space polytope respresentation of the infinite
+        beam."""
+        # add half beam width along the normal direction to each of the points
+        half = self.normal * self.size / 2
+        edges = [Line(self.p1 + half, self.p2 + half),
+                 Line(self.p1 - half, self.p2 - half)]
+
+        A = np.ndarray((len(edges), self.dim))
+        B = np.ndarray(len(edges))
+
+        for i in range(0, 2):
+            A[i, :], B[i] = edges[i].standard
+
+            # test for positive or negative side of line
+            if np.einsum('i, i', self.p1._x, A[i, :]) > B[i]:
+                A[i, :] = -A[i, :]
+                B[i] = -B[i]
+
+        p = pt.Polytope(A, B)
+        return p
 
 
 class Probe(Beam):
@@ -100,17 +127,13 @@ class Probe(Beam):
         self.p1 += vec
         self.p2 += vec
 
-    def rotate(self, theta, origin):
-        """Rotates beam around a given point."""
-        self.p1 = rotate(self.p1, theta, origin)
-        self.p2 = rotate(self.p2, theta, origin)
-
     def measure(self, phantom, noise=False):
         """Return the probe measurement given phantom. When noise is > 0,
         poisson noise is added to the returned measurement."""
         newdata = 0
         for m in range(phantom.population):
-            newdata += (beamcirc(self, phantom.feature[m]) *
+            # print("%s Measure feature %i" % (str(self), m))
+            newdata += (beamintersect(self, phantom.feature[m].geometry) *
                         phantom.feature[m].mass_atten)
         if noise > 0:
             newdata += newdata * noise * np.random.poisson(1)
@@ -140,7 +163,6 @@ def sinogram(sx, sy, phantom, noise=False):
     scan = raster_scan(sx, sy)
     sino = np.zeros((sx, sy))
     for m in range(sx):
-        # print(m)
         for n in range(sy):
             sino[m, n] = next(scan).measure(phantom, noise)
     return sino
@@ -165,7 +187,6 @@ def angleogram(sx, sy, phantom, noise=False):
     scan = angle_scan(sx, sy)
     angl = np.zeros((sx, sy))
     for m in range(sx):
-        print(m)
         for n in range(sy):
             angl[m, n] = next(scan).measure(phantom, noise)
     return angl
@@ -192,14 +213,14 @@ def raster_scan(sx, sy):
     theta = np.pi / sx
 
     # Fixed probe location.
-    p = Probe(Point(step / 2., -10), Point(step / 2., 10), step)
+    p = Probe(Point([step / 2., -10]), Point([step / 2., 10]), step)
 
     for m in range(sx):
         for n in range(sy):
-            yield p
+            yield copy(p)
             p.translate(step)
         p.translate(-1)
-        p.rotate(theta, Point(0.5, 0.5))
+        p.rotate(theta, Point([0.5, 0.5]))
 
 
 def angle_scan(sx, sy):
@@ -220,15 +241,15 @@ def angle_scan(sx, sy):
     step = 0.1 / sy
 
     # Fixed rotation points.
-    p1 = Point(0, 0.5)
-    p2 = Point(0.5, 0.5)
+    p1 = Point([0, 0.5])
+    p2 = Point([0.5, 0.5])
 
     # Step size of the rotation angle.
     beta = np.pi / (sx + 1)
     alpha = np.pi / sy
 
     # Fixed probe location.
-    p = Probe(Point(step / 2., -10), Point(step / 2., 10), step)
+    p = Probe(Point([step / 2., -10]), Point([step / 2., 10]), step)
 
     for m in range(sx):
         for n in range(sy):
