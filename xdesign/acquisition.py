@@ -87,6 +87,7 @@ class Beam(Line):
             raise TypeError("Size must be scalar.")
         super(Beam, self).__init__(p1, p2)
         self.size = float(size)
+        self.count = 0
 
     def __str__(self):
         return "Beam(" + super(Beam, self).__str__() + ")"
@@ -119,6 +120,10 @@ class Beam(Line):
         p = pt.Polytope(A, B)
         return p
 
+    @property
+    def skip(self):
+        self.count += 1
+        return self.count
 
 def beamintersect(beam, geometry):
     """Intersection area of infinite beam with a geometry"""
@@ -135,6 +140,7 @@ def beamintersect(beam, geometry):
 def beammesh(beam, mesh):
     """Intersection area of infinite beam with polygonal mesh"""
     if beam.distance(mesh.center) > mesh.radius:
+        print(beam.skip)
         return 0
 
     return beam.half_space.intersect(mesh.half_space).volume
@@ -143,6 +149,7 @@ def beammesh(beam, mesh):
 def beampoly(beam, poly):
     """Intersection area of an infinite beam with a polygon"""
     if beam.distance(poly.center) > poly.radius:
+        print(beam.skip)
         return 0
 
     return beam.half_space.intersect(poly.half_space).volume
@@ -272,7 +279,9 @@ def angleogram(sx, sy, phantom, noise=False):
 
 
 def raster_scan(sx, sy):
-    """Provides a beam list for raster-scanning.
+    """Provides a beam list for raster-scanning. Each Probe returned is the same
+    probe such that computation is not spent on copying the object;
+    transformations are cheaper than recalculating bounding boxes.
 
     Parameters
     ----------
@@ -296,14 +305,16 @@ def raster_scan(sx, sy):
 
     for m in range(sx):
         for n in range(sy):
-            yield copy(p)
+            yield p
             p.translate(step)
         p.translate(-1)
         p.rotate(theta, Point([0.5, 0.5]))
 
 
 def angle_scan(sx, sy):
-    """Provides a beam list for raster-scanning.
+    """Provides a beam list for angle-scanning. Each Probe returned is the same
+    probe such that computation is not spent on copying the object;
+    transformations are cheaper than recalculating bounding boxes.
 
     Parameters
     ----------
