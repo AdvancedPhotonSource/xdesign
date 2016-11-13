@@ -52,7 +52,7 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 from numbers import Number
 from xdesign.geometry import *
-from xdesign.geometry import beamintersect, beamcirc
+from xdesign.geometry import halfspacecirc
 import logging
 import polytope as pt
 from copy import copy
@@ -118,6 +118,80 @@ class Beam(Line):
 
         p = pt.Polytope(A, B)
         return p
+
+
+def beamintersect(beam, geometry):
+    """Intersection area of infinite beam with a geometry"""
+    if isinstance(geometry, Mesh):
+        return beammesh(beam, geometry)
+    elif isinstance(geometry, Polygon):
+        return beampoly(beam, geometry)
+    elif isinstance(geometry, Circle):
+        return beamcirc(beam, geometry)
+    else:
+        raise NotImplementedError
+
+
+def beammesh(beam, mesh):
+    """Intersection area of infinite beam with polygonal mesh"""
+    if beam.distance(mesh.center) > mesh.radius:
+        return 0
+
+    return beam.half_space.intersect(mesh.half_space).volume
+
+
+def beampoly(beam, poly):
+    """Intersection area of an infinite beam with a polygon"""
+    if beam.distance(poly.center) > poly.radius:
+        return 0
+
+    return beam.half_space.intersect(poly.half_space).volume
+
+
+def beamcirc(beam, circle):
+    """Intersection area of a Beam (line with finite thickness) and a circle.
+
+    Reference
+    ---------
+    Glassner, A. S. (Ed.). (2013). Graphics gems. Elsevier.
+
+    Parameters
+    ----------
+    beam : Beam
+    circle : Circle
+
+    Returns
+    -------
+    a : scalar
+        Area of the intersected region.
+    """
+    r = circle.radius
+    w = beam.size/2
+    p = super(Beam, beam).distance(circle.center)
+    assert(p >= 0)
+
+    # print("BEAMCIRC r = %f, w = %f, p = %f" % (r, w, p), end="")
+
+    if w == 0 or r == 0:
+        return 0
+
+    if w < r:
+        if p < w:
+            f = 1 - halfspacecirc(w - p, r) - halfspacecirc(w + p, r)
+        elif p < r - w:  # and w <= p
+            f = halfspacecirc(p - w, r) - halfspacecirc(w + p, r)
+        else:  # r - w <= p
+            f = halfspacecirc(p - w, r)
+    else:  # w >= r
+        if p < w:
+            f = 1 - halfspacecirc(w - p, r)
+        else:  # w <= pd
+            f = halfspacecirc(p - w, r)
+
+    a = np.pi * r**2 * f
+    assert(a >= 0), a
+    # print()
+    return a
 
 
 class Probe(Beam):
