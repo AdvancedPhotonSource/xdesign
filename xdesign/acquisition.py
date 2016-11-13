@@ -79,7 +79,7 @@ class Beam(Line):
     p1 : Point
     p2 : Point
     size : scalar, optional
-        Size of the beam.
+        Size of the beam. i.e. the diameter
     """
 
     def __init__(self, p1, p2, size=0):
@@ -90,6 +90,11 @@ class Beam(Line):
 
     def __str__(self):
         return "Beam(" + super(Beam, self).__str__() + ")"
+
+    def distance(self, other):
+        """Return the closest distance between entities."""
+        dx = super(Beam, self).distance(other)
+        return dx - self.size / 2
 
     @property
     def half_space(self):

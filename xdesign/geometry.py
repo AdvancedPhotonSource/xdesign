@@ -701,6 +701,23 @@ class Polygon(Entity):
         return perimeter
 
     @property
+    def center(self):
+        """The center of the bounding circle."""
+        c = Point(np.zeros(self._dim))
+        for m in range(self.numverts):
+            c = c + self.vertices[m]
+        return c / self.numverts
+
+    @property
+    def radius(self):
+        """The radius of the bounding circle."""
+        r = 0
+        c = self.center
+        for m in range(self.numverts):
+            r = np.max(r, self.vertices[m].distance(c))
+        return r
+
+    @property
     def bounds(self):
         """Return a tuple (xmin, ymin, xmax, ymax) representing the
         bounding rectangle for the geometric figure.
@@ -799,6 +816,11 @@ class Rectangle(Polygon):
         for v in self.vertices:
             center += v
         return center / 4
+
+    @property
+    def radius(self):
+        """The radius of the bounding circle."""
+        return self.vertices[0].distance(self.center)
 
     @property
     def area(self):
@@ -985,11 +1007,17 @@ def beamintersect(beam, geometry):
 
 def beammesh(beam, mesh):
     """Intersection area of infinite beam with polygonal mesh"""
+    if beam.distance(mesh.center) > mesh.radius:
+        return 0
+
     return beam.half_space.intersect(mesh.half_space).volume
 
 
 def beampoly(beam, poly):
     """Intersection area of an infinite beam with a polygon"""
+    if beam.distance(poly.center) > poly.radius:
+        return 0
+
     return beam.half_space.intersect(poly.half_space).volume
 
 
