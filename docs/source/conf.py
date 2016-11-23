@@ -341,9 +341,10 @@ class Mock(object):
             return Mock()
 
 MOCK_MODULES = [
-    'numpy', 'scipy', 'scipy.stats', 'scipy.ndimage', 
-    'matplotlib', 'matplotlib.pyplot', 'matplotlib.patches', 
-    'phasepack', 'cached-property']
+    'numpy', 'scipy', 'scipy.stats', 'scipy.ndimage',
+    'matplotlib', 'matplotlib.pyplot', 'matplotlib.patches',
+    'phasepack', 'cached-property', 'matplotlib.path',
+    'matplotlib.patheffects', 'matplotlib.axis', 'scipy.spatial']
 
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
