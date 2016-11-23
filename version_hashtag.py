@@ -64,3 +64,5 @@ def retrieve_version_from_git():
                     return tag[1:]
                 except ValueError:
                     return 'dev-' + tag
+
+        return "unknown.commit"
