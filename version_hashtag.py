@@ -48,9 +48,9 @@ def retrieve_version_from_git():
         except OSError:
             return "unknown.commit"
 
-        # Decide whether this is a release
+        # Get a tag from git.
         p = subprocess.Popen(
-            ['git', 'describe', '--tags', '--candidates=0', 'HEAD'],
+            ['git', 'describe', '--tags', 'HEAD'],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
         p.wait()
@@ -59,8 +59,16 @@ def retrieve_version_from_git():
             if tag.endswith('\n'):
                 tag = tag[:-1]
             if len(tag) >= 2 and tag.startswith('v'):
+                # It's probably a version number
                 try:
                     int(tag[1])
-                    return tag[1:]
                 except ValueError:
-                    return 'dev-' + tag
+                    return 'dev0+' + tag
+                # Get create a PEP440 compliant version number.
+                if tag.find('-') < 0:
+                    return tag[1:]
+                else:
+                    split = tag.find('-')
+                    return tag[1:split] + '+dev' + tag[split+1:].replace('-','.')
+
+        return "unknown.commit"
