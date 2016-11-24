@@ -2,14 +2,14 @@ XDesign
 #######
 
 **XDesign** is an open-source Python package for generating
-configurable simulation phantoms for benchmarking tomographic 
+configurable simulation phantoms for benchmarking tomographic
 image reconstruction.
 
 .. toctree::
    :maxdepth: 1
 
    api
-   refs
+   zrefs
 
 Features
 ========
@@ -17,7 +17,7 @@ Features
 * Configurable analytic 2D phantoms.
 * Various visualization tools for statistics.
 * Analytic projection operators.
-    
+
 Contribute
 ==========
 
@@ -29,7 +29,7 @@ Contribute
 License
 =======
 
-The project is licensed under the 
+The project is licensed under the
 `BSD-3 <https://github.com/tomography/xdesign/blob/master/LICENSE.txt>`_ license.
 
 Indices and tables

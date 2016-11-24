@@ -167,7 +167,9 @@ class Point(Entity):
 
     @property
     def norm(self):
-        """Reference: http://stackoverflow.com/a/23576322"""
+        """Calculates the euclidian (L2) norm of the vector to the point."""
+        # See http://stackoverflow.com/a/23576322 for a discussion of the
+        # quickest way to calculate the norm of a vector.
         return sqrt(self._x.dot(self._x))
 
     @property
@@ -182,7 +184,7 @@ class Point(Entity):
         self._x += vector
 
     def rotate(self, theta, point=None, axis=None):
-        """Rotate entity around an axis by theta radians."""
+        """Rotates entity around an axis by theta radians."""
         if not isinstance(theta, Number):
             raise TypeError("theta must be scalar.")
         if point is None:

@@ -62,12 +62,18 @@ __all__ = ['Feature']
 
 class Feature(object):
     '''A geometric region(s) and associated materials properti(es).
-    Properties and geometry can be manipulated from this level, but rendering
-    must access the geometry directly.
+
+    Features represent regions of uniform materials properties within a :class:`.Phantom`. Each Feature consists of a geometry which defines the region in which some given materials properties e.g. mass attenuation, density, crystal structure, color... have a certain value. By collecting Features together, Phantoms can have varying properites across a space.
+
+    A geometric entity must be supplied at construction. All features are given
+    a mass attenuation (:attr:`mass_atten`) of 1 by default.
+
+    .. note:: Currently, properties must be constant across the Feature, but perhaps in the future, there will be support for peicewise definition of continuous property functions. e.g. a circle whose density follows a
+    gaussian profile.
 
     Attributes
-    ----------------
-    geometry : Entity
+    ----------
+    geometry : :class:`.Entity`
         Defines a region where the properties are valid.
     mass_atten : scalar
         The mass attenuation coefficient of the Feature.
@@ -79,39 +85,34 @@ class Feature(object):
         self.mass_atten = mass_atten
 
     def add_property(self, name, function):
-        """Adds a property by name to the Feature.
-        NOTE: Properties added here are not cached because they are probably
-        never called with the same parameters ever or the property is static
-        so it doesnt need caching.
-        """
+        """Adds a property by name to the Feature."""
+        # NOTE: Properties added here are not cached because they are probably never called with the same parameters ever or the property is static so it doesnt need caching.
         setattr(self, name, function)
 
     @property
     def center(self):
-        """Returns the centroid of the feature."""
+        """Returns the centroid of the Feature."""
         return self.geometry.center
 
     @property
     def radius(self):
-        """Returns the radius of the smallest boundary circle"""
+        """Returns the radius of the smallest boundary circle."""
         return self.geometry.radius
 
     @property
     def area(self):
-        """Returns the total surface area of the feature"""
+        """Returns the total surface area of the Feature."""
         return self.geometry.area
 
     @property
     def volume(self):
-        """Returns the volume of the feature"""
+        """Returns the volume of the Feature"""
         return self.geometry.volume
 
     def translate(self, x, y):
-        """Translate feature geometry. Translating property functions is not
-        supported."""
+        """Translates the geometry. Translating the property functions is not supported."""
         self.geometry.translate(x, y)
 
-    def rotate(self, theta, p, axis=None):
-        """Rotate feature geometry around a line. Rotating property
-        functions is not supported."""
-        self.geometry.rotate(theta, p)
+    def rotate(self, theta, point=None, axis=None):
+        """Rotate the geometry around an axis that passes through the given point. Rotating property functions is not supported."""
+        self.geometry.rotate(theta, point, axis)

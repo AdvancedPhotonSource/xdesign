@@ -67,18 +67,22 @@ __all__ = ['Phantom']
 
 
 class Phantom(object):
-    """Phantom generation class.
+    """Phantoms are objects for the purpose of evaluating an imaging method.
+
+    Each Phantom is a square or circular region containing a :class:`.list` of :class:`.Feature` objects. The :mod:`.acquisition` module uses Phantoms as an interface for generating data.
+
+    Phantoms can be combined using the '+' operator, and they also have some of the same mehtods as the :class:`.List` class including: append, pop, insert, sort, and reverse.
 
     Attributes
     ----------
-    shape : string
-        Shape of the phantom. Available options: circle, square.
+    shape : :class:`str`
+        The shape of the phantom: circle, square.
     population : scalar
-        Number of generated features in the phantom.
+        The number of :class:`.Feature` in the Phantom.
     area : scalar
-        Area of the features in the phantom.
-    feature : list
-        List of features.
+        The total volume of the :class:`.Feature` in the Phantom.
+    feature : :class:`list`
+        List of :class:`.Feature`.
     """
     # OPERATOR OVERLOADS
     def __init__(self, shape='circle'):
@@ -100,13 +104,14 @@ class Phantom(object):
     # PROPERTIES
     @property
     def list(self):
+        """Prints the contents of the Phantom."""
         for m in range(self.population):
             print(self.feature[m].list)
 
     @property
     def density(self):
-        '''Returns the area density of the phantom. (Does not acount for
-        mass_atten.)
+        '''Returns the area density of the phantom. Does not acount for
+        functional weight of the Features.
         '''
         if self.shape == 'square':
             return self.area
@@ -115,7 +120,7 @@ class Phantom(object):
 
     # FEATURE LIST MANIPULATION
     def append(self, feature):
-        """Add a feature to the top of the phantom."""
+        """Add a Feature to the top of the phantom."""
         if not isinstance(feature, Feature):
             raise TypeError("Can only add Features to Phantoms.")
         self.feature.append(feature)
@@ -123,13 +128,13 @@ class Phantom(object):
         self.population += 1
 
     def pop(self, i=-1):
-        """Pop i-th feature from the phantom."""
+        """Pop the i-th Feature from the Phantom."""
         self.population -= 1
         self.area -= self.feature[i].area
         return self.feature.pop(i)
 
     def insert(self, i, feature):
-        """Insert a feature at a given depth."""
+        """Insert a Feature at a given depth."""
         if not isinstance(feature, Feature):
             raise TypeError("Can only add Features to Phantoms.")
         self.feature.insert(i, feature)
@@ -137,7 +142,7 @@ class Phantom(object):
         self.population += 1
 
     def sort(self, param="mass_atten", reverse=False):
-        """Sorts the features by mass_atten or size"""
+        """Sorts the Features by a property such as mass_atten or size."""
         if param == "mass_atten":
             def key(feature): return feature.mass_atten
         elif param == "size":
@@ -147,13 +152,12 @@ class Phantom(object):
         self.feature = sorted(self.feature, key=key, reverse=reverse)
 
     def reverse(self):
-        """Reverse the features of the phantom"""
+        """Reverse the order of the Features in the phantom."""
         self.feature.reverse()
 
     def sprinkle(self, counts, radius, gap=0, region=None, mass_atten=1,
                  max_density=1):
-        """Sprinkle a number of circles. Uses various termination criteria to
-        determine when to stop trying to add circles.
+        """Sprinkles a number of :class:`.Circle` shaped Features around the Phantom. Uses various termination criteria to determine when to stop trying to add circles.
 
         Parameters
         ----------
@@ -164,12 +168,10 @@ class Phantom(object):
         gap : float, optional
             The minimum distance between circle boundaries.
             A negative value allows overlapping edges.
-        region : Entity, optional
-            The new circles are confined to this shape. None if the circles are
-            allowed anywhere.
+        region : :class:`.Entity`, optional
+            The new circles are confined to this shape. None if the circles are allowed anywhere.
         max_density : scalar, optional
-            Stops adding circles when the geometric density of the phantom
-            reaches this ratio.
+            Stops adding circles when the geometric density of the phantom reaches this ratio.
         mass_atten : scalar, optional
             A mass attenuation parameter passed to the circles.
 
@@ -234,7 +236,9 @@ class Phantom(object):
             self.feature[m].translate(dx, dy)
 
     def rotate(self, theta, origin=Point([0.5, 0.5]), axis=None):
-        """Rotate phantom around a point."""
+        """
+        Rotates the Phantom around an axis passing through the given origin.
+        """
         for m in range(self.population):
             self.feature[m].rotate(theta, origin, axis)
 
@@ -252,7 +256,7 @@ class Phantom(object):
         return arr
 
     def save(self, filename):
-        """Save phantom to file."""
+        """Saves phantom to file."""
         np.savetxt(filename, self.numpy(), delimiter=',')
 
     def load(self, filename):
