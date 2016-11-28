@@ -4,21 +4,22 @@
 .. automodule:: xdesign.geometry
    :members:
    :show-inheritance:
+   :inherited-members:
    :undoc-members:
    :synopsis: Defines geometric objects for the purpose of supporting :class:`.Feature` definition and calculating intersections for the :mod:`.acquisition` module.
 
-   .. rubric:: **Functions:**
+   .. rubric:: **Classes:**
 
    .. autosummary::
-
+      Entity
       Point
-      Superellipse
-      Ellipse
       Circle
       Line
+      Polygon
       Triangle
       Rectangle
       Square
+      Mesh
 
 .. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
 .. moduleauthor:: Daniel J Ching <daniel.j.ching@gmail.com>
