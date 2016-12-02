@@ -15,8 +15,6 @@
       Ellipse
       Circle
       Line
-      Segment
-      Ray
       Triangle
       Rectangle
       Square
