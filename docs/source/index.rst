@@ -9,6 +9,7 @@ image reconstruction.
    :maxdepth: 1
 
    api
+   examples
    refs
 
 Features
