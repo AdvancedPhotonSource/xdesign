@@ -79,10 +79,12 @@ __all__ = ['plot_phantom',
            'plot_curve',
            'discrete_phantom',
            'sidebyside',
+           'multiroll',
            'plot_metrics',
            'plot_mtf',
            'plot_nps',
-           'plot_neq']
+           'plot_neq',
+           'plot_histograms']
 
 DEFAULT_COLOR_MAP = plt.cm.viridis
 DEFAULT_COLOR = DEFAULT_COLOR_MAP(0.25)
@@ -122,7 +124,7 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
     if not isinstance(c_props, list):
         raise TypeError('c_props must be list of str')
     if c_map is not None and not isinstance(c_map, type.FunctionType):
-        raise TypeError('c_map must be a function.')
+        raise Typlot_histogramspeError('c_map must be a function.')
     if len(c_props) > 0 and c_map is None:
         c_map = DEFAULT_COLOR_MAP
 
