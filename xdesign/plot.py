@@ -124,7 +124,7 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
     if not isinstance(c_props, list):
         raise TypeError('c_props must be list of str')
     if c_map is not None and not isinstance(c_map, type.FunctionType):
-        raise Typlot_histogramspeError('c_map must be a function.')
+        raise TypeError('c_map must be a function.')
     if len(c_props) > 0 and c_map is None:
         c_map = DEFAULT_COLOR_MAP
 
