@@ -1,6 +1,13 @@
 XDesign
 #######
 
+.. title:: XDesign
+
+.. image:: img/xdesign-logo.png
+   :width: 320px
+   :alt: XDesign
+   
+   
 **XDesign** is an open-source Python package for generating
 configurable simulation phantoms for benchmarking tomographic 
 image reconstruction.
@@ -9,6 +16,7 @@ image reconstruction.
    :maxdepth: 1
 
    api
+   examples
    refs
 
 Features

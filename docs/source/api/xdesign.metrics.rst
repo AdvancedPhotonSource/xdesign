@@ -19,3 +19,5 @@
       compute_mtf
       compute_nps
       compute_neq
+      compute_mtf_siemens
+       

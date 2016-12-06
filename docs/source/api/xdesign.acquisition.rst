@@ -14,3 +14,5 @@
       Probe
       sinogram
       angleogram
+      raster_scan
+      angle_scan

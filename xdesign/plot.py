@@ -79,10 +79,12 @@ __all__ = ['plot_phantom',
            'plot_curve',
            'discrete_phantom',
            'sidebyside',
+           'multiroll',
            'plot_metrics',
            'plot_mtf',
            'plot_nps',
-           'plot_neq']
+           'plot_neq',
+           'plot_histograms']
 
 DEFAULT_COLOR_MAP = plt.cm.viridis
 DEFAULT_COLOR = DEFAULT_COLOR_MAP(0.25)
