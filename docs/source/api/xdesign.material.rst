@@ -14,9 +14,16 @@
       Material
       HyperbolicConcentric
       DynamicRange
+      DogaCircles
+      SlantedSquares
       UnitCircle
       Soil
+      WetCircles
+      SiemensStar
       Foam
+      Metal
+      SoftBiomaterial
       Electronics
+      FiberComposite
 
 .. moduleauthor:: Daniel J Ching <daniel.j.ching@gmail.com>

@@ -18,6 +18,7 @@
       compute_likeness
       compute_background_ttest
       compute_mtf
+      compute_mtf_siemens
       compute_nps
       compute_neq
 

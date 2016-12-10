@@ -15,5 +15,7 @@
       Probe
       sinogram
       angleogram
+      raster_scan
+      angle_scan
 
 .. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>

@@ -15,10 +15,10 @@
       Point
       Circle
       Line
-      Polygon
       Triangle
       Rectangle
       Square
+      Polygon
       Mesh
 
 .. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
