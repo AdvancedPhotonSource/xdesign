@@ -68,8 +68,7 @@ class Feature(object):
     A geometric entity must be supplied at construction. All features are given
     a mass attenuation (:attr:`mass_atten`) of 1 by default.
 
-    .. note:: Currently, properties must be constant across the Feature, but perhaps in the future, there will be support for peicewise definition of continuous property functions. e.g. a circle whose density follows a
-    gaussian profile.
+    .. note:: Currently, properties must be constant across the Feature, but perhaps in the future, there will be support for peicewise definition of continuous property functions. e.g. a circle whose density follows a gaussian profile.
 
     Attributes
     ----------
