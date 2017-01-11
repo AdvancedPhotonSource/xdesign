@@ -125,6 +125,7 @@ class Beam(Line):
         self.count += 1
         return self.count
 
+
 def beamintersect(beam, geometry):
     """Intersection area of infinite beam with a geometry"""
     if isinstance(geometry, Mesh):

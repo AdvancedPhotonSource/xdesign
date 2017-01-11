@@ -50,7 +50,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from xdesign.geometry import *
-from xdesign.geometry import beamcirc, beampoly
+from xdesign.acquisition import beamcirc, beampoly
 from xdesign.acquisition import *
 from numpy.testing import assert_allclose, assert_raises, assert_equal
 import numpy as np
