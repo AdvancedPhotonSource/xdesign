@@ -56,6 +56,7 @@ from xdesign.geometry import halfspacecirc
 import logging
 import polytope as pt
 from copy import copy
+from cached_property import cached_property
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,31 @@ class Beam(Line):
         dx = super(Beam, self).distance(other)
         return dx - self.size / 2
 
-    @property
+    def translate(self, vector):
+        """Translate entity along vector."""
+        self.p1.translate(vector)
+        self.p2.translate(vector)
+
+        if 'half_space' in self.__dict__:
+            self.half_space.translate(vector)
+
+    def rotate(self, theta, point=None, axis=None):
+        """Rotate entity around an axis which passes through an point by theta
+        radians."""
+        self.p1.rotate(theta, point, axis)
+        self.p2.rotate(theta, point, axis)
+
+        if 'half_space' in self.__dict__:
+            if point is None:
+                d = 0
+            else:
+                d = point._x
+            print("Rotating cached beam.")
+            self.half_space.translate(-d)
+            self.half_space.rotate(0, 1, theta)
+            self.half_space.translate(d)
+
+    @cached_property
     def half_space(self):
         """Returns the half space polytope respresentation of the infinite
         beam."""

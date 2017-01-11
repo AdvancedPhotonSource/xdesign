@@ -735,11 +735,23 @@ class Polygon(Entity):
         for v in self.vertices:
             v.translate(vector)
 
+        if 'half_space' in self.__dict__:
+            self.half_space.translate(vector)
+
     def rotate(self, theta, point=None, axis=None):
         """Rotate entity around an axis which passes through a point by theta
         radians."""
         for v in self.vertices:
             v.rotate(theta, point, axis)
+
+        if 'half_space' in self.__dict__:
+            if point is None:
+                d = 0
+            else:
+                d = point._x
+            self.half_space.translate(-d)
+            self.half_space.rotate(0, 1, theta)
+            self.half_space.translate(d)
 
     def contains(self, points):
         if isinstance(points, Point):
@@ -914,11 +926,23 @@ class Mesh(Entity):
         for t in self.faces:
             t.translate(vector)
 
+        if 'half_space' in self.__dict__:
+            self.half_space.translate(vector)
+
     def rotate(self, theta, point=None, axis=None):
         """Rotate entity around an axis which passes through a point by theta
         radians."""
         for t in self.faces:
             t.rotate(theta, point, axis)
+
+        if 'half_space' in self.__dict__:
+            if point is None:
+                d = 0
+            else:
+                d = point._x
+            self.half_space.translate(-d)
+            self.half_space.rotate(0, 1, theta)
+            self.half_space.translate(d)
 
     def scale(self, vector):
         """Scale entity."""
