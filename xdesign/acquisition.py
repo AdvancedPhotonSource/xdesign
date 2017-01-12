@@ -102,6 +102,7 @@ class Beam(Line):
 
     def translate(self, vector):
         """Translate entity along vector."""
+        logger.info("Translating Beam.")
         self.p1.translate(vector)
         self.p2.translate(vector)
 
@@ -111,6 +112,7 @@ class Beam(Line):
     def rotate(self, theta, point=None, axis=None):
         """Rotate entity around an axis which passes through an point by theta
         radians."""
+        logger.info("Rotating Beam.")
         self.p1.rotate(theta, point, axis)
         self.p2.rotate(theta, point, axis)
 
@@ -119,7 +121,7 @@ class Beam(Line):
                 d = 0
             else:
                 d = point._x
-            print("Rotating cached beam.")
+
             self.half_space.translate(-d)
             self.half_space.rotate(0, 1, theta)
             self.half_space.translate(d)
@@ -168,7 +170,7 @@ def beamintersect(beam, geometry):
 def beammesh(beam, mesh):
     """Intersection area of infinite beam with polygonal mesh"""
     if beam.distance(mesh.center) > mesh.radius:
-        print(beam.skip)
+        logger.info("BEAMMESH skipped because of radius.")
         return 0
 
     return beam.half_space.intersect(mesh.half_space).volume
@@ -177,7 +179,7 @@ def beammesh(beam, mesh):
 def beampoly(beam, poly):
     """Intersection area of an infinite beam with a polygon"""
     if beam.distance(poly.center) > poly.radius:
-        print(beam.skip)
+        logger.info("BEAMPOLY skipped because of radius.")
         return 0
 
     return beam.half_space.intersect(poly.half_space).volume
@@ -205,7 +207,7 @@ def beamcirc(beam, circle):
     p = super(Beam, beam).distance(circle.center)
     assert(p >= 0)
 
-    # print("BEAMCIRC r = %f, w = %f, p = %f" % (r, w, p), end="")
+    logger.info("BEAMCIRC r = %f, w = %f, p = %f" % (r, w, p))
 
     if w == 0 or r == 0:
         return 0
@@ -225,7 +227,6 @@ def beamcirc(beam, circle):
 
     a = np.pi * r**2 * f
     assert(a >= 0), a
-    # print()
     return a
 
 
