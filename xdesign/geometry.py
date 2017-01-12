@@ -79,67 +79,100 @@ __all__ = ['Entity',
 
 class Entity(object):
     """Base class for all geometric entities. All geometric entities should
-    have these methods."""
+    have these attributes and methods."""
 
     def __init__(self):
         self._dim = 0
 
     def __str__(self):
-        """A string representation for easier debugging."""
+        """A string representation for easier debugging.
+
+        .. note::
+            This method is inherited from :class:`.Entity` which means it is
+            not implemented and will throw an error.
+        """
         raise NotImplementedError
 
     @property
     def dim(self):
-        """The dimensionality of the entity"""
+        """The dimensionality of the points which describe the entity.
+        """
         return self._dim
 
     def translate(self, vector):
-        """Translate entity along vector."""
+        """Translates the entity in the direction of a vector.
+
+        .. note::
+            This method is inherited from :class:`.Entity` which means it is
+            not implemented and will throw an error.
+        """
         raise NotImplementedError
 
     def rotate(self, theta, point=None, axis=None):
-        """Rotate entity around an axis which passes through a point by theta
-        radians."""
+        """Rotates the entity theta radians around an axis defined by a point
+        and a vector
+
+        .. note::
+            This method is inherited from :class:`.Entity` which means it is
+            not implemented and will throw an error.
+        """
         raise NotImplementedError
 
     def scale(self, vector):
-        """Scale entity in each dimension according to vector. Scaling is
-        centered on the origin."""
+        """Scales the entity in each dimension according to vector. Scaling is
+        centered on the origin.
+
+        .. note::
+            This method is inherited from :class:`.Entity` which means it is
+            not implemented and will throw an error.
+        """
         raise NotImplementedError
 
     def contains(self, point):
-        """Returns True if the point(s) is within the bounds of the entity.
-        point is either a Point or an N points listed as an NxD array."""
+        """Returns True if the given point(s) is within the bounds of the
+        entity.
+
+        Points are either a single :class:`.Point` or given as an
+        :class:`.ndarray`.
+
+        .. note::
+            This method is inherited from :class:`.Entity` which means it is
+            not implemented and will throw an error.
+        """
         raise NotImplementedError
 
     def collision(self, other):
-        """Returns True if this entity collides with another entity."""
+        """Returns True if this entity collides with another entity.
+
+        .. note::
+            This method is inherited from :class:`.Entity` which means it is
+            not implemented and will throw an error.
+        """
         raise NotImplementedError
 
     def distance(self, other):
-        """Return the closest distance between entities."""
+        """Returns the closest distance between entities.
+
+        .. note::
+            This method is inherited from :class:`.Entity` which means it is
+            not implemented and will throw an error.
+        """
         raise NotImplementedError
 
     def midpoint(self, other):
-        """Return the midpoint between entities."""
+        """Returns the midpoint between entities."""
         return self.distance(other) / 2.
 
 
 class Point(Entity):
     """A point in ND cartesian space.
 
+    Takes either a 1D array-like object as the parameter for construction.
+
     Attributes
     ----------
-    _x : 1darray
+    _x : :class:`.ndarray`
         ND coordinates of the point.
-    x : scalar
-        dimension 0 of the point.
-    y : scalar
-        dimension 1 of the point.
-    z : scalar
-        dimension 2 of the point.
-    norm : scalar
-        The L2/euclidian norm of the point.
     """
     def __init__(self, x):
         if not isinstance(x, (list, np.ndarray)):
@@ -155,34 +188,36 @@ class Point(Entity):
 
     @property
     def x(self):
+        """Dimension 0 of the point."""
         return self._x[0]
 
     @property
     def y(self):
+        """Dimension 1 of the point."""
         return self._x[1]
 
     @property
     def z(self):
+        """Dimension 2 of the point."""
         return self._x[2]
 
     @property
     def norm(self):
-        """Reference: http://stackoverflow.com/a/23576322"""
+        """Calculates the euclidian (L2) norm of the vector to the point."""
+        # See http://stackoverflow.com/a/23576322 for a discussion of the
+        # quickest way to calculate the norm of a vector.
         return sqrt(self._x.dot(self._x))
 
-    @property
-    def dim(self):
-        return self._dim
-
     def translate(self, vector):
-        """Translate point along vector."""
+        """Translates the point along the given vector."""
         if not isinstance(vector, (list, np.ndarray)):
             raise TypeError("vector must be arraylike.")
 
         self._x += vector
 
     def rotate(self, theta, point=None, axis=None):
-        """Rotate entity around an axis by theta radians."""
+        """Rotates the point theta radians around the axis defined by the given
+        point and axis."""
         if not isinstance(theta, Number):
             raise TypeError("theta must be scalar.")
         if point is None:
@@ -192,7 +227,8 @@ class Point(Entity):
         else:
             raise TypeError("center of rotation must be Point.")
         if axis is not None:
-            raise NotImplementedError
+            raise NotImplementedError("Rotation about axis besides [0 0 1] are"
+                                      " not implemented.")
 
         # shift rotation center to origin
         self._x -= center
@@ -204,15 +240,16 @@ class Point(Entity):
         self._x += center
 
     def scale(self, vector):
-        """Scale entity in each dimension according to vector. Scaling is
-        centered on the origin."""
+        """Scales the coordinates of the point in each dimension according to
+        the given vector. Scaling is centered on the origin."""
         if not isinstance(vector, (List, np.ndarray)):
             raise TypeError("vector must be arraylike.")
 
         self._x *= vector
 
     def contains(self, other):
-        """Returns True if the other is within the bounds of the entity."""
+        """Returns True if the other is within the bounds of the Point. Points
+        can only contain other Points."""
         if isinstance(other, Point):
             return self == point
         if isinstance(other, np.ndarray):
@@ -221,14 +258,14 @@ class Point(Entity):
             return False
 
     def collision(self, other):
-        """Returns True if this entity collides with another entity."""
+        """Returns True if this Point collides with another entity."""
         if isinstance(other, Point):
             return self == point
         else:
             raise NotImplementedError
 
     def distance(self, other):
-        """Return the closest distance between entities."""
+        """Returns the closest distance between entities."""
         if not isinstance(other, Point):
             raise NotImplementedError("Point to point distance only.")
         d = self._x - other._x
@@ -269,27 +306,23 @@ class Point(Entity):
 
 
 class LinearEntity(Entity):
-    """Base class for linear entities in 2-D Cartesian space.
+    """Base class for linear entities in 2D Cartesian space. e.g. :class:`.Line`,
+    :class:`.Segment`, and :class:`.Ray`.
+
+    The constructor takes two unique :class:`.Point`.
 
     Attributes
     ----------
     p1 : Point
     p2 : Point
-    vertical : bool
-    horizontal : bool
-    slope : scalar
-    points : list
-    normal : Point
-    tangent : Point
-    dim : scalar
     """
     def __init__(self, p1, p2):
         if not isinstance(p1, Point) or not isinstance(p2, Point):
-            raise TypeError("p1 and p2 must be points")
+            raise TypeError("p1 and p2 must be Points")
         if p1 == p2:
-            raise ValueError('Requires two unique points.')
+            raise ValueError('Requires two unique Points.')
         if p1.dim != p2.dim:
-            raise ValueError('Two points must have same dimensionality.')
+            raise ValueError('Two Points must have same dimensionality.')
         self.p1 = p1
         self.p2 = p2
         self._dim = p1.dim
@@ -309,7 +342,7 @@ class LinearEntity(Entity):
 
     @property
     def slope(self):
-        """Return the slope of the line."""
+        """Returns the slope of the line."""
         if self.vertical:
             return np.inf
         else:
@@ -318,7 +351,8 @@ class LinearEntity(Entity):
 
     @property
     def points(self):
-        """The two points used to define this linear entity."""
+        """Returns the two points used to define this linear entity as a
+        2-tuple."""
         return (self.p1, self.p2)
 
     # @property
@@ -332,18 +366,18 @@ class LinearEntity(Entity):
 
     @property
     def length(self):
-        """Returns the length of the segment"""
+        """Returns the length of the segment between p1 and p2."""
         return self.p1.distance(self.p2)
 
     @property
     def tangent(self):
-        """Return unit tangent vector."""
+        """Returns the unit tangent vector."""
         dx = (self.p2._x - self.p1._x) / self.length
         return Point(dx)
 
     @property
     def normal(self):
-        """Return unit normal vector."""
+        """Return the unit normal vector."""
         dx = (self.p2._x - self.p1._x) / self.length
         R = np.array([[0, 1],
                       [-1,  0]])
@@ -352,35 +386,32 @@ class LinearEntity(Entity):
 
     @property
     def numpy(self):
-        """Return list representation."""
+        """Returns an array of coordinates where the first row is p1 and the
+        second row is p2."""
         return np.vstack((self.p1._x, self.p2._x))
 
     @property
     def list(self):
-        """Return list representation."""
+        """Returns an list of coordinates where p1 is the first D coordinates
+        and p2 is the next D coordinates."""
         return np.hstack((self.p1._x, self.p2._x))
 
-    @property
-    def dim(self):
-        """The dimensionality of the entity"""
-        return self._dim
-
     def translate(self, vector):
-        """Translate entity along vector."""
+        """Translates the :class:`.LinearEntity` by the given vector."""
         self.p1.translate(vector)
         self.p2.translate(vector)
 
     def rotate(self, theta, point=None, axis=None):
-        """Rotate entity around an axis which passes through an point by theta
-        radians."""
+        """Rotates the :class:`.LinearEntity` by theta radians around an axis
+        defined by an axis and a point."""
         self.p1.rotate(theta, point, axis)
         self.p2.rotate(theta, point, axis)
 
 
 class Line(LinearEntity):
-    """Line in 2-D cartesian space.
+    """Line in 2D cartesian space.
 
-    It is defined by two distinct points.
+    The constructor takes two unique :class:`.Point`.
 
     Attributes
     ----------
@@ -439,8 +470,8 @@ class Line(LinearEntity):
         return calc_standard(A)
 
     def distance(self, other):
-        """Return the closest distance between entities.
-        REF: http://geomalgorithms.com/a02-_lines.html"""
+        """Returns the closest distance between entities."""
+        # REF: http://geomalgorithms.com/a02-_lines.html
         if not isinstance(other, Point):
             raise NotImplementedError("Line to point distance only.")
         d = np.cross(self.tangent._x, other._x - self.p1._x)
@@ -496,8 +527,8 @@ class Line(LinearEntity):
 
 
 class Curve(Entity):
-    """Base class for entities whose surface can be defined by a continuous
-    equation.
+    """The base class for closed manifolds defined by a single equation. e.g.
+    :class:`.Circle`, :class:`.Sphere`, or :class:`.Torus`.
 
     Attributes
     ----------
@@ -510,19 +541,19 @@ class Curve(Entity):
         self.center = center
 
     def translate(self, vector):
-        """Translate point along vector."""
+        """Translates the Curve along a vector."""
         if not isinstance(vector, (Point, list, nd.array)):
             raise TypeError("vector must be point, list, or array.")
         self.center.translate(vector)
 
     def rotate(self, theta, point=None, axis=None):
-        """Rotate entity around an axis which passes through a point by theta
-        radians."""
+        """Rotates the Curve by theta radians around an axis which passes
+        through a point radians."""
         self.center.rotate(theta, point, axis)
 
 
 class Superellipse(Curve):
-    """Superellipse in 2-D cartesian space.
+    """A Superellipse in 2D cartesian space.
 
     Attributes
     ----------
@@ -579,14 +610,14 @@ class Ellipse(Superellipse):
 
 
 class Circle(Curve):
-    """Circle in 2-D cartesian space.
+    """Circle in 2D cartesian space.
 
     Attributes
     ----------
     center : Point
-        Defines the center point of the circle.
+        The center point of the circle.
     radius : scalar
-        Radius of the circle.
+        The radius of the circle.
     """
 
     def __init__(self, center, radius):
@@ -594,7 +625,7 @@ class Circle(Curve):
         self.radius = float(radius)
 
     def __str__(self):
-        """Return analytical equation."""
+        """Return the analytical equation."""
         return "(x-%s)^2 + (y-%s)^2 = %s^2" % (self.center.x, self.center.y,
                                                self.radius)
 
@@ -609,30 +640,34 @@ class Circle(Curve):
 
     @property
     def circumference(self):
-        """Return circumference."""
+        """Returns the circumference."""
         return 2 * np.pi * self.radius
 
     @property
     def diameter(self):
-        """Return diameter."""
+        """Returns the diameter."""
         return 2 * self.radius
 
     @property
     def area(self):
-        """Return area."""
+        """Return the area."""
         return np.pi * self.radius**2
 
     @property
     def patch(self):
+        """Returns a matplotlib patch."""
         return plt.Circle((self.center.x, self.center.y), self.radius)
 
-    def scale(self, val):
-        """Scale."""
-        raise NotImplementedError
-        # self.center.scale(val)
-        # self.rad *= val
+    # def scale(self, val):
+    #     """Scale."""
+    #     raise NotImplementedError
+    #     self.center.scale(val)
+    #     self.rad *= val
 
     def contains(self, points):
+        """Returns whether a point or array of points are within the boundaries
+        of the Circle.
+        """
         if isinstance(points, Point):
             x = p._x
         elif isinstance(points, np.ndarray):
@@ -644,13 +679,14 @@ class Circle(Curve):
 
 
 class Polygon(Entity):
-    """A convex polygon in 2-D cartesian space.
+    """A convex polygon in 2D cartesian space.
 
-    It is defined by a number of distinct points.
+    It is defined by a number of distinct vertices of class :class:`.Point`.
+    Superclasses include :class:`.Square`, :class:`.Triangle`, etc.
 
     Attributes
     ----------
-    vertices : sequence of Points
+    vertices : List of Points
     """
 
     def __init__(self, vertices):
@@ -687,12 +723,12 @@ class Polygon(Entity):
 
     @property
     def area(self):
-        """Return the area of the entity."""
+        """Returns the area of the Polygon."""
         raise NotImplementedError
 
     @property
     def perimeter(self):
-        """Return the perimeter of the entity."""
+        """Return the perimeter of the Polygon."""
         perimeter = 0
         verts = self.vertices
         points = verts + [verts[0]]
@@ -719,8 +755,8 @@ class Polygon(Entity):
 
     @property
     def bounds(self):
-        """Return a tuple (xmin, ymin, xmax, ymax) representing the
-        bounding rectangle for the geometric figure.
+        """Returns a 4-tuple (xmin, ymin, xmax, ymax) representing the
+        bounding rectangle for the Polygon.
         """
         xs = [p.x for p in self.vertices]
         ys = [p.y for p in self.vertices]
@@ -728,10 +764,11 @@ class Polygon(Entity):
 
     @property
     def patch(self):
+        """Returns a matplotlib patch."""
         return plt.Polygon(self.numpy)
 
     def translate(self, vector):
-        """Translate polygon."""
+        """Translates the polygon by a vector."""
         for v in self.vertices:
             v.translate(vector)
 
@@ -739,8 +776,8 @@ class Polygon(Entity):
             self.half_space.translate(vector)
 
     def rotate(self, theta, point=None, axis=None):
-        """Rotate entity around an axis which passes through a point by theta
-        radians."""
+        """Rotates the Polygon around an axis which passes through a point by
+        theta radians."""
         for v in self.vertices:
             v.rotate(theta, point, axis)
 
@@ -754,6 +791,8 @@ class Polygon(Entity):
             self.half_space.translate(d)
 
     def contains(self, points):
+        """Returns whether the given points are contained within the Polygon.
+        """
         if isinstance(points, Point):
             x = p._x
         elif isinstance(points, np.ndarray):
@@ -785,7 +824,7 @@ class Polygon(Entity):
 
 
 class Triangle(Polygon):
-    """Triangle in 2-D cartesian space.
+    """Triangle in 2D cartesian space.
 
     It is defined by three distinct points.
     """
@@ -811,7 +850,7 @@ class Triangle(Polygon):
 
 
 class Rectangle(Polygon):
-    """Rectangle in 2-D cartesian space.
+    """Rectangle in 2D cartesian space.
 
     It is defined by four distinct points.
     """
@@ -841,7 +880,7 @@ class Rectangle(Polygon):
 
 
 class Square(Rectangle):
-    """Square in 2-D cartesian space.
+    """Square in 2D cartesian space.
 
     It is defined by a center and a side length.
     """

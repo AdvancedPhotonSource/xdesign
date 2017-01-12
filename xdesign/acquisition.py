@@ -67,7 +67,9 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['Beam',
            'Probe',
            'sinogram',
-           'angleogram']
+           'angleogram',
+           'raster_scan',
+           'angle_scan']
 
 
 class Beam(Line):
