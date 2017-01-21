@@ -107,7 +107,7 @@ class Beam(Line):
         self.p2.translate(vector)
 
         if 'half_space' in self.__dict__:
-            self.half_space.translate(vector)
+            self.half_space = self.half_space.translation(vector)
 
     def rotate(self, theta, point=None, axis=None):
         """Rotate entity around an axis which passes through an point by theta
@@ -122,9 +122,9 @@ class Beam(Line):
             else:
                 d = point._x
 
-            self.half_space.translate(-d)
-            self.half_space.rotate(0, 1, theta)
-            self.half_space.translate(d)
+            self.half_space = self.half_space.translation(-d)
+            self.half_space = self.half_space.rotation(0, 1, theta)
+            self.half_space = self.half_space.translation(d)
 
     @cached_property
     def half_space(self):

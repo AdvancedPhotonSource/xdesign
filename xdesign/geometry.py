@@ -773,7 +773,7 @@ class Polygon(Entity):
             v.translate(vector)
 
         if 'half_space' in self.__dict__:
-            self.half_space.translate(vector)
+            self.half_space = self.half_space.translation(vector)
 
     def rotate(self, theta, point=None, axis=None):
         """Rotates the Polygon around an axis which passes through a point by
@@ -786,9 +786,9 @@ class Polygon(Entity):
                 d = 0
             else:
                 d = point._x
-            self.half_space.translate(-d)
-            self.half_space.rotate(0, 1, theta)
-            self.half_space.translate(d)
+            self.half_space = self.half_space.translation(-d)
+            self.half_space = self.half_space.rotation(0, 1, theta)
+            self.half_space = self.half_space.translation(d)
 
     def contains(self, points):
         """Returns whether the given points are contained within the Polygon.
@@ -966,7 +966,7 @@ class Mesh(Entity):
             t.translate(vector)
 
         if 'half_space' in self.__dict__:
-            self.half_space.translate(vector)
+            self.half_space = self.half_space.translation(vector)
 
     def rotate(self, theta, point=None, axis=None):
         """Rotate entity around an axis which passes through a point by theta
@@ -979,9 +979,9 @@ class Mesh(Entity):
                 d = 0
             else:
                 d = point._x
-            self.half_space.translate(-d)
-            self.half_space.rotate(0, 1, theta)
-            self.half_space.translate(d)
+            self.half_space = self.half_space.translation(-d)
+            self.half_space = self.half_space.rotation(0, 1, theta)
+            self.half_space = self.half_space.translation(d)
 
     def scale(self, vector):
         """Scale entity."""
