@@ -239,8 +239,7 @@ class Probe(Beam):
     def translate(self, dx):
         """Translates beam along its normal direction."""
         vec = self.normal * dx
-        self.p1 += vec
-        self.p2 += vec
+        super(Probe, self).translate(vec._x)
 
     def measure(self, phantom, noise=False):
         """Return the probe measurement given phantom. When noise is > 0,
