@@ -60,15 +60,22 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['reconstruct', 'art', 'sirt', 'mlem', 'stream', 'update_progress']
 
+"""Defines unoptimized implementations of popular reconstruction methods.
+
+The algorithm module contains methods for reconstructing tomographic data
+including gridrec, SIRT, ART, and MLEM. These methods can be used as benchmarks
+for custom reconstruction methods or as an easy way to access reconstruction
+algorithms for developing other methods such as noise correction.
+"""
 
 def update_progress(progress):
-    '''Draws a process bar in the terminal.
+    """Draw a process bar in the terminal.
 
     Parameters
     -------------
     process : float
         The percentage completed e.g. 0.10 for 10%
-    '''
+    """
     percent = progress*100
     nbars = int(progress*10)
     print('\r[{0}{1}] {2:.2f}%'.format('#'*nbars, ' '*(10-nbars), percent),
@@ -78,7 +85,7 @@ def update_progress(progress):
 
 
 def reconstruct(probe, shape, data, rec):
-    """ Reconstruct single x-ray beam data.
+    """Reconstruct single x-ray beam data.
 
     Parameters
     ----------
@@ -148,8 +155,7 @@ def reconstruct(probe, shape, data, rec):
 
 
 def art(probe, data, init, niter=10):
-    """ Reconstruct data.
-    """
+    """Reconstruct data using ART algorithm."""
     sx, sy = init.shape
 
     # grid frame (gx, gy)
@@ -215,8 +221,7 @@ def art(probe, data, init, niter=10):
 
 
 def sirt(probe, data, init, niter=10):
-    """ Reconstruct data.
-    """
+    """Reconstruct data using SIRT algorithm."""
     sx, sy = init.shape
 
     # grid frame (gx, gy)
@@ -286,8 +291,7 @@ def sirt(probe, data, init, niter=10):
 
 
 def mlem(probe, data, init, niter=10):
-    """ Reconstruct data.
-    """
+    """Reconstruct data using MLEM algorithm."""
     sx, sy = init.shape
 
     # grid frame (gx, gy)
@@ -358,8 +362,7 @@ def mlem(probe, data, init, niter=10):
 
 
 def stream(probe, data, init):
-    """ Reconstruct data.
-    """
+    """Reconstruct data."""
     sx, sy = init.shape
 
     # grid frame (gx, gy)
