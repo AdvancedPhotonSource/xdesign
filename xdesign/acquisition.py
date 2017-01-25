@@ -71,11 +71,20 @@ __all__ = ['Beam',
            'raster_scan',
            'angle_scan']
 
+"""Define objects and methods for simulated data acquisition.
+
+The acquistion module contains the objects and procedures necessary to simulate
+the operation of equipment used to collect tomographic data. This not only
+includes physical things like Probes, detectors, turntables, and lenses, but
+also non-physical things such as scanning patterns and programs.
+"""
+
 
 class Beam(Line):
-    """Beam (thick line) in 2-D cartesian space.
+    """A thick line in 2-D cartesian space.
 
-    It is defined by two distinct points.
+    A Beam is defined by two distinct points and a size (thickness). It is
+    a subclass of a Probe.
 
     Attributes
     ----------
@@ -84,8 +93,10 @@ class Beam(Line):
     size : scalar, optional
         Size of the beam. i.e. the diameter
     """
-
+    # TODO: Determine whether separate Beam object is necessary or if Beam can
+    # be merged with Probe.
     def __init__(self, p1, p2, size=0):
+        """Return a new Beam from two given points and optional size."""
         if not isinstance(size, Number):
             raise TypeError("Size must be scalar.")
         super(Beam, self).__init__(p1, p2)
@@ -97,6 +108,7 @@ class Beam(Line):
                                               repr(self.size))
 
     def __str__(self):
+        """Return the string respresentation of the Beam."""
         return "Beam(" + super(Beam, self).__str__() + ")"
 
     def distance(self, other):
@@ -132,7 +144,7 @@ class Beam(Line):
 
     @cached_property
     def half_space(self):
-        """Returns the half space polytope respresentation of the infinite
+        """Return the half space polytope respresentation of the infinite
         beam."""
         # add half beam width along the normal direction to each of the points
         half = self.normal * self.size / 2
@@ -240,7 +252,14 @@ def beamcirc(beam, circle):
 
 
 class Probe(Beam):
+    """An object for probing Phantoms.
 
+    A Probe provides an interface for measuring the interaction of a Phantom
+    and a beam. It contains information for interacting with Materials such as
+    energy and brightness.
+    """
+    # TODO: Implement additional attributes for Probe such as beam energy,
+    # brightness, wavelength, etc.
     def __init__(self, p1, p2, size=0):
         super(Probe, self).__init__(p1, p2, size)
         self.history = []
@@ -250,7 +269,7 @@ class Probe(Beam):
                                                repr(self.size))
 
     def translate(self, dx):
-        """Translates beam along its normal direction."""
+        """Translate beam along its normal direction."""
         vec = self.normal * dx
         super(Probe, self).translate(vec._x)
 
@@ -265,6 +284,7 @@ class Probe(Beam):
         newdata = self._measure_helper(phantom)
         if sigma > 0:
             newdata += newdata * np.random.normal(scale=sigma)
+
         self.record()
         return newdata
 
@@ -287,7 +307,7 @@ class Probe(Beam):
 
 
 def sinogram(sx, sy, phantom, noise=False):
-    """Generates sinogram given a phantom.
+    """Generate a sinogram from the given phantom.
 
     Parameters
     ----------
@@ -311,7 +331,7 @@ def sinogram(sx, sy, phantom, noise=False):
 
 
 def angleogram(sx, sy, phantom, noise=False):
-    """Generates angleogram given a phantom.
+    """Generate an angleogram from the given phantom.
 
     Parameters
     ----------
@@ -335,9 +355,10 @@ def angleogram(sx, sy, phantom, noise=False):
 
 
 def raster_scan(sx, sy):
-    """Provides a beam list for raster-scanning. Each Probe returned is the same
-    probe such that computation is not spent on copying the object;
-    transformations are cheaper than recalculating bounding boxes.
+    """Provides a beam list for raster-scanning.
+
+    The same Probe is returned each time to prevent recomputation of cached
+    properties.
 
     Parameters
     ----------
@@ -368,9 +389,10 @@ def raster_scan(sx, sy):
 
 
 def angle_scan(sx, sy):
-    """Provides a beam list for angle-scanning. Each Probe returned is the same
-    probe such that computation is not spent on copying the object;
-    transformations are cheaper than recalculating bounding boxes.
+    """Provides a beam list for angle-scanning.
+
+    The same Probe is returned each time to prevent recomputation of cached
+    properties.
 
     Parameters
     ----------
