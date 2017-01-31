@@ -8,8 +8,8 @@ python:
 os:
   - linux
 
-sudo: required
 dist: trusty
+sudo: false
 
 before_script:
   - "export DISPLAY=:99.0"
