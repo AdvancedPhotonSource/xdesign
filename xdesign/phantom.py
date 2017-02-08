@@ -230,10 +230,10 @@ class Phantom(object):
         return n_added
 
     # GEOMETRIC TRANSFORMATIONS
-    def translate(self, dx, dy):
+    def translate(self, vector):
         """Translate phantom."""
         for m in range(self.population):
-            self.feature[m].translate(dx, dy)
+            self.feature[m].translate(vector)
 
     def rotate(self, theta, origin=Point([0.5, 0.5]), axis=None):
         """

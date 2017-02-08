@@ -108,9 +108,9 @@ class Feature(object):
         """Returns the volume of the Feature"""
         return self.geometry.volume
 
-    def translate(self, x, y):
+    def translate(self, vector):
         """Translates the geometry. Translating the property functions is not supported."""
-        self.geometry.translate(x, y)
+        self.geometry.translate(vector)
 
     def rotate(self, theta, point=None, axis=None):
         """Rotate the geometry around an axis that passes through the given point. Rotating property functions is not supported."""
