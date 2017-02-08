@@ -542,7 +542,7 @@ class Curve(Entity):
 
     def translate(self, vector):
         """Translates the Curve along a vector."""
-        if not isinstance(vector, (Point, list, nd.array)):
+        if not isinstance(vector, (Point, list, np.array)):
             raise TypeError("vector must be point, list, or array.")
         self.center.translate(vector)
 
