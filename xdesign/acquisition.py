@@ -245,7 +245,7 @@ def angle_scan(sx, sy):
         p.rotate(-beta, p2)
 
 
-def tomography_3d(grid, wavefront, probe, ang_start, ang_end, ang_step=None, n_ang=None, savefolder='tomo_output', fname='tomo', format='h5', pr=None, **kwargs):
+def tomography_3d(grid, wavefront, probe, ang_start, ang_end, ang_step=None, n_ang=None, free_prop_dist=None, savefolder='tomo_output', fname='tomo', format='h5', pr=None, **kwargs):
     allowed_kwargs = {'mba': ['alpha']}
     if pr not in allowed_kwargs:
         raise ValueError
@@ -272,7 +272,7 @@ def tomography_3d(grid, wavefront, probe, ang_start, ang_end, ang_step=None, n_a
         dset = xchng.create_dataset('data', (n_ang, grid.size[1], grid.size[2]), dtype='float32')
     for theta, i in izip(angles, range(n_ang)):
         print('\rNow at angle ', str(theta), end='')
-        exiting = multislice_propagate(grid, probe, wavefront)
+        exiting = multislice_propagate(grid, probe, wavefront, free_prop_dist=free_prop_dist)
         exiting = np.real(exiting * np.conjugate(exiting))
         if not pr is None:
             if pr == 'mba':

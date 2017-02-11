@@ -77,9 +77,9 @@ print 'Tomography simulation started.'
 t0 = time.time()
 ang_start = 0
 ang_end = 180
-n_ang = 1000
+n_ang = 2
 alpha = 0.001
-tomography_3d(grid, wavefront, probe, ang_start, ang_end, n_ang=1000, format='h5', pr='mba', fname='tomo_alpha{:f}'.format(alpha), alpha=alpha)
+tomography_3d(grid, wavefront, probe, ang_start, ang_end, n_ang=1000, free_prop_dist=5000, format='tiff', pr='mba', fname='tomo_alpha{:f}'.format(alpha), alpha=alpha)
 print '    Done in ' + str(time.time() - t0) + '.'
 
 # fig = tifffile.imshow(data_matrix)

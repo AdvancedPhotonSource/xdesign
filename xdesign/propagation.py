@@ -160,6 +160,18 @@ def _slice_propagate(grid, wavefront, lmda):
     return wavefront
 
 
+def _free_propagate(grid, wavefront, lmda, dist_nm):
+
+    u_max = 1. / (2. * grid.voxel_x)
+    v_max = 1. / (2. * grid.voxel_y)
+    u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
+    H = np.exp(-1j * 2 * np.pi * dist_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2  - lmda ** 2 * v ** 2))
+    wavefront = ifftn(ifftshift(fftshift(fftn(wavefront)) * H))
+    # H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
+    # wavefront = np.fft.ifftn(np.fft.fftn(wavefront) * np.fft.fftshift(H))
+    return wavefront
+
+
 def _far_propagate(grid, wavefront, lmda, z):
     """Free space propagation using double Fourier algorithm.
     """
@@ -216,7 +228,7 @@ def plot_wavefront(wavefront, grid, save_folder='simulation', fname='exiting_wav
     #fig.savefig(save_folder+'/'+fname+'.png', type='png')
 
 
-def multislice_propagate(grid, probe, wavefront):
+def multislice_propagate(grid, probe, wavefront, free_prop_dist=None):
     """Do multislice propagation for wave with specified properties in the constructed grid.
 
     Parameters:
@@ -250,4 +262,6 @@ def multislice_propagate(grid, probe, wavefront):
         beta_slice = beta_grid[i_slice, :, :]
         wavefront = _slice_modify(grid, delta_slice, beta_slice, wavefront, lmda)
         wavefront = _slice_propagate(grid, wavefront, lmda)
+    if free_prop_dist is not None:
+        wavefront = _free_propagate(grid, wavefront, lmda, free_prop_dist)
     return wavefront
