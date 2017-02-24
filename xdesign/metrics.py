@@ -140,7 +140,7 @@ def compute_mtf2(phantom, image):
 
 
 def compute_mtf(phantom, image, Ntheta=4):
-    '''Uses method described in Friedman et al to calculate the MTF.
+    '''Uses method described in :cite:`Friedman:13` to calculate the MTF.
 
     Parameters
     ---------------
@@ -159,14 +159,6 @@ def compute_mtf(phantom, image, Ntheta=4):
         MTF values
     bin_centers : ndarray
         the center of the bins if Ntheta >= 1
-
-    References
-    ---------------
-    S. N. Friedman, G. S. K. Fung, J. H. Siewerdsen, and B. M. W. Tsui.  "A
-    simple approach to measure computed tomography (CT) modulation transfer
-    function (MTF) and noise-power spectrum (NPS) using the American College
-    of Radiology (ACR) accreditation phantom," Med. Phys. 40, 051907-1 -
-    051907-9 (2013). http://dx.doi.org/10.1118/1.4800795
     '''
     if not isinstance(phantom, UnitCircle):
         raise TypeError('MTF requires unit circle phantom.')
@@ -429,19 +421,9 @@ def periodic_function(p, x):
     return value
 
 
-
 def compute_nps(phantom, A, B=None, plot_type='frequency'):
-    '''Calculates the noise power spectrum from a unit circle image. The peak
-    at low spatial frequency is probably due to aliasing. Invesigation into
-    supressing this peak is necessary.
-
-    References
-    ---------------
-    S. N. Friedman, G. S. K. Fung, J. H. Siewerdsen, and B. M. W. Tsui.  "A
-    simple approach to measure computed tomography (CT) modulation transfer
-    function (MTF) and noise-power spectrum (NPS) using the American College
-    of Radiology (ACR) accreditation phantom," Med. Phys. 40, 051907-1 -
-    051907-9 (2013). http://dx.doi.org/10.1118/1.4800795
+    '''Calculates the noise power spectrum from a unit circle image using the
+    method from :cite:`Friedman:13`.
 
     Parameters
     ----------
@@ -536,7 +518,7 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
 
 
 def compute_neq(phantom, A, B):
-    '''Calculates the NEQ according to recommendations by JT Dobbins.
+    '''Calculates the NEQ according to recommendations by :cite:`Dobbins:95`.
 
     Parameters
     ----------
@@ -810,7 +792,9 @@ class ImageQuality(object):
 
 def compute_quality(reference, reconstructions, method="MSSSIM", L=1):
     """
-    Computes image quality metrics for each of the reconstructions.
+    Computes full-reference image quality metrics for each of the reconstructions.
+
+    Available methods include SSIM :cite:`wang:02`, MSSSIM :cite:`wang:03`, VIFp :cite:`Sheikh:15`, and FSIM :cite:`zhang:11`.
 
     Parameters
     ---------
@@ -822,7 +806,7 @@ def compute_quality(reference, reconstructions, method="MSSSIM", L=1):
         A list of discrete reconstructions
     method : string, optional
         The quality metric desired for this comparison.
-        Options include: SSIM, MSSSIM
+        Options include: SSIM, MSSSIM, VIFp, FSIM
     L : scalar
         The dynamic range of the data. This value is 1 for float
         representations and 2^bitdepth for integer representations.

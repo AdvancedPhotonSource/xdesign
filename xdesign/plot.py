@@ -104,17 +104,24 @@ PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
 
 
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
-    """Plots a phantom to the given axis.
+    """Plots a :class:`.Phantom` to the given axis.
 
     Parameters
     ----------
+    phantom : :class:`.Phantom`
+        A phantom to be plotted.
+    axis : :class:`matplotlib.axis.Axis`
+        The axis where the phantom should be plotted. `None` creates
+        a new axis.
     labels : bool, optional
-        Each feature is numbered according to its index in the phantom.
+        `True` : Each :class:`.Feature` is numbered according to its index in
+        the :class:`.Phantom`.
     c_props : list of str, optional
-        List of feature properties to use for colormapping the geometries.
+        List of :class:`.Feature` properties to use for colormapping the
+        geometries.
     c_map : function, optional
-        A function which takes the a list of prop(s) for a Feature as input and
-        returns a matplolib color specifier.
+        A function which takes the list of prop(s) for a :class:`.Feature` as
+        input and returns a matplolib color specifier. :cite:`Hunter:07`
     """
     # IDEA: Allow users to provide list or generator for labels.
     if not isinstance(phantom, Phantom):
@@ -151,14 +158,19 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
 
 
 def plot_feature(feature, axis=None, alpha=None, c=None):
-    """Plots a feature on the given axis.
+    """Plots a :class:`.Feature` on the given axis.
 
     Parameters
     ----------
-    alpha : float
+    feature : :class:`.Feature`
+        A Feature to plot on the given axis.
+    axis : :class:`matplotlib.axis.Axis`, optional
+        The axis where the Feature should be plotted. `None` creates
+        a new axis.
+    alpha : :class:`.float`, optional
         The plot opaqueness. 0 is transparent. 1 is opaque.
-    c : matplotlib color specifier
-        See http://matplotlib.org/api/colors_api.html
+    c : :mod:`matplotlib.color`, optional
+        The color of the plotted Feature.
     """
     if not isinstance(feature, Feature):
         raise TypeError('Can only plot Features.')
@@ -177,14 +189,19 @@ def plot_feature(feature, axis=None, alpha=None, c=None):
 
 
 def plot_mesh(mesh, axis=None, alpha=None, c=None):
-    """Plots a mesh to the given axis.
+    """Plots a :class:`.Mesh` to the given axis.
 
     Parameters
     ----------
-    alpha : float
+    mesh : :class:`.Mesh`
+        A Mesh to plot on the given axis.
+    axis : :class:`matplotlib.axis.Axis`, optional
+        The axis where the Mesh should be plotted. `None` creates
+        a new axis.
+    alpha : :class:`.float`, optional
         The plot opaqueness. 0 is transparent. 1 is opaque.
-    c : matplotlib color specifier
-        See http://matplotlib.org/api/colors_api.html
+    c : :mod:`matplotlib.color`, optional
+        The color of the plotted Mesh.
     """
     assert(isinstance(mesh, Mesh))
     if axis is None:
@@ -196,14 +213,19 @@ def plot_mesh(mesh, axis=None, alpha=None, c=None):
 
 
 def plot_polygon(polygon, axis=None, alpha=None, c=None):
-    """Plots a polygon to the given axis.
+    """Plots a :class:`.Polygon` to the given axis.
 
     Parameters
     ----------
-    alpha : float
+    polygon : :class:`.Polygon`
+        A Polygon to plot on the given axis.
+    axis : :class:`matplotlib.axis.Axis`, optional
+        The axis where the Polygon should be plotted. `None` creates
+        a new axis.
+    alpha : :class:`.float`, optional
         The plot opaqueness. 0 is transparent. 1 is opaque.
-    c : matplotlib color specifier
-        See http://matplotlib.org/api/colors_api.html
+    c : :mod:`matplotlib.color`, optional
+        The color of the plotted Polygon.
     """
     assert(isinstance(polygon, Polygon))
     if axis is None:
@@ -220,14 +242,19 @@ def plot_polygon(polygon, axis=None, alpha=None, c=None):
 
 
 def plot_curve(curve, axis=None, alpha=None, c=None):
-    """Plots a curve to the given axis.
+    """Plots a :class:`.Curve' to the given axis.
 
     Parameters
     ----------
-    alpha : float
+    curve : :class:`.Curve`
+        A Curve to plot on the given axis.
+    axis : :class:`matplotlib.axis.Axis`, optional
+        The axis where the Curve should be plotted. None creates
+        a new axis.
+    alpha : :class:`.float`, optional
         The plot opaqueness. 0 is transparent. 1 is opaque.
-    c : matplotlib color specifier
-        See http://matplotlib.org/api/colors_api.html
+    c : :mod:`matplotlib.color`, optional
+        The color of the plotted curve.
     """
     assert(isinstance(curve, Curve))
     if axis is None:
@@ -244,7 +271,8 @@ def plot_curve(curve, axis=None, alpha=None, c=None):
 
 
 def _make_axis():
-    """Makes an axis for plotting phantom module classes."""
+    """Makes an :class:`matplotlib.axis.Axis` for plotting :mod:`.Phantom` module
+    classes."""
     fig = plt.figure(figsize=(8, 8), facecolor='w')
     axis = fig.add_subplot(111, aspect='equal')
     plt.grid('on')
@@ -254,10 +282,11 @@ def _make_axis():
 
 def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     """Returns discrete representation of the property function, prop, in the
-    phantom. The values of overlapping features are additive.
+    :class:`.Phantom`. The values of overlapping Features are additive.
 
     Parameters
     ----------
+    phantom: :class:`.Phantom`
     size : scalar
         The side length in pixels of the resulting square image.
     ratio : scalar, optional
@@ -274,7 +303,7 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     Returns
     -------
     image : numpy.ndarray
-        The discrete representation of the phantom that is size x size.
+        The discrete representation of the :class:`.Phantom` that is size x size.
     """
     if not isinstance(phantom, Phantom):
         raise TypeError('phantom must be type Phantom.')
@@ -314,8 +343,8 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
 
 
 def _discrete_feature(feature, image, px, py, prop):
-    """Helper function for discrete_phantom. Rasterizes the geometry of the
-    feature."""
+    """Helper function for :func:`.discrete_phantom`. Rasterizes the geometry
+    of the feature."""
     size = px.shape
     x = np.vstack([px.flatten(), py.flatten()]).T
     new_feature = feature.geometry.contains(x) * getattr(feature, prop)
@@ -325,7 +354,7 @@ def _discrete_feature(feature, image, px, py, prop):
 
 def sidebyside(p, size=100, labels=None, prop='mass_atten'):
     '''Displays the geometry and the discrete property function of
-    the given phantom side by side.'''
+    the given :class:`.Phantom` side by side.'''
     fig = plt.figure(figsize=(6, 3), dpi=600)
     axis = fig.add_subplot(121, aspect='equal')
     plt.grid('on')

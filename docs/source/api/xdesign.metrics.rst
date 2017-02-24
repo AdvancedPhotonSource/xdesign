@@ -5,11 +5,12 @@
    :members:
    :show-inheritance:
    :undoc-members:
+   :synopsis: Objects and methods for computing the quality of reconstructions.
 
    .. rubric:: **Functions:**
 
    .. autosummary::
-   
+
       ImageQuality
       probability_mask
       compute_quality
@@ -17,7 +18,8 @@
       compute_likeness
       compute_background_ttest
       compute_mtf
+      compute_mtf_siemens
       compute_nps
       compute_neq
-      compute_mtf_siemens
-       
+
+.. moduleauthor:: Daniel J Ching <daniel.j.ching@gmail.com>
