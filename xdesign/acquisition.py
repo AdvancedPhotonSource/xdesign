@@ -129,16 +129,21 @@ class Probe(Beam):
         self.p1 += vec
         self.p2 += vec
 
-    def measure(self, phantom, noise=False):
-        """Return the probe measurement given phantom. When noise is > 0,
-        poisson noise is added to the returned measurement."""
+    def measure(self, phantom, sigma=0):
+        """Return the probe measurement with optional Gaussian noise.
+
+        Parameters
+        ----------
+        sigma : float >= 0
+            The standard deviation of the normally distributed noise.
+        """
         newdata = 0
         for m in range(phantom.population):
             # print("%s Measure feature %i" % (str(self), m))
             newdata += (beamintersect(self, phantom.feature[m].geometry) *
                         phantom.feature[m].mass_atten)
-        if noise > 0:
-            newdata += newdata * noise * np.random.poisson(1)
+        if sigma > 0:
+            newdata += newdata * np.random.normal(scale=sigma)
         self.record()
         return newdata
 
