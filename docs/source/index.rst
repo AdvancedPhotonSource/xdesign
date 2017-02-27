@@ -18,6 +18,7 @@ image reconstruction.
    api
    examples
    zrefs
+   credits
 
 Features
 ========
