@@ -53,7 +53,6 @@ import numpy as np
 import logging
 from xdesign.phantom import *
 from xdesign.geometry import *
-from xdesign.feature import *
 from xdesign.plot import *
 from scipy.spatial import Delaunay
 from xdesign.constants import PI
@@ -172,7 +171,7 @@ class HyperbolicConcentric(Phantom):
             The exponent in the function r(n) = r0*(n+1)^k.
         """
 
-        super(HyperbolicConcentric, self).__init__(shape='circle')
+        super(HyperbolicConcentric, self).__init__()
         center = Point([0.5, 0.5])
         Nmax_rings = 512
 
@@ -183,13 +182,13 @@ class HyperbolicConcentric(Phantom):
             if radius > 0.5 and ring % 2:
                 break
 
-            self.append(Feature(
-                        Circle(center, radius), mass_atten=(-1.)**(ring % 2)))
+            self.append(Phantom(geometry=Circle(center, radius),
+                                mass_atten=(-1.)**(ring % 2)))
             # record information about the rings
             widths.append(radius - radii[-1])
             radii.append(radius)
 
-        self.reverse()  # smaller circles on top
+        self.children.reverse()  # smaller circles on top
         self.radii = radii
         self.widths = widths
 
@@ -208,8 +207,9 @@ class DynamicRange(Phantom):
     shape : string, optional
     """
 
-    def __init__(self, steps=10, jitter=True, shape='square'):
-        super(DynamicRange, self).__init__(shape=shape)
+    def __init__(self, steps=10, jitter=True,
+                 geometry=Square(center=Point([0.5, 0.5]), side_length=1)):
+        super(DynamicRange, self).__init__(geometry=geometry)
 
         # determine the size and and spacing of the circles around the box.
         spacing = 1. / np.ceil(np.sqrt(steps))
@@ -231,8 +231,8 @@ class DynamicRange(Phantom):
             # place the circles
             for i in range(0, steps):
                 center = Point([px[i] + jitters[0, i], py[i] + jitters[1, i]])
-                self.append(Feature(
-                            Circle(center, radius), mass_atten=colors[i]))
+                self.append(Phantom(geometry=Circle(center, radius),
+                                    mass_atten=colors[i]))
         else:
             # completely random
             for i in range(0, steps):
@@ -269,7 +269,9 @@ class DogaCircles(Phantom):
         n_shuffles : int
             The number of times to shuffles the latin square
         """
-        super(DogaCircles, self).__init__(shape='square')
+        super(DogaCircles, self).__init__(geometry=Square(center=Point([0.5,
+                                                                        0.5]),
+                                                          side_length=1))
 
         n_sizes = int(n_sizes)
         if n_sizes <= 0:
@@ -311,7 +313,8 @@ class DogaCircles(Phantom):
 
         for (k, x, y) in zip(radii.flatten(), _x.flatten(),
                              _y.flatten()):
-            self.append(Feature(Circle(Point([x, y]), k)))
+            self.append(Phantom(geometry=Circle(Point([x, y]), k),
+                                mass_atten=1))
 
         self.radii = radii
         self.x = _x
@@ -343,7 +346,7 @@ class SlantedSquares(Phantom):
     """
 
     def __init__(self, count=10, angle=5/360*2*PI, gap=0):
-        super(SlantedSquares, self).__init__(shape='circle')
+        super(SlantedSquares, self).__init__()
         if count < 1:
             raise ValueError("There must be at least one square.")
 
@@ -404,9 +407,9 @@ class SlantedSquares(Phantom):
         side_length = d_max/np.sqrt(2)
         for i in range(0, x.size):
             center = Point([x[i], y[i]])
-            s = Square(center, side_length)
+            s = Square(center=center, side_length=side_length)
             s.rotate(angle, center)
-            self.append(Feature(s))
+            self.append(Phantom(geometry=s, mass_atten=1))
 
         self.angle = angle
         self.count = count
@@ -421,12 +424,12 @@ class UnitCircle(Phantom):
     """Generates a phantom with a single circle in its center."""
 
     def __init__(self, radius=0.5, mass_atten=1):
-        super(UnitCircle, self).__init__()
-        self.append(Feature(
-                    Circle(Point([0.5, 0.5]), radius), mass_atten))
+        super(UnitCircle, self).__init__(geometry=Circle(Point([0.5, 0.5]),
+                                                         radius),
+                                         mass_atten=mass_atten)
 
 
-class Soil(Phantom):
+class Soil(UnitCircle):
     """Generates a phantom with structure similar to soil.
 
     References
@@ -437,14 +440,12 @@ class Soil(Phantom):
     """
 
     def __init__(self, porosity=0.412):
-        super(Soil, self).__init__(shape='circle')
+        super(Soil, self).__init__(radius=0.5, mass_atten=0.5)
         self.sprinkle(30, [0.1, 0.03], 0, mass_atten=0.5,
                       max_density=1-porosity)
         # use overlap to approximate area opening transform because opening is
         # not discrete
         self.sprinkle(100, 0.02, 0.01, mass_atten=-.25)
-        background = Feature(Circle(Point([0.5, 0.5]), 0.5), mass_atten=0.5)
-        self.insert(0, background)
 
 
 class WetCircles(Phantom):
@@ -565,7 +566,8 @@ class SiemensStar(Phantom):
 
         # connect pairs of points to the center to make triangles
         for i in range(0, n_sectors//2):
-            f = Feature(Triangle(points[2*i], points[2*i+1], center))
+            f = Phantom(geometry=Triangle(points[2*i], points[2*i+1], center),
+                        mass_atten=1)
             self.append(f)
 
         self.ratio = n_points / (4 * np.pi * radius)
