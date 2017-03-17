@@ -92,6 +92,10 @@ class Beam(Line):
         self.size = float(size)
         self.count = 0
 
+    def __repr__(self):
+        return "Beam({}, {}, size={})".format(repr(self.p1), repr(self.p2),
+                                              repr(self.size))
+
     def __str__(self):
         return "Beam(" + super(Beam, self).__str__() + ")"
 
@@ -237,6 +241,10 @@ class Probe(Beam):
     def __init__(self, p1, p2, size=0):
         super(Probe, self).__init__(p1, p2, size)
         self.history = []
+
+    def __repr__(self):
+        return "Probe({}, {}, size={})".format(repr(self.p1), repr(self.p2),
+                                               repr(self.size))
 
     def translate(self, dx):
         """Translates beam along its normal direction."""
