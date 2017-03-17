@@ -85,7 +85,7 @@ class Entity(object):
     def __init__(self):
         self._dim = 0
 
-    def __str__(self):
+    def __repr__(self):
         """A string representation for easier debugging.
 
         .. note::
@@ -183,8 +183,8 @@ class Point(Entity):
         self._x = np.ravel(self._x)
         self._dim = self._x.size
 
-    def __str__(self):
-        return "Point(%s" % ', '.join([str(n) for n in self._x]) + ")"
+    def __repr__(self):
+        return "Point([%s" % ', '.join([repr(n) for n in self._x]) + "])"
 
     @property
     def x(self):
@@ -329,8 +329,8 @@ class LinearEntity(Entity):
         self.p2 = p2
         self._dim = p1.dim
 
-    def __str__(self):
-        return "Edge(" + str(self.p1) + ", " + str(self.p2) + ")"
+    def __repr__(self):
+        return "LinearEntity({}, {})".format(self.p1, self.p2)
 
     @property
     def vertical(self):
@@ -423,6 +423,9 @@ class Line(LinearEntity):
 
     def __init__(self, p1, p2):
         super(Line, self).__init__(p1, p2)
+
+    def __repr__(self):
+        return "Line({}, {})".format(self.p1, self.p2)
 
     def __str__(self):
         """Return line equation."""
@@ -542,6 +545,9 @@ class Curve(Entity):
         super(Curve, self).__init__()
         self.center = center
 
+    def __repr__(self):
+        return "Curve({})".format(self.center)
+
     def translate(self, vector):
         """Translates the Curve along a vector."""
         if not isinstance(vector, (Point, list, np.array)):
@@ -571,6 +577,12 @@ class Superellipse(Curve):
         self.b = float(b)
         self.n = float(n)
 
+    def __repr__(self):
+        return "Superellipse({}, {}, {}, {})".format(self.center,
+                                                     self.a,
+                                                     self.b,
+                                                     self.n)
+
     @property
     def list(self):
         """Return list representation."""
@@ -594,6 +606,9 @@ class Ellipse(Superellipse):
 
     def __init__(self, center, a, b):
         super(Ellipse, self).__init__(center, a, b, 2)
+
+    def __repr__(self):
+        return "Ellipse({}, {}, {})".format(self.center, self.a, self.b)
 
     @property
     def list(self):
@@ -625,6 +640,9 @@ class Circle(Curve):
     def __init__(self, center, radius):
         super(Circle, self).__init__(center)
         self.radius = float(radius)
+
+    def __repr__(self):
+        return "Circle({}, {})".format(self.center, self.radius)
 
     def __str__(self):
         """Return the analytical equation."""
@@ -727,6 +745,9 @@ class Polygon(Entity):
         super(Polygon, self).__init__()
         self.vertices = vertices
         self._dim = vertices[0].dim
+
+    def __repr__(self):
+        return "Polygon({})".format(self.vertices)
 
     def __str__(self):
         return "Polygon(" + str(self.numpy) + ")"
@@ -865,6 +886,11 @@ class Triangle(Polygon):
     def __init__(self, p1, p2, p3):
         super(Triangle, self).__init__([p1, p2, p3])
 
+    def __repr__(self):
+        return "Triangle({}, {}, {})".format(self.vertices[0],
+                                             self.vertices[1],
+                                             self.vertices[2])
+
     def __str__(self):
         return "Triangle(" + str(self.numpy) + ")"
 
@@ -890,6 +916,12 @@ class Rectangle(Polygon):
 
     def __init__(self, p1, p2, p3, p4):
         super(Rectangle, self).__init__([p1, p2, p3, p4])
+
+    def __repr__(self):
+        return "Rectangle({}, {}, {}, {})".format(self.vertices[0],
+                                                  self.vertices[1],
+                                                  self.vertices[2],
+                                                  self.vertices[3])
 
     def __str__(self):
         return "Rectangle(" + str(self.numpy) + ")"
@@ -925,6 +957,12 @@ class Square(Rectangle):
         p3 = Point([center.x - s, center.y - s])
         p4 = Point([center.x + s, center.y - s])
         super(Square, self).__init__(p1, p2, p3, p4)
+
+    def __repr__(self):
+        warnings.warn("The Square constructor is underdefined. The " +
+                      "Rectangle constructor will be used instead.")
+
+        return super(Square, self).__repr__()
 
     def __str__(self):
         return "Square(" + str(self.numpy) + ")"
