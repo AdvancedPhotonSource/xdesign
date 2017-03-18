@@ -51,6 +51,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 import logging
+import warnings
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from numbers import Number
@@ -128,9 +129,8 @@ class Entity(object):
         """
         raise NotImplementedError
 
-    def contains(self, point):
-        """Returns True if the given point(s) is within the bounds of the
-        entity.
+    def contains(self, other):
+        """Return whether this Entity strictly contains the other entity.
 
         Points are either a single :class:`.Point` or given as an
         :class:`.ndarray`.
@@ -248,7 +248,7 @@ class Point(Entity):
         self._x *= vector
 
     def contains(self, other):
-        """Returns True if the other is within the bounds of the Point. Points
+        """Return wether the other is within the bounds of the Point. Points
         can only contain other Points."""
         if isinstance(other, Point):
             return self == point
@@ -266,7 +266,9 @@ class Point(Entity):
 
     def distance(self, other):
         """Returns the closest distance between entities."""
-        if not isinstance(other, Point):
+        if isinstance(other, Line):
+            return other.distance(self)
+        elif not isinstance(other, Point):
             raise NotImplementedError("Point to point distance only.")
         d = self._x - other._x
         return sqrt(d.dot(d))
@@ -664,18 +666,47 @@ class Circle(Curve):
     #     self.center.scale(val)
     #     self.rad *= val
 
-    def contains(self, points):
-        """Returns whether a point or array of points are within the boundaries
-        of the Circle.
+    def contains(self, other):
+        """Return whether the Circle contains the other.
         """
-        if isinstance(points, Point):
-            x = p._x
-        elif isinstance(points, np.ndarray):
-            x = points
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        elif isinstance(other, Circle):
+            return (other.center.distance(self.center) + other.radius
+                    < self.radius)
+        elif isinstance(other, Polygon):
+            x = _points_to_array(other.vertices)
+            return np.all(self.contains(x))
+        elif isinstance(other, Mesh):
+            for face in other.faces:
+                if not self.contains(face):
+                    return False
+            return True
         else:
-            raise TypeError("P must be point or ndarray")
+            raise NotImplementedError("Circle.contains() not implemented for" +
+                                      " {}".format(type(other)))
 
-        return np.sum((x - self.center._x)**2, axis=1) <= self.radius**2
+        return np.all(np.sum((x - self.center._x)**2, axis=1) <= self.radius**2)
+
+
+def _points_to_array(points):
+    a = np.zeros((len(points), points[0].dim))
+
+    for i in range(len(points)):
+        a[i] = points[i]._x
+
+    return a
+
+
+def _points_to_array(points):
+    a = np.zeros((len(points), points[0].dim))
+
+    for i in range(len(points)):
+        a[i] = points[i]._x
+
+    return a
 
 
 class Polygon(Entity):
@@ -761,18 +792,49 @@ class Polygon(Entity):
         for v in self.vertices:
             v.rotate(theta, point, axis)
 
-    def contains(self, points):
-        """Returns whether the given points are contained within the Polygon.
+    @property
+    def edges(self):
+        """Return a list of lines connecting the points of the Polygon."""
+        edges = []
+
+        for i in range(self.numverts):
+            edges.append(Line(self.vertices[i],
+                              self.vertices[(i+1) % self.numverts]))
+
+        return edges
+
+    def contains(self, other):
+        """Return whether this Polygon contains the other.
         """
-        if isinstance(points, Point):
-            x = p._x
-        elif isinstance(points, np.ndarray):
-            x = points
-        else:
-            raise TypeError("P must be point or ndarray")
 
         border = Path(self.numpy)
-        return border.contains_points(points)
+
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        elif isinstance(other, Polygon):
+            x = _points_to_array(other.vertices)
+            return np.all(border.contains_points(np.atleast_2d(x)))
+        elif isinstance(other, Circle):
+            if not self.contains(other.center):
+                return False
+            else:
+                for edge in self.edges:
+                    if other.center.distance(edge) < other.radius:
+                        return False
+                return True
+        elif isinstance(other, Mesh):
+            for face in other.faces:
+                if not self.contains(face):
+                    return False
+            return True
+        else:
+            raise NotImplementedError("Polygon.contains() not implemented " +
+                                      "for this class.")
+
+        border = Path(self.numpy)
+        return np.all(border.contains_points(np.atleast_2d(x)))
 
     @cached_property
     def half_space(self):
@@ -942,11 +1004,11 @@ class Mesh(Entity):
         for t in self.faces:
             t.scale(vector)
 
-    def contains(self, points):
-        if isinstance(points, Point):
-            x = p._x
-        elif isinstance(points, np.ndarray):
-            x = points
+    def contains(self, other):
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
         else:
             raise TypeError("P must be point or ndarray")
 
