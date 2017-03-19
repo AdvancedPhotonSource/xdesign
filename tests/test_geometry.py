@@ -294,6 +294,59 @@ def test_Mesh_center():
     assert_equal(m.center, Point([0, 0]))
 
 
+def test_Circle_contains():
+    circle0 = Circle(Point([0, 0]), 1)
+    circle1 = Circle(Point([0, 0]), 0.1)
+    circle2 = Circle(Point([-1, 0]), 1)
+    circle3 = Circle(Point([0, 1]), 5)
+    circle4 = Circle(Point([10, 14]), 3)
+
+    triangle0 = Triangle(Point([0, 0]), Point([1, 0]), Point([0, 1]))
+    triangle1 = Triangle(Point([0, 0]), Point([1/2, 0]), Point([0, 1/2]))
+    triangle2 = Triangle(Point([-2, 0]), Point([1/2, 0]), Point([0, 1/2]))
+    triangle3 = Triangle(Point([-5, -5]), Point([5, 5]), Point([5, 10]))
+    triangle4 = Triangle(Point([-50, -50]), Point([-50, -51]),
+                         Point([-20, -51]))
+
+    assert not circle0.contains(circle0)  # self containing
+    assert circle0.contains(circle1)      # full containing
+    assert not circle0.contains(circle2)  # partial containing
+    assert not circle0.contains(circle3)  # contained by
+    assert not circle0.contains(circle4)  # not containing
+
+    assert circle0.contains(triangle0)
+    assert not circle0.contains(triangle2)
+    assert not circle0.contains(triangle3)
+    assert not circle0.contains(triangle4)
+
+
+def test_Polygon_contains():
+    circle0 = Circle(Point([0, 0]), 1)
+    circle1 = Circle(Point([0.2, 0.2]), 0.1)
+    circle2 = Circle(Point([-1, 0]), 1)
+    circle3 = Circle(Point([0, 1]), 5)
+    circle4 = Circle(Point([10, 14]), 3)
+
+    triangle0 = Triangle(Point([0, 0]), Point([1, 0]), Point([0, 1]))
+    triangle1 = Triangle(Point([0.1, 0.1]), Point([0.5, 0.1]),
+                         Point([0.1, 0.5]))
+    triangle2 = Triangle(Point([-2, 0]), Point([1/2, 0]), Point([0, 1/2]))
+    triangle3 = Triangle(Point([-5, -5]), Point([5, 5]), Point([5, 10]))
+    triangle4 = Triangle(Point([-50, -50]), Point([-50, -51]),
+                         Point([-20, -51]))
+
+    assert not triangle0.contains(triangle0)
+    assert triangle0.contains(triangle1)
+    assert not triangle0.contains(triangle2)
+    assert not triangle0.contains(triangle3)
+    assert not triangle0.contains(triangle4)
+
+    assert triangle0.contains(circle1)
+    assert not triangle0.contains(circle2)  # partial containing
+    assert not triangle0.contains(circle3)  # contained by
+    assert not triangle0.contains(circle4)  # not containing
+
+
 if __name__ == '__main__':
     import nose
     nose.runmodule(exit=False)
