@@ -122,3 +122,13 @@ def test_Foam():
     target = discrete_phantom(p, 100)
     # _plot_both(ref, target)
     assert_equal(target, ref, "Default Foam phantom has changed.")
+
+
+def test_XDesignDefault():
+    p = XDesignDefault()
+    sidebyside(p)
+    plt.show(block=True)
+
+
+if __name__ == '__main__':
+    test_XDesignDefault()

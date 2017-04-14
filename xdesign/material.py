@@ -64,6 +64,7 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Material',
+           'XDesignDefault',
            'HyperbolicConcentric',
            'DynamicRange',
            'DogaCircles',
@@ -145,6 +146,45 @@ class Material(object):
 
     def number_of_elements(self):
         raise NotImplementedError
+
+
+class XDesignDefault(Phantom):
+    """Generates a Phantom for internal testing of XDesign.
+
+    The default phantom is:
+    nested, it contains phantoms within phantoms;
+    geometrically simple, the sinogram can be verified visually; and
+    representative, it contains the three main geometric elements: circle,
+        polygon, and mesh.
+    """
+
+    def __init__(self):
+        super(XDesignDefault, self).__init__(geometry=Circle(Point([0.5, 0.5]),
+                                                             radius=0.5))
+
+        # define the points of the mesh
+        a = Point([0.6, 0.6])
+        b = Point([0.6, 0.4])
+        c = Point([0.8, 0.4])
+        d = (a + c) / 2
+        e = (a + b) / 2
+
+        t0 = Triangle(b, c, d)
+
+        # construct and reposition the mesh
+        m0 = Mesh()
+        m0.append(Triangle(a, e, d))
+        m0.append(Triangle(b, d, e))
+
+        # define the circles
+        c0 = Circle(Point([0.3, 0.5]), radius=0.1)
+        c1 = Circle(Point([0.3, 0.5]), radius=0.02)
+
+        # construct Phantoms
+        self.append(Phantom(geometry=t0, mass_atten=1))
+        self.append(Phantom(geometry=m0, mass_atten=1))
+        self.append(Phantom(geometry=c0, mass_atten=2,
+                    children=[Phantom(geometry=c1, mass_atten=-2)]))
 
 
 class HyperbolicConcentric(Phantom):
