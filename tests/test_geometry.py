@@ -308,7 +308,7 @@ def test_Circle_contains():
     triangle4 = Triangle(Point([-50, -50]), Point([-50, -51]),
                          Point([-20, -51]))
 
-    assert not circle0.contains(circle0)  # self containing
+    assert circle0.contains(circle0)  # self containing
     assert circle0.contains(circle1)      # full containing
     assert not circle0.contains(circle2)  # partial containing
     assert not circle0.contains(circle3)  # contained by
@@ -335,7 +335,7 @@ def test_Polygon_contains():
     triangle4 = Triangle(Point([-50, -50]), Point([-50, -51]),
                          Point([-20, -51]))
 
-    assert not triangle0.contains(triangle0)
+    assert triangle0.contains(triangle0)
     assert triangle0.contains(triangle1)
     assert not triangle0.contains(triangle2)
     assert not triangle0.contains(triangle3)

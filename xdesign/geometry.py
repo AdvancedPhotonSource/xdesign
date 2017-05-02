@@ -132,8 +132,11 @@ class Entity(object):
     def contains(self, other):
         """Return whether this Entity strictly contains the other entity.
 
-        Points are either a single :class:`.Point` or given as an
-        :class:`.ndarray`.
+        Points on edges are contained by the Entity.
+
+        Returns a boolean for all :class:`Entitity`. Returns an array of
+        boolean for MxN size arrays where M is the number of points and N is
+        the dimensionality.
 
         .. note::
             This method is inherited from :class:`.Entity` which means it is
@@ -253,7 +256,7 @@ class Point(Entity):
         if isinstance(other, Point):
             return self == point
         if isinstance(other, np.ndarray):
-            return np.all(self._x == other[:], axis=1)
+            return np.all(self._x == other, axis=1)
         else:  # points can only contain points
             return False
 
@@ -686,6 +689,9 @@ class Circle(Curve):
 
     def contains(self, other):
         """Return whether the Circle contains the other.
+
+        Return one boolean for all geometric entities. Return an array of
+        boolean for array input.
         """
         if isinstance(other, Point):
             x = other._x
@@ -693,7 +699,7 @@ class Circle(Curve):
             x = other
         elif isinstance(other, Circle):
             return (other.center.distance(self.center) + other.radius
-                    < self.radius)
+                    <= self.radius)
         elif isinstance(other, Polygon):
             x = _points_to_array(other.vertices)
             return np.all(self.contains(x))
@@ -706,7 +712,7 @@ class Circle(Curve):
             raise NotImplementedError("Circle.contains() not implemented for" +
                                       " {}".format(type(other)))
 
-        return np.all(np.sum((x - self.center._x)**2, axis=1) <= self.radius**2)
+        return np.sum((x - self.center._x)**2, axis=1) <= self.radius**2
 
 
 def _points_to_array(points):
@@ -715,16 +721,7 @@ def _points_to_array(points):
     for i in range(len(points)):
         a[i] = points[i]._x
 
-    return a
-
-
-def _points_to_array(points):
-    a = np.zeros((len(points), points[0].dim))
-
-    for i in range(len(points)):
-        a[i] = points[i]._x
-
-    return a
+    return np.atleast_2d(a)
 
 
 class Polygon(Entity):
@@ -836,15 +833,14 @@ class Polygon(Entity):
             x = other
         elif isinstance(other, Polygon):
             x = _points_to_array(other.vertices)
-            return np.all(border.contains_points(np.atleast_2d(x)))
+            return np.all(border.contains_points(x, radius=1e-32))
         elif isinstance(other, Circle):
-            if not self.contains(other.center):
-                return False
-            else:
+            if self.contains(other.center):
                 for edge in self.edges:
                     if other.center.distance(edge) < other.radius:
                         return False
                 return True
+            return False
         elif isinstance(other, Mesh):
             for face in other.faces:
                 if not self.contains(face):
@@ -855,7 +851,7 @@ class Polygon(Entity):
                                       "for this class.")
 
         border = Path(self.numpy)
-        return np.all(border.contains_points(np.atleast_2d(x)))
+        return border.contains_points(np.atleast_2d(x), radius=1e-32)
 
     @cached_property
     def half_space(self):
@@ -1047,9 +1043,13 @@ class Mesh(Entity):
             x = other._x
         elif isinstance(other, np.ndarray):
             x = other
+        elif isinstance(other, Polygon):
+            x = _points_to_array(other.vertices)
+            return np.all(self.contains(x))
         else:
             raise TypeError("P must be point or ndarray")
 
+        # keep track of whether each point is contained in a face
         bools = np.full(x.shape[0], False, dtype=bool)
         for f in self.faces:
             bools = np.logical_or(bools, f.contains(x))
