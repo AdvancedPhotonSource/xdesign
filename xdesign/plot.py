@@ -304,7 +304,8 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     Returns
     -------
     image : numpy.ndarray
-        The discrete representation of the :class:`.Phantom` that is size x size.
+        The discrete representation of the :class:`.Phantom` that is size x
+        size.
     """
     if size <= 0:
         raise ValueError('size must be greater than 0.')
@@ -578,14 +579,14 @@ def _pyramid(N):
         location of a particular axies, and span is the size of a paricular
         axies.
     """
-    L = round(N / float(3))  # the number of levels in the pyramid
-    W = int(2**L)  # grid size of the pyramid
+    num_levels = round(N / float(3))  # the number of levels in the pyramid
+    W = int(2**num_levels)  # grid size of the pyramid
 
     params = [p % 3 for p in range(0, N)]
     lcorner = [0, 0]  # the min corner of this level
     for n in range(0, N):
-        l = int(n / 3)  # pyramid level
-        span = int(W / (2**(l + 1)))  # span of the in number of grid spaces
+        level = int(n / 3)  # pyramid level
+        span = int(W / (2**(level + 1)))  # span in num of grid spaces
         corner = list(lcorner)  # the min corner of this tile
 
         if params[n] == 0:

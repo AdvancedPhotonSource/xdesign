@@ -536,13 +536,17 @@ def wet_circles(A, B, thetaA, thetaB):
     rB = B.radius
 
     points = []
-    for t in (np.arange(0, thetaA[1])/(thetaA[1]-1) - 0.5) * thetaA[0] + angleA:
+    for t in ((np.arange(0, thetaA[1])/(thetaA[1]-1) - 0.5)
+              * thetaA[0] + angleA):
+
         x = rA*np.cos(t) + A.center.x
         y = rA*np.sin(t) + A.center.y
         points.append([x, y])
 
     mid = len(points)
-    for t in (np.arange(0, thetaB[1])/(thetaB[1]-1) - 0.5) * thetaB[0] + angleB:
+    for t in ((np.arange(0, thetaB[1])/(thetaB[1]-1) - 0.5)
+              * thetaB[0] + angleB):
+
         x = rB*np.cos(t) + B.center.x
         y = rB*np.sin(t) + B.center.y
         points.append([x, y])

@@ -290,7 +290,8 @@ class Phantom(object):
             circle = Circle(center, radius[0] + gap)
             overlap = _collision(self, circle)
             if overlap <= radius[0] - radius[1]:
-                self.append(Phantom(geometry=Circle(center, radius[0] - overlap),
+                self.append(Phantom(geometry=Circle(center,
+                                                    radius[0] - overlap),
                                     mass_atten=mass_atten))
                 n_added += 1
                 n_tries = 0
