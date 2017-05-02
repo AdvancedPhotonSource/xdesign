@@ -89,7 +89,7 @@ class Phantom(object):
         The number of decendents of this phantom.
     """
     # OPERATOR OVERLOADS
-    def __init__(self, geometry=None, children=[], mass_atten=0):
+    def __init__(self, geometry=None, children=[], mass_atten=0.0):
 
         self._geometry = geometry
         self.population = 0
@@ -221,7 +221,7 @@ class Phantom(object):
         arr = np.loadtxt(filename, delimiter=',')
         self = eval(arr[0])
 
-    def sprinkle(self, counts, radius, gap=0, region=None, mass_atten=1,
+    def sprinkle(self, counts, radius, gap=0, region=None, mass_atten=1.0,
                  max_density=1):
         """Sprinkle a number of :class:`.Circle` shaped Phantoms around the
         Phantom. Uses various termination criteria to determine when to stop
@@ -328,7 +328,7 @@ def _collision(phantom, circle):
         return max_overlap
 
 
-def _random_point(geometry, margin=0):
+def _random_point(geometry, margin=0.0):
     """Return a Point located within the geometry.
 
     Parameters
