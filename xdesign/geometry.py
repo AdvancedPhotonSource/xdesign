@@ -67,8 +67,6 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Entity',
            'Point',
-        #    'Superellipse',
-        #    'Ellipse',
            'Circle',
            'Line',
            'Polygon',
