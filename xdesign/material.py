@@ -56,6 +56,7 @@ from xdesign.geometry import *
 from xdesign.plot import *
 from scipy.spatial import Delaunay
 from xdesign.constants import PI
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
@@ -169,22 +170,22 @@ class XDesignDefault(Phantom):
         d = (a + c) / 2
         e = (a + b) / 2
 
-        t0 = Triangle(b, c, d)
+        t0 = Triangle(deepcopy(b), deepcopy(c), deepcopy(d))
 
         # construct and reposition the mesh
         m0 = Mesh()
-        m0.append(Triangle(a, e, d))
-        m0.append(Triangle(b, d, e))
+        m0.append(Triangle(deepcopy(a), deepcopy(e), deepcopy(d)))
+        m0.append(Triangle(deepcopy(b), deepcopy(d), deepcopy(e)))
 
         # define the circles
         c0 = Circle(Point([0.3, 0.5]), radius=0.1)
         c1 = Circle(Point([0.3, 0.5]), radius=0.02)
 
         # construct Phantoms
-        self.append(Phantom(geometry=t0, mass_atten=1))
-        self.append(Phantom(geometry=m0, mass_atten=1))
-        self.append(Phantom(geometry=c0, mass_atten=2,
-                    children=[Phantom(geometry=c1, mass_atten=-2)]))
+        self.append(Phantom(geometry=t0, mass_atten=0.5))
+        self.append(Phantom(geometry=m0, mass_atten=0.5))
+        self.append(Phantom(geometry=c0, mass_atten=1.0,
+                            children=[Phantom(geometry=c1, mass_atten=-1.0)]))
 
 
 class HyperbolicConcentric(Phantom):
