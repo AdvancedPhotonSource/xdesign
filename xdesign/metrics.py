@@ -792,9 +792,11 @@ class ImageQuality(object):
 
 def compute_quality(reference, reconstructions, method="MSSSIM", L=1):
     """
-    Computes full-reference image quality metrics for each of the reconstructions.
+    Computes full-reference image quality metrics for each of the
+    reconstructions.
 
-    Available methods include SSIM :cite:`wang:02`, MSSSIM :cite:`wang:03`, VIFp :cite:`Sheikh:15`, and FSIM :cite:`zhang:11`.
+    Available methods include SSIM :cite:`wang:02`, MSSSIM :cite:`wang:03`,
+    VIFp :cite:`Sheikh:15`, and FSIM :cite:`zhang:11`.
 
     Parameters
     ---------
@@ -1054,10 +1056,10 @@ def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
     # The relative imporance of each level as determined by human experiment
     # weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
-    for l in range(0, nlevels):
+    for level in range(0, nlevels):
         imQual += _compute_ssim(ImageQuality(img1, img2), sigma=sigma, L=L,
-                                K=K, scale=sigma * 2**l)
-        if l == nlevels - 1:
+                                K=K, scale=sigma * 2**level)
+        if level == nlevels - 1:
             break
 
         # Downsample (using ndimage.zoom to prevent sampling bias)

@@ -161,7 +161,6 @@ def art(probe, data, init, niter=10):
     for n in range(niter):
         update_progress(n/niter)
         for m in range(len(probe.history)):
-        # for m in range(3000):
             x0 = probe.history[m][0]
             y0 = probe.history[m][1]
             x1 = probe.history[m][2]
@@ -231,7 +230,6 @@ def sirt(probe, data, init, niter=10):
 
         update_progress(n/niter)
         for m in range(len(probe.history)):
-        # for m in range(100):
             x0 = probe.history[m][0]
             y0 = probe.history[m][1]
             x1 = probe.history[m][2]
@@ -303,8 +301,6 @@ def mlem(probe, data, init, niter=10):
 
         update_progress(n/niter)
         for m in range(len(probe.history)):
-        # for m in range(3000):
-        # for m in range(100):
             x0 = probe.history[m][0]
             y0 = probe.history[m][1]
             x1 = probe.history[m][2]
@@ -352,13 +348,13 @@ def mlem(probe, data, init, niter=10):
             sumdist[ix[ind], iy[ind]] += dist
             sim = np.dot(dist[ind], init[ix[ind], iy[ind]])
             if not sim == 0:
-                upd = np.true_divide(data[m] , sim)
+                upd = np.true_divide(data[m], sim)
                 update[ix[ind], iy[ind]] += dist[ind] * upd
 
-        init[sumdist > 0] *= np.true_divide(update[sumdist > 0], sumdist[sumdist > 0] * sy)
+        init[sumdist > 0] *= np.true_divide(update[sumdist > 0],
+                                            sumdist[sumdist > 0] * sy)
     update_progress(1)
     return init
-
 
 
 def stream(probe, data, init):
@@ -371,7 +367,7 @@ def stream(probe, data, init):
     gy = np.linspace(0, 1, sy + 1)
 
     for m in range(3000):
-        print (m)
+        print(m)
 
         update = np.zeros(init.shape)
         sumdist = np.zeros(init.shape)
@@ -424,9 +420,11 @@ def stream(probe, data, init):
             sumdist[ix[ind], iy[ind]] += dist
             sim = np.dot(dist[ind], init[ix[ind], iy[ind]])
             if not sim == 0:
-                upd = np.true_divide(data[m+n] , sim)
+                upd = np.true_divide(data[m+n], sim)
                 update[ix[ind], iy[ind]] += dist[ind] * upd
 
-        # init[sumdist > 0] += np.true_divide(update[sumdist > 0], sumdist[sumdist > 0] * sy)
-        init[sumdist > 0] *= np.true_divide(update[sumdist > 0], sumdist[sumdist > 0] * sy)
+        # init[sumdist > 0] += np.true_divide(update[sumdist > 0],
+        #                                     sumdist[sumdist > 0] * sy)
+        init[sumdist > 0] *= np.true_divide(update[sumdist > 0],
+                                            sumdist[sumdist > 0] * sy)
     return init

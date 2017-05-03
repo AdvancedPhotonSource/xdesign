@@ -249,14 +249,24 @@ class Probe(Beam):
         sigma : float >= 0
             The standard deviation of the normally distributed noise.
         """
-        newdata = 0
-        for m in range(phantom.population):
-            # print("%s Measure feature %i" % (str(self), m))
-            newdata += (beamintersect(self, phantom.feature[m].geometry) *
-                        phantom.feature[m].mass_atten)
+        newdata = self._measure_helper(phantom)
         if sigma > 0:
             newdata += newdata * np.random.normal(scale=sigma)
         self.record()
+        return newdata
+
+    def _measure_helper(self, phantom):
+        intersection = beamintersect(self, phantom.geometry)
+
+        if intersection is not None and phantom.mass_atten != 0:
+            newdata = intersection * phantom.mass_atten
+        else:
+            newdata = 0
+
+        if intersection > 0:
+            for child in phantom.children:
+                newdata += self._measure_helper(child)
+
         return newdata
 
     def record(self):

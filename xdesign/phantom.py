@@ -50,10 +50,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from xdesign.geometry import *
-from xdesign.geometry import Entity
-from xdesign.feature import *
 import numpy as np
-import scipy.ndimage
 import logging
 import warnings
 
@@ -63,101 +60,185 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Phantom']
+__all__ = ['Phantom',
+           'save_phantom',
+           'load_phantom']
+
+
+# IMPORT AND EXPORT
+def save_phantom(phantom, filename):
+    """Save phantom to file."""
+    f = open(filename, 'w')
+    f.write("{}".format(repr(phantom)))
+    f.close()
+    logger.info('Save Phantom to {}'.format(filename))
+
+
+def load_phantom(filename):
+    """Load phantom from file."""
+    f = open(filename, 'r')
+    raw_phantom = f.read()
+    f.close()
+    logger.info('Load Phantom from {}'.format(filename))
+    return eval(raw_phantom)
 
 
 class Phantom(object):
-    """Phantoms are objects for the purpose of evaluating an imaging method.
+    """An object for the purpose of evaluating X-ray imaging methods.
 
-    Each Phantom is a square or circular region containing a :class:`.list` of :class:`.Feature` objects. The :mod:`.acquisition` module uses Phantoms as an interface for generating data.
+    Phantoms may be hierarchical structures with children that are contained
+    within and/or a parent which contains them. They have two parts: a geometry
+    and properties. The geometry defines the spatial extent over which the
+    properties are valid. Properties are parameters which a :class:`.Probe`
+    uses to measure the Phantom.
 
-    Phantoms can be combined using the '+' operator, and they also have some of the same mehtods as the :class:`.List` class including: append, pop, insert, sort, and reverse.
+    All Phantoms must fit within the geometry of their ancestors. Phantoms
+    whose geometry is None act as containers.
 
     Attributes
     ----------
-    shape : :class:`str`
-        The shape of the phantom: circle, square.
-    population : scalar
-        The number of :class:`.Feature` in the Phantom.
-    area : scalar
-        The total volume of the :class:`.Feature` in the Phantom.
-    feature : :class:`list`
-        List of :class:`.Feature`.
+    geometry : :class:`.Entity`
+        The spatial boundary of the Phantom; may be None.
+    children :
+        A list of Phantoms contained in this Phantom.
+    parent :
+        The Phantom containing this Phantom.
+    mass_atten :
+        The mass_attenuation of the phantom.
+    population :
+        The number of decendents of this phantom.
     """
     # OPERATOR OVERLOADS
-    def __init__(self, shape='circle'):
-        if not (shape == 'circle' or shape == 'square'):
-            raise ValueError("Phantom must be a circle or square.")
-        self.shape = shape
+    def __init__(self, geometry=None, children=[], mass_atten=0.0):
+
+        self._geometry = geometry
         self.population = 0
-        self.area = 0
-        self.feature = []
+        self.parent = None
+        self.mass_atten = mass_atten
+
+        self.children = list()
+        for child in children:
+            self.append(child)
 
     def __add__(self, other):
-        if not isinstance(other, Phantom):
-            raise TypeError("Can only add phantoms to other phantoms.")
-        self.population += other.population
-        self.area += other.area
-        self.feature += other.feature
-        return self
+        """Combine two Phantoms."""
+        parent = Phantom()
+        parent.append(self)
+        parent.append(other)
+        return parent
+
+    def __str__(self):
+        return "{}()".format(type(self).__name__)
+
+    def __repr__(self):
+        return "Phantom(geometry={}, children={}, mass_atten={})".format(
+                repr(self.geometry),
+                repr(self.children),
+                repr(self.mass_atten))
 
     # PROPERTIES
     @property
-    def list(self):
-        """Prints the contents of the Phantom."""
-        for m in range(self.population):
-            print(self.feature[m].list)
+    def is_leaf(self):
+        """Return whether the Phantom is a leaf node."""
+        return not self.children
+
+    @property
+    def geometry(self):
+        """Return the geometry of the Phantom."""
+        return self._geometry
+
+    @property
+    def center(self):
+        """Return the centroid of the Phantom."""
+        if self.geometry is None:
+            return None
+
+        return self.geometry.center
+
+    @property
+    def radius(self):
+        """Return the radius of the smallest boundary sphere."""
+        if self.geometry is None:
+            return None
+
+        return self.geometry.radius
+
+    @property
+    def volume(self):
+        """Return the volume of the Phantom"""
+        if self.geometry is None:
+            return None
+
+        if hasattr(self.geometry, 'volume'):
+            return self.geometry.volume
+        else:
+            return self.geometry.area
 
     @property
     def density(self):
-        '''Returns the area density of the phantom. Does not acount for
-        functional weight of the Features.
-        '''
-        if self.shape == 'square':
-            return self.area
-        elif self.shape == 'circle':
-            return self.area / (np.pi * 0.5 * 0.5)
+        '''Return the geometric density of the Phantom.'''
+        if self.geometry is None:
+            return None
 
-    # FEATURE LIST MANIPULATION
-    def append(self, feature):
-        """Add a Feature to the top of the phantom."""
-        if not isinstance(feature, Feature):
-            raise TypeError("Can only add Features to Phantoms.")
-        self.feature.append(feature)
-        self.area += feature.area
-        self.population += 1
+        child_volume = 0
+
+        for child in self.children:
+            child_volume += child.volume
+
+        return child_volume / self.volume
+
+    # GEOMETRIC TRANSFORMATIONS
+    def translate(self, vector):
+        """Translate the Phantom."""
+        for child in self.children:
+            child.translate(vector)
+
+        if self._geometry is not None:
+            self._geometry.translate(vector)
+
+    def rotate(self, theta, point=Point([0.5, 0.5]), axis=None):
+        """Rotate around an axis that passes through the given point."""
+        for child in self.children:
+            child.rotate(theta, point, axis)
+
+        if self._geometry is not None:
+            self.geometry.rotate(theta, point, axis)
+
+    # TREE MANIPULATION
+    def append(self, child):
+        """Add a child to the Phantom.
+
+        Only add the child if it is contained within the geometry of its
+        ancestors.
+        """
+        boundary = self.geometry
+        parent = self.parent
+
+        while boundary is None and parent is not None:
+                boundary = parent.geometry
+                parent = parent.parent
+
+        # TODO: Fix for case when child.geometry is None
+        if boundary is None or boundary.contains(child.geometry):
+            child.parent = self
+            self.children.append(child)
+            self.population += child.population + 1
+            return True
+
+        else:
+            return False
 
     def pop(self, i=-1):
-        """Pop the i-th Feature from the Phantom."""
-        self.population -= 1
-        self.area -= self.feature[i].area
-        return self.feature.pop(i)
+        """Pop the i-th child from the Phantom."""
+        self.children[i].parent = None
+        self.population -= self.children[i].population + 1
+        return self.children.pop(i)
 
-    def insert(self, i, feature):
-        """Insert a Feature at a given depth."""
-        if not isinstance(feature, Feature):
-            raise TypeError("Can only add Features to Phantoms.")
-        self.feature.insert(i, feature)
-        self.area += feature.area
-        self.population += 1
-
-    def sort(self, param="mass_atten", reverse=False):
-        """Sorts the Features by a property such as mass_atten or size."""
-        if param == "mass_atten":
-            def key(feature): return feature.mass_atten
-        elif param == "size":
-            def key(feature): return feature.area
-        else:
-            raise ValueError("Can't sort by " + param)
-        self.feature = sorted(self.feature, key=key, reverse=reverse)
-
-    def reverse(self):
-        """Reverse the order of the Features in the phantom."""
-        self.feature.reverse()
-
-    def sprinkle(self, counts, radius, gap=0, region=None, mass_atten=1,
+    def sprinkle(self, counts, radius, gap=0, region=None, mass_atten=1.0,
                  max_density=1):
-        """Sprinkles a number of :class:`.Circle` shaped Features around the Phantom. Uses various termination criteria to determine when to stop trying to add circles.
+        """Sprinkle a number of :class:`.Circle` shaped Phantoms around the
+        Phantom. Uses various termination criteria to determine when to stop
+        trying to add circles.
 
         Parameters
         ----------
@@ -169,9 +250,11 @@ class Phantom(object):
             The minimum distance between circle boundaries.
             A negative value allows overlapping edges.
         region : :class:`.Entity`, optional
-            The new circles are confined to this shape. None if the circles are allowed anywhere.
+            The new circles are confined to this shape. None if the circles are
+            allowed anywhere.
         max_density : scalar, optional
-            Stops adding circles when the geometric density of the phantom reaches this ratio.
+            Stops adding circles when the geometric density of the phantom
+            reaches this ratio.
         mass_atten : scalar, optional
             A mass attenuation parameter passed to the circles.
 
@@ -202,20 +285,26 @@ class Phantom(object):
         n_tries = 0  # attempts to append a new circle
         n_added = 0  # circles successfully added
 
+        if region is None:
+            if self.geometry is None:
+                return 0
+            region = self.geometry
+
         while (n_tries < kTERM_CRIT and n_added < counts and
                self.density < max_density):
-            center = self._random_point(radius[0], region=region)
+            center = _random_point(region, margin=radius[0])
 
             if collision:
-                self.append(Feature(Circle(center, radius[0]),
-                            mass_atten=mass_atten))
+                self.append(Phantom(geometry=Circle(center, radius[0]),
+                                    mass_atten=mass_atten))
                 n_added += 1
                 continue
 
-            circle = Feature(Circle(center, radius[0] + gap))
-            overlap = self._collision(circle)
+            circle = Circle(center, radius[0] + gap)
+            overlap = _collision(self, circle)
             if overlap <= radius[0] - radius[1]:
-                self.append(Feature(Circle(center, radius[0] - overlap),
+                self.append(Phantom(geometry=Circle(center,
+                                                    radius[0] - overlap),
                                     mass_atten=mass_atten))
                 n_added += 1
                 n_tries = 0
@@ -223,101 +312,61 @@ class Phantom(object):
             n_tries += 1
 
         if n_added != counts and n_tries == kTERM_CRIT:
-            warnings.warn("Reached termination criteria of " +
-                          str(kTERM_CRIT) + " attempts before adding " +
-                          "all of the circles.", RuntimeWarning)
+            warnings.warn(("Reached termination criteria of {} attempts " +
+                           "before adding all of the circles.").format(
+                           kTERM_CRIT), RuntimeWarning)
             # no warning for reaching max_density because that's settable
         return n_added
 
-    # GEOMETRIC TRANSFORMATIONS
-    def translate(self, vector):
-        """Translate phantom."""
-        for m in range(self.population):
-            self.feature[m].translate(vector)
 
-    def rotate(self, theta, origin=Point([0.5, 0.5]), axis=None):
+def _collision(phantom, circle):
+        """Return the max overlap of the circle and a child of this Phantom.
+
+        May return overlap < 0; the distance between the two non-overlapping
+        circles.
         """
-        Rotates the Phantom around an axis passing through the given origin.
-        """
-        for m in range(self.population):
-            self.feature[m].rotate(theta, origin, axis)
+        max_overlap = 0
 
-    # IMPORT AND EXPORT
-    def numpy(self):
-        """Returns the Numpy representation."""
-        # Phantoms contain more than circles now.
-        arr = np.empty((self.population, 4))
-        for m in range(self.population):
-            arr[m] = [
-                self.feature[m].center.x,
-                self.feature[m].center.y,
-                self.feature[m].radius,
-                self.feature[m].mass_atten]
-        return arr
+        for child in phantom.children:
+            if child.geometry is None:
+                overlap = _collision(child, circle)
 
-    def save(self, filename):
-        """Saves phantom to file."""
-        np.savetxt(filename, self.numpy(), delimiter=',')
+            else:
+                dx = child.center.distance(circle.center)
+                dr = child.radius + circle.radius
+                overlap = dr - dx
 
-    def load(self, filename):
-        """Load phantom from file."""
-        arr = np.loadtxt(filename, delimiter=',')
-        for m in range(arr.shape[0]):
-            self.append(Feature(
-                        Circle(Point([arr[m, 0], arr[m, 1]]), arr[m, 2]),
-                        arr[m, 3]))
+            max_overlap = max(max_overlap, overlap)
 
-    # PRIVATE METHODS
-    def _random_point(self, margin=0, region=None):
-        """Generate a random point in the given geometric entity.
+        return max_overlap
 
-        Parameters
-        ----------
-        margin : scalar
-            Determines the margin value of the shape.
-            Points will not be created in the margin area.
-        region : Entity, optional
-            Determines where the point will be generated. None assumes it can
-            be generated anywhere in the 1x1 phantom.
 
-        Returns
-        -------
-        Point
-            Random point.
-        """
-        if isinstance(region, Entity):
-            raise NotImplementedError
-        else:
-            radius = 0.5
-            center = Point([0.5, 0.5])
+def _random_point(geometry, margin=0.0):
+    """Return a Point located within the geometry.
 
-        if self.shape == 'square':
-            x = np.random.uniform(margin - radius, radius - margin) + center.x
-            y = np.random.uniform(margin - radius, radius - margin) + center.y
-        elif self.shape == 'circle':
-            r = np.random.uniform(0, radius - margin)
-            a = np.random.uniform(0, 2 * np.pi)
-            x = r * np.cos(a) + center.x
-            y = r * np.sin(a) + center.y
+    Parameters
+    ----------
+    margin : scalar
+        Determines the margin value of the shape.
+        Points will not be created in the margin area.
 
-        return Point([x, y])
+    """
+    if isinstance(geometry, Rectangle):
+        [xmin, ymin, xmax, ymax] = geometry.bounds
+        x = np.random.uniform(xmin + margin, xmax - margin)
+        y = np.random.uniform(ymin + margin, ymax - margin)
 
-    def _collision(self, circle):
-        """Check if a circle is collided with another circle.
+    elif isinstance(geometry, Circle):
+        radius = geometry.radius
+        center = geometry.center
+        r = np.random.uniform(0, radius - margin)
+        a = np.random.uniform(0, 2 * np.pi)
+        x = r * np.cos(a) + center.x
+        y = r * np.sin(a) + center.y
 
-        Returns
-        --------
-        overlap : scalar
-            The largest amount that the circle is overlapping
-        """
-        if not isinstance(circle, Feature):
-            raise TypeErrorz
+    else:
+        raise NotImplementedError("Cannot give point in {}.".format(
+                                  type(geometry)) + " Only Square and " +
+                                  "Circle are available.")
 
-        overlap = 0
-        for m in range(self.population):
-            dx = self.feature[m].center.x - circle.center.x
-            dy = self.feature[m].center.y - circle.center.y
-            dr = self.feature[m].radius + circle.radius
-            overlap = max(dr - np.sqrt(dx**2 + dy**2), overlap)
-
-        return overlap
+    return Point([x, y])

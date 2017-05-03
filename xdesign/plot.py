@@ -61,7 +61,6 @@ import scipy.ndimage
 from cycler import cycler
 from xdesign.phantom import Phantom
 from xdesign.geometry import Curve, Polygon, Mesh
-from xdesign.feature import Feature
 from matplotlib.axis import Axis
 from itertools import product
 from six import string_types
@@ -73,7 +72,6 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['plot_phantom',
-           'plot_feature',
            'plot_mesh',
            'plot_polygon',
            'plot_curve',
@@ -103,7 +101,7 @@ PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
                18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
 
 
-def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
+def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
     """Plots a :class:`.Phantom` to the given axis.
 
     Parameters
@@ -123,47 +121,53 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None):
         A function which takes the list of prop(s) for a :class:`.Feature` as
         input and returns a matplolib color specifier. :cite:`Hunter:07`
     """
+    assert isinstance(phantom, Phantom), ('phantom is a ' +
+                                          '{}'.format(type(phantom)))
+
     # IDEA: Allow users to provide list or generator for labels.
-    if not isinstance(phantom, Phantom):
-        raise TypeError("Can only plot Phantoms.")
     if axis is None:
         fig, axis = _make_axis()
     if not isinstance(c_props, list):
         raise TypeError('c_props must be list of str')
-    if c_map is not None and not isinstance(c_map, type.FunctionType):
-        raise TypeError('c_map must be a function.')
     if len(c_props) > 0 and c_map is None:
         c_map = DEFAULT_COLOR_MAP
 
     props = list(c_props)
     num_props = range(0, len(c_props))
-    i = 0
-    # Draw all features in the phantom.
-    for f in phantom.feature:
+
+    # Draw geometry in the phantom.
+    if phantom.geometry is not None:
         if c_map is not None:
             # use the colormap to determine the color
             for j in num_props:
-                props[j] = getattr(f, c_props[j])
+                props[j] = getattr(phantom, c_props[j])
             color = c_map(props)[0]
         else:
             color = None
 
-        plot_feature(f, axis, c=color)
+        plot_geometry(phantom.geometry, axis, c=color)
         if labels is not None:
-            axis.annotate(str(i), xy=(f.center.x, f.center.y),
+            axis.annotate(str(i), xy=(phantom.geometry.center.x,
+                                      phantom.geometry.center.y),
                           ha='center', va='center', color=LABEL_COLOR,
                           path_effects=[PathEffects.withStroke(
                             linewidth=3, foreground=DEFAULT_EDGE_COLOR)])
             i += 1
 
+    for child in phantom.children:
+        i = plot_phantom(child, axis=axis, labels=labels, c_props=c_props,
+                         c_map=c_map, i=i)
 
-def plot_feature(feature, axis=None, alpha=None, c=None):
-    """Plots a :class:`.Feature` on the given axis.
+    return i
+
+
+def plot_geometry(geometry, axis=None, alpha=None, c=None):
+    """Plots a :class:`.Entity` on the given axis.
 
     Parameters
     ----------
-    feature : :class:`.Feature`
-        A Feature to plot on the given axis.
+    geometry : :class:`.Entity`
+        A geometry to plot on the given axis.
     axis : :class:`matplotlib.axis.Axis`, optional
         The axis where the Feature should be plotted. `None` creates
         a new axis.
@@ -172,18 +176,18 @@ def plot_feature(feature, axis=None, alpha=None, c=None):
     c : :mod:`matplotlib.color`, optional
         The color of the plotted Feature.
     """
-    if not isinstance(feature, Feature):
-        raise TypeError('Can only plot Features.')
     if axis is None:
         fig, axis = _make_axis()
 
     # Plot geometry using correct method
-    if isinstance(feature.geometry, Mesh):
-        plot_mesh(feature.geometry, axis, alpha, c)
-    elif isinstance(feature.geometry, Curve):
-        plot_curve(feature.geometry, axis, alpha, c)
-    elif isinstance(feature.geometry, Polygon):
-        plot_polygon(feature.geometry, axis, alpha, c)
+    if geometry is None:
+        return
+    elif isinstance(geometry, Mesh):
+        plot_mesh(geometry, axis, alpha, c)
+    elif isinstance(geometry, Curve):
+        plot_curve(geometry, axis, alpha, c)
+    elif isinstance(geometry, Polygon):
+        plot_polygon(geometry, axis, alpha, c)
     else:
         raise NotImplemented('Feature geometry is not Mesh, Curve or Polygon.')
 
@@ -282,7 +286,7 @@ def _make_axis():
 
 def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     """Returns discrete representation of the property function, prop, in the
-    :class:`.Phantom`. The values of overlapping Features are additive.
+    :class:`.Phantom`. The values of overlapping Phantoms are additive.
 
     Parameters
     ----------
@@ -303,16 +307,13 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     Returns
     -------
     image : numpy.ndarray
-        The discrete representation of the :class:`.Phantom` that is size x size.
+        The discrete representation of the :class:`.Phantom` that is size x
+        size.
     """
-    if not isinstance(phantom, Phantom):
-        raise TypeError('phantom must be type Phantom.')
     if size <= 0:
         raise ValueError('size must be greater than 0.')
     if ratio < 1:
         raise ValueError('ratio must be at least 1.')
-    if not isinstance(prop, string_types):
-        raise TypeError('property must be specified using str.')
     ndims = 2
 
     # Make a higher resolution grid to sample the continuous space. Sample at
@@ -326,8 +327,7 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     image = np.zeros((size * ratio, size * ratio), dtype=np.float)
 
     # Rasterize all features in the phantom.
-    for f in phantom.feature:
-        image = _discrete_feature(f, image, px, py, prop)
+    image = _discrete_geometry(phantom, image, px, py, prop)
 
     # Resample down to the desired size. Roll image so that decimation chooses
     # from the center of each pixel.
@@ -342,14 +342,33 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     return image
 
 
-def _discrete_feature(feature, image, px, py, prop):
-    """Helper function for :func:`.discrete_phantom`. Rasterizes the geometry
-    of the feature."""
-    size = px.shape
-    x = np.vstack([px.flatten(), py.flatten()]).T
-    new_feature = feature.geometry.contains(x) * getattr(feature, prop)
-    new_feature = np.reshape(new_feature, size)
-    return image + new_feature
+def _discrete_geometry(phantom, image, px, py, prop):
+    """Draw the geometry of the phantom onto the image.
+
+    (px, py) are two arrays the same shape as image which hold the coordinates
+    of image pixels. Multiply the geometry of each phantom by the value of
+    phantom.prop.
+    """
+    if hasattr(phantom, prop) and phantom.geometry is not None:
+        value = getattr(phantom, prop)
+
+        size = px.shape  # is equivalent to image.shape?
+        pixel_coords = np.vstack([px.flatten(), py.flatten()]).T
+
+        logger.debug("pixel_coords: {}".format(pixel_coords))
+        logger.debug("geometry: {}".format(phantom.geometry))
+
+        new_feature = phantom.geometry.contains(pixel_coords) * value
+        logger.debug("new_feature: {}".format(new_feature))
+
+        new_feature = np.reshape(new_feature, size)
+
+        image += new_feature
+
+    for child in phantom.children:
+        image = _discrete_geometry(child, image, px, py, prop)
+
+    return image
 
 
 def sidebyside(p, size=100, labels=None, prop='mass_atten'):
@@ -566,14 +585,14 @@ def _pyramid(N):
         location of a particular axies, and span is the size of a paricular
         axies.
     """
-    L = round(N / float(3))  # the number of levels in the pyramid
-    W = int(2**L)  # grid size of the pyramid
+    num_levels = round(N / float(3))  # the number of levels in the pyramid
+    W = int(2**num_levels)  # grid size of the pyramid
 
     params = [p % 3 for p in range(0, N)]
     lcorner = [0, 0]  # the min corner of this level
     for n in range(0, N):
-        l = int(n / 3)  # pyramid level
-        span = int(W / (2**(l + 1)))  # span of the in number of grid spaces
+        level = int(n / 3)  # pyramid level
+        span = int(W / (2**(level + 1)))  # span in num of grid spaces
         corner = list(lcorner)  # the min corner of this tile
 
         if params[n] == 0:

@@ -51,6 +51,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 import logging
+import warnings
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from numbers import Number
@@ -66,8 +67,6 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Entity',
            'Point',
-        #    'Superellipse',
-        #    'Ellipse',
            'Circle',
            'Line',
            'Polygon',
@@ -84,7 +83,7 @@ class Entity(object):
     def __init__(self):
         self._dim = 0
 
-    def __str__(self):
+    def __repr__(self):
         """A string representation for easier debugging.
 
         .. note::
@@ -128,12 +127,14 @@ class Entity(object):
         """
         raise NotImplementedError
 
-    def contains(self, point):
-        """Returns True if the given point(s) is within the bounds of the
-        entity.
+    def contains(self, other):
+        """Return whether this Entity strictly contains the other entity.
 
-        Points are either a single :class:`.Point` or given as an
-        :class:`.ndarray`.
+        Points on edges are contained by the Entity.
+
+        Returns a boolean for all :class:`Entitity`. Returns an array of
+        boolean for MxN size arrays where M is the number of points and N is
+        the dimensionality.
 
         .. note::
             This method is inherited from :class:`.Entity` which means it is
@@ -183,8 +184,8 @@ class Point(Entity):
         self._x = np.ravel(self._x)
         self._dim = self._x.size
 
-    def __str__(self):
-        return "Point(%s" % ', '.join([str(n) for n in self._x]) + ")"
+    def __repr__(self):
+        return "Point([%s" % ', '.join([repr(n) for n in self._x]) + "])"
 
     @property
     def x(self):
@@ -248,12 +249,12 @@ class Point(Entity):
         self._x *= vector
 
     def contains(self, other):
-        """Returns True if the other is within the bounds of the Point. Points
+        """Return wether the other is within the bounds of the Point. Points
         can only contain other Points."""
         if isinstance(other, Point):
             return self == point
         if isinstance(other, np.ndarray):
-            return np.all(self._x == other[:], axis=1)
+            return np.all(self._x == other, axis=1)
         else:  # points can only contain points
             return False
 
@@ -266,7 +267,9 @@ class Point(Entity):
 
     def distance(self, other):
         """Returns the closest distance between entities."""
-        if not isinstance(other, Point):
+        if isinstance(other, Line):
+            return other.distance(self)
+        elif not isinstance(other, Point):
             raise NotImplementedError("Point to point distance only.")
         d = self._x - other._x
         return sqrt(d.dot(d))
@@ -327,8 +330,9 @@ class LinearEntity(Entity):
         self.p2 = p2
         self._dim = p1.dim
 
-    def __str__(self):
-        return "Edge(" + str(self.p1) + ", " + str(self.p2) + ")"
+    def __repr__(self):
+        return "{}({}, {})".format(type(self).__name__, repr(self.p1),
+                                   repr(self.p2))
 
     @property
     def vertical(self):
@@ -540,6 +544,9 @@ class Curve(Entity):
         super(Curve, self).__init__()
         self.center = center
 
+    def __repr__(self):
+        return "{}(center={})".format(type(self).__name__, repr(self.center))
+
     def translate(self, vector):
         """Translates the Curve along a vector."""
         if not isinstance(vector, (Point, list, np.array)):
@@ -569,6 +576,12 @@ class Superellipse(Curve):
         self.b = float(b)
         self.n = float(n)
 
+    def __repr__(self):
+        return "Superellipse(center={}, a={}, b={}, n={})".format(repr(self.center),
+                                                                  repr(self.a),
+                                                                  repr(self.b),
+                                                                  repr(self.n))
+
     @property
     def list(self):
         """Return list representation."""
@@ -592,6 +605,11 @@ class Ellipse(Superellipse):
 
     def __init__(self, center, a, b):
         super(Ellipse, self).__init__(center, a, b, 2)
+
+    def __repr__(self):
+        return "Ellipse(center={}, a={}, b={})".format(repr(self.center),
+                                                       repr(self.a),
+                                                       repr(self.b))
 
     @property
     def list(self):
@@ -623,6 +641,10 @@ class Circle(Curve):
     def __init__(self, center, radius):
         super(Circle, self).__init__(center)
         self.radius = float(radius)
+
+    def __repr__(self):
+        return "Circle(center={}, radius={})".format(repr(self.center),
+                                                     repr(self.radius))
 
     def __str__(self):
         """Return the analytical equation."""
@@ -664,18 +686,41 @@ class Circle(Curve):
     #     self.center.scale(val)
     #     self.rad *= val
 
-    def contains(self, points):
-        """Returns whether a point or array of points are within the boundaries
-        of the Circle.
+    def contains(self, other):
+        """Return whether the Circle contains the other.
+
+        Return one boolean for all geometric entities. Return an array of
+        boolean for array input.
         """
-        if isinstance(points, Point):
-            x = p._x
-        elif isinstance(points, np.ndarray):
-            x = points
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        elif isinstance(other, Circle):
+            return (other.center.distance(self.center) + other.radius
+                    <= self.radius)
+        elif isinstance(other, Polygon):
+            x = _points_to_array(other.vertices)
+            return np.all(self.contains(x))
+        elif isinstance(other, Mesh):
+            for face in other.faces:
+                if not self.contains(face):
+                    return False
+            return True
         else:
-            raise TypeError("P must be point or ndarray")
+            raise NotImplementedError("Circle.contains() not implemented for" +
+                                      " {}".format(type(other)))
 
         return np.sum((x - self.center._x)**2, axis=1) <= self.radius**2
+
+
+def _points_to_array(points):
+    a = np.zeros((len(points), points[0].dim))
+
+    for i in range(len(points)):
+        a[i] = points[i]._x
+
+    return np.atleast_2d(a)
 
 
 class Polygon(Entity):
@@ -697,8 +742,12 @@ class Polygon(Entity):
         self.vertices = vertices
         self._dim = vertices[0].dim
 
+    def __repr__(self):
+        return "{}(vertices={})".format(type(self).__name__,
+                                        repr(self.vertices))
+
     def __str__(self):
-        return "Polygon(" + str(self.numpy) + ")"
+        return "{}({})".format(type(self).__name__, str(self.numpy))
     # return "Polygon(%s" % ', '.join([str(n) for n in self.vertices]) + ")"
 
     @property
@@ -716,10 +765,7 @@ class Polygon(Entity):
     @property
     def numpy(self):
         """Return Numpy representation."""
-        points = np.empty([self.numverts, self.dim])
-        for m in range(self.numverts):
-            points[m] = self.vertices[m]._x
-        return points
+        return _points_to_array(self.vertices)
 
     @property
     def area(self):
@@ -790,18 +836,47 @@ class Polygon(Entity):
             self.half_space = self.half_space.rotation(0, 1, theta)
             self.half_space = self.half_space.translation(d)
 
-    def contains(self, points):
-        """Returns whether the given points are contained within the Polygon.
-        """
-        if isinstance(points, Point):
-            x = p._x
-        elif isinstance(points, np.ndarray):
-            x = points
-        else:
-            raise TypeError("P must be point or ndarray")
+    @property
+    def edges(self):
+        """Return a list of lines connecting the points of the Polygon."""
+        edges = []
+
+        for i in range(self.numverts):
+            edges.append(Line(self.vertices[i],
+                              self.vertices[(i+1) % self.numverts]))
+
+        return edges
+
+    def contains(self, other):
+        """Return whether this Polygon contains the other."""
 
         border = Path(self.numpy)
-        return border.contains_points(points)
+
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        elif isinstance(other, Polygon):
+            x = _points_to_array(other.vertices)
+            return np.all(border.contains_points(x, radius=1e-32))
+        elif isinstance(other, Circle):
+            if self.contains(other.center):
+                for edge in self.edges:
+                    if other.center.distance(edge) < other.radius:
+                        return False
+                return True
+            return False
+        elif isinstance(other, Mesh):
+            for face in other.faces:
+                if not self.contains(face):
+                    return False
+            return True
+        else:
+            raise NotImplementedError("Polygon.contains() not implemented " +
+                                      "for this class.")
+
+        border = Path(self.numpy)
+        return border.contains_points(np.atleast_2d(x), radius=1e-32)
 
     @cached_property
     def half_space(self):
@@ -832,8 +907,10 @@ class Triangle(Polygon):
     def __init__(self, p1, p2, p3):
         super(Triangle, self).__init__([p1, p2, p3])
 
-    def __str__(self):
-        return "Triangle(" + str(self.numpy) + ")"
+    def __repr__(self):
+        return "Triangle({}, {}, {})".format(self.vertices[0],
+                                             self.vertices[1],
+                                             self.vertices[2])
 
     @property
     def center(self):
@@ -858,8 +935,11 @@ class Rectangle(Polygon):
     def __init__(self, p1, p2, p3, p4):
         super(Rectangle, self).__init__([p1, p2, p3, p4])
 
-    def __str__(self):
-        return "Rectangle(" + str(self.numpy) + ")"
+    def __repr__(self):
+        return "Rectangle({}, {}, {}, {})".format(self.vertices[0],
+                                                  self.vertices[1],
+                                                  self.vertices[2],
+                                                  self.vertices[3])
 
     @property
     def center(self):
@@ -898,24 +978,35 @@ class Square(Rectangle):
         p4 = Point([center.x + s, center.y - s])
         super(Square, self).__init__(p1, p2, p3, p4)
 
-    def __str__(self):
-        return "Square(" + str(self.numpy) + ")"
+    def __repr__(self):
+        warnings.warn("The Square constructor is underdefined. The " +
+                      "Rectangle constructor will be used instead.")
+
+        return super(Square, self).__repr__()
 
 
 class Mesh(Entity):
     """A mesh object. It is a collection of polygons"""
 
-    def __init__(self, obj=None):
+    def __init__(self, obj=None, faces=[]):
         self.faces = []
         self.area = 0
         self.population = 0
         self.radius = 0
 
         if obj is not None:
+            assert not faces
             self.import_triangle(obj)
+        else:
+            assert obj is None
+            for face in faces:
+                self.append(face)
 
     def __str__(self):
         return "Mesh(" + str(self.center) + ")"
+
+    def __repr__(self):
+        return "Mesh(faces={})".format(repr(self.faces))
 
     def import_triangle(self, obj):
         """Loads mesh data from a Python Triangle dict.
@@ -988,14 +1079,18 @@ class Mesh(Entity):
         for t in self.faces:
             t.scale(vector)
 
-    def contains(self, points):
-        if isinstance(points, Point):
-            x = p._x
-        elif isinstance(points, np.ndarray):
-            x = points
+    def contains(self, other):
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        elif isinstance(other, Polygon):
+            x = _points_to_array(other.vertices)
+            return np.all(self.contains(x))
         else:
             raise TypeError("P must be point or ndarray")
 
+        # keep track of whether each point is contained in a face
         bools = np.full(x.shape[0], False, dtype=bool)
         for f in self.faces:
             bools = np.logical_or(bools, f.contains(x))
@@ -1056,6 +1151,76 @@ def calc_standard(A):
     return c[0:-1], -c[-1]
 
 
+def beamintersect(beam, geometry):
+    """Intersection area of infinite beam with a geometry"""
+    if geometry is None:
+        return None
+    elif isinstance(geometry, Mesh):
+        return beammesh(beam, geometry)
+    elif isinstance(geometry, Polygon):
+        return beampoly(beam, geometry)
+    elif isinstance(geometry, Circle):
+        return beamcirc(beam, geometry)
+    else:
+        raise NotImplementedError
+
+
+def beammesh(beam, mesh):
+    """Intersection area of infinite beam with polygonal mesh"""
+    return beam.half_space.intersect(mesh.half_space).volume
+
+
+def beampoly(beam, poly):
+    """Intersection area of an infinite beam with a polygon"""
+    return beam.half_space.intersect(poly.half_space).volume
+
+
+def beamcirc(beam, circle):
+    """Intersection area of a Beam (line with finite thickness) and a circle.
+
+    Reference
+    ---------
+    Glassner, A. S. (Ed.). (2013). Graphics gems. Elsevier.
+
+    Parameters
+    ----------
+    beam : Beam
+    circle : Circle
+
+    Returns
+    -------
+    a : scalar
+        Area of the intersected region.
+    """
+    r = circle.radius
+    w = beam.size/2
+    p = beam.distance(circle.center)
+    assert(p >= 0)
+
+    # print("BEAMCIRC r = %f, w = %f, p = %f" % (r, w, p), end="")
+
+    if w == 0 or r == 0:
+        return 0
+
+    if w < r:
+        if p < w:
+            f = 1 - halfspacecirc(w - p, r) - halfspacecirc(w + p, r)
+        elif p < r - w:  # and w <= p
+            f = halfspacecirc(p - w, r) - halfspacecirc(w + p, r)
+        else:  # r - w <= p
+            f = halfspacecirc(p - w, r)
+    else:  # w >= r
+        if p < w:
+            f = 1 - halfspacecirc(w - p, r)
+        else:  # w <= pd
+            f = halfspacecirc(p - w, r)
+
+    a = np.pi * r**2 * f
+    assert(a >= 0), a
+    # print()
+    return a
+
+
 def halfspacecirc(d, r):
     """Area of intersection between circle and half-plane. Returns the smaller
     fraction of a circle split by a line d units away from the center of the
@@ -1077,8 +1242,8 @@ def halfspacecirc(d, r):
     f : scalar
         The proportion of the circle in the smaller half-space
     """
-    assert(r > 0), "The radius must positive"
-    assert(d >= 0), "The distance must be positive or zero."
+    assert r > 0, "The radius must positive"
+    assert d >= 0, "The distance must be positive or zero."
 
     if d >= r:  # The line is too far away to overlap!
         return 0
@@ -1086,9 +1251,8 @@ def halfspacecirc(d, r):
     f = 0.5 - d*sqrt(r**2 - d**2)/(np.pi*r**2) - asin(d/r)/np.pi
 
     # Returns the smaller fraction of the circle, so it can be at most 1/2.
-    try:
-        assert(0 <= f and f <= 0.5), f
-    except:
-        RuntimeWarning("halfspacecirc was out of bounds, %f" % f)
+    if f < 0 or 0.5 < f:
+        RuntimeWarning("halfspacecirc was out of bounds, {}".format(f))
         f = 0
+
     return f

@@ -54,6 +54,7 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 import warnings
+import os.path
 
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -61,64 +62,66 @@ __docformat__ = 'restructuredtext en'
 
 
 def _plot_both(ref, target):
+    """Plot two images to compare them."""
     plt.figure()
+    plt.subplot(1, 2, 1)
     plt.imshow(ref, cmap='viridis')
     plt.colorbar()
-    plt.figure()
+    plt.subplot(1, 2, 2)
     plt.imshow(target, cmap='viridis')
     plt.colorbar()
-    plt.show(block=True)
+    plt.show(block=False)
+
+
+def _save_and_load(phantom_class, args=[]):
+    """Test whether the saved and loaded phantoms match."""
+    saved_phantom = 'tests/{}{}.txt'.format(phantom_class.__name__, args)
+
+    np.random.seed(0)
+    p0 = phantom_class(*args)
+
+    if not os.path.isfile(saved_phantom):
+        save_phantom(p0, saved_phantom)
+
+    p1 = load_phantom(saved_phantom)
+
+    refere = discrete_phantom(p0, 200, uniform=False)
+    target = discrete_phantom(p1, 200, uniform=False)
+
+    _plot_both(refere, target)
+
+    assert_equal(target, refere,
+                 "{}({}) changes on load.".format(phantom_class.__name__,
+                                                  args))
 
 
 def test_HyperbolicCocentric():
-    p0 = Phantom()
-    p0.load('tests/HyperbolicConcentric.txt')
-    ref = discrete_phantom(p0, 200, uniform=False)
-
-    np.random.seed(0)
-    p = HyperbolicConcentric()
-    target = discrete_phantom(p, 200, uniform=False)
-
-    # _plot_both(ref, target)
-    assert_equal(target, ref,
-                 "Default HyperbolicConcentric phantom has changed.")
+    _save_and_load(HyperbolicConcentric)
 
 
 def test_DynamicRange():
-    for i in range(0, 2):
-        p0 = Phantom()
-        p0.load('tests/DynamicRange'+str(i)+'.txt')
-        ref = discrete_phantom(p0, 100)
-
-        np.random.seed(0)
-        p = DynamicRange(jitter=i)
-        target = discrete_phantom(p, 100)
-        # _plot_both(ref, target)
-        assert_equal(target, ref, "Default DynamicRange" + str(i) +
-                                  " phantom has changed.")
+    warnings.filterwarnings("ignore", "The Square*", UserWarning)
+    _save_and_load(DynamicRange, [10, True])
+    _save_and_load(DynamicRange, [10, False])
 
 
 def test_Soil():
     warnings.filterwarnings("ignore", "Reached*", RuntimeWarning)
-    p0 = Phantom()
-    p0.load('tests/Soil.txt')
-    ref = discrete_phantom(p0, 100)
-
-    np.random.seed(0)
-    p = Soil()
-    target = discrete_phantom(p, 100)
-    # _plot_both(ref, target)
-    assert_equal(target, ref, "Default Soil phantom has changed.")
+    _save_and_load(Soil)
 
 
-def test_Foam():
-    warnings.filterwarnings("ignore", "Reached*", RuntimeWarning)
-    p0 = Phantom()
-    p0.load('tests/Foam.txt')
-    ref = discrete_phantom(p0, 100)
+# def test_Foam():
+#     warnings.filterwarnings("ignore", "Reached*", RuntimeWarning)
+#     _save_and_load(Foam)
 
-    np.random.seed(0)
-    p = Foam()
-    target = discrete_phantom(p, 100)
-    # _plot_both(ref, target)
-    assert_equal(target, ref, "Default Foam phantom has changed.")
+
+def test_XDesignDefault():
+    _save_and_load(XDesignDefault)
+
+    p = XDesignDefault()
+    sidebyside(p)
+    plt.show(block=True)
+
+
+if __name__ == '__main__':
+    test_XDesignDefault()
