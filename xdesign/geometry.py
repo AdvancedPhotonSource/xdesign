@@ -737,6 +737,23 @@ class Polygon(Entity):
         return perimeter
 
     @property
+    def center(self):
+        """The center of the bounding circle."""
+        c = Point(np.zeros(self._dim))
+        for m in range(self.numverts):
+            c = c + self.vertices[m]
+        return c / self.numverts
+
+    @property
+    def radius(self):
+        """The radius of the bounding circle."""
+        r = 0
+        c = self.center
+        for m in range(self.numverts):
+            r = max(r, self.vertices[m].distance(c))
+        return r
+
+    @property
     def bounds(self):
         """Returns a 4-tuple (xmin, ymin, xmax, ymax) representing the
         bounding rectangle for the Polygon.
@@ -755,11 +772,23 @@ class Polygon(Entity):
         for v in self.vertices:
             v.translate(vector)
 
+        if 'half_space' in self.__dict__:
+            self.half_space = self.half_space.translation(vector)
+
     def rotate(self, theta, point=None, axis=None):
         """Rotates the Polygon around an axis which passes through a point by
         theta radians."""
         for v in self.vertices:
             v.rotate(theta, point, axis)
+
+        if 'half_space' in self.__dict__:
+            if point is None:
+                d = 0
+            else:
+                d = point._x
+            self.half_space = self.half_space.translation(-d)
+            self.half_space = self.half_space.rotation(0, 1, theta)
+            self.half_space = self.half_space.translation(d)
 
     def contains(self, points):
         """Returns whether the given points are contained within the Polygon.
@@ -838,6 +867,11 @@ class Rectangle(Polygon):
         for v in self.vertices:
             center += v
         return center / 4
+
+    @property
+    def radius(self):
+        """The radius of the bounding circle."""
+        return self.vertices[0].distance(self.center)
 
     @property
     def area(self):
@@ -931,11 +965,23 @@ class Mesh(Entity):
         for t in self.faces:
             t.translate(vector)
 
+        if 'half_space' in self.__dict__:
+            self.half_space = self.half_space.translation(vector)
+
     def rotate(self, theta, point=None, axis=None):
         """Rotate entity around an axis which passes through a point by theta
         radians."""
         for t in self.faces:
             t.rotate(theta, point, axis)
+
+        if 'half_space' in self.__dict__:
+            if point is None:
+                d = 0
+            else:
+                d = point._x
+            self.half_space = self.half_space.translation(-d)
+            self.half_space = self.half_space.rotation(0, 1, theta)
+            self.half_space = self.half_space.translation(d)
 
     def scale(self, vector):
         """Scale entity."""
@@ -1008,74 +1054,6 @@ def calc_standard(A):
     c = ns.squeeze()
 
     return c[0:-1], -c[-1]
-
-
-def beamintersect(beam, geometry):
-    """Intersection area of infinite beam with a geometry"""
-    if isinstance(geometry, Mesh):
-        return beammesh(beam, geometry)
-    elif isinstance(geometry, Polygon):
-        return beampoly(beam, geometry)
-    elif isinstance(geometry, Circle):
-        return beamcirc(beam, geometry)
-    else:
-        raise NotImplementedError
-
-
-def beammesh(beam, mesh):
-    """Intersection area of infinite beam with polygonal mesh"""
-    return beam.half_space.intersect(mesh.half_space).volume
-
-
-def beampoly(beam, poly):
-    """Intersection area of an infinite beam with a polygon"""
-    return beam.half_space.intersect(poly.half_space).volume
-
-
-def beamcirc(beam, circle):
-    """Intersection area of a Beam (line with finite thickness) and a circle.
-
-    Reference
-    ---------
-    Glassner, A. S. (Ed.). (2013). Graphics gems. Elsevier.
-
-    Parameters
-    ----------
-    beam : Beam
-    circle : Circle
-
-    Returns
-    -------
-    a : scalar
-        Area of the intersected region.
-    """
-    r = circle.radius
-    w = beam.size/2
-    p = beam.distance(circle.center)
-    assert(p >= 0)
-
-    # print("BEAMCIRC r = %f, w = %f, p = %f" % (r, w, p), end="")
-
-    if w == 0 or r == 0:
-        return 0
-
-    if w < r:
-        if p < w:
-            f = 1 - halfspacecirc(w - p, r) - halfspacecirc(w + p, r)
-        elif p < r - w:  # and w <= p
-            f = halfspacecirc(p - w, r) - halfspacecirc(w + p, r)
-        else:  # r - w <= p
-            f = halfspacecirc(p - w, r)
-    else:  # w >= r
-        if p < w:
-            f = 1 - halfspacecirc(w - p, r)
-        else:  # w <= pd
-            f = halfspacecirc(p - w, r)
-
-    a = np.pi * r**2 * f
-    assert(a >= 0), a
-    # print()
-    return a
 
 
 def halfspacecirc(d, r):
