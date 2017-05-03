@@ -67,19 +67,19 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['ImageQuality',
-           'probability_mask',
-           'compute_quality',
-           'compute_PCC',
+__all__ = ['compute_PCC',
            'compute_likeness',
            'compute_background_ttest',
            'compute_mtf',
-           'compute_nps',
-           'compute_neq',
-           'compute_mtf_siemens']
+           'compute_mtf_ffst',
+           'compute_mtf_lwkj',
+           'compute_nps_ffst',
+           'compute_neq_d',
+           'ImageQuality',
+           'compute_quality']
 
 
-def compute_mtf2(phantom, image):
+def compute_mtf(phantom, image):
     """Approximates the modulation tranfer function using the
     HyperbolicCocentric phantom. Calculates the MTF from the modulation depth
     at each edge on the line from (0.5,0.5) to (0.5,1). MTF = (hi-lo)/(hi+lo)
@@ -139,7 +139,7 @@ def compute_mtf2(phantom, image):
     return wavelength, MTF
 
 
-def compute_mtf(phantom, image, Ntheta=4):
+def compute_mtf_ffst(phantom, image, Ntheta=4):
     '''Uses method described in :cite:`Friedman:13` to calculate the MTF.
 
     Parameters
@@ -162,7 +162,7 @@ def compute_mtf(phantom, image, Ntheta=4):
     '''
     if not isinstance(phantom, UnitCircle):
         raise TypeError('MTF requires unit circle phantom.')
-    if phantom.feature[0].radius >= 0.5:
+    if phantom.geometry.radius >= 0.5:
         raise ValueError('Radius of the phantom should be less than 0.5.')
     if Ntheta <= 0:
         raise ValueError('Must calculate MTF in at least one direction.')
@@ -178,8 +178,8 @@ def compute_mtf(phantom, image, Ntheta=4):
     # print(x)
 
     # Normalize the data to [0,1)
-    x_circle = np.mean(image[R < phantom.feature[0].radius - 0.01])
-    x_air = np.mean(image[R > phantom.feature[0].radius + 0.01])
+    x_circle = np.mean(image[R < phantom.geometry.radius - 0.01])
+    x_air = np.mean(image[R > phantom.geometry.radius + 0.01])
     # print(x_air)
     # print(x_circle)
     image = (image - x_air) / (x_circle - x_air)
@@ -232,7 +232,7 @@ def compute_mtf(phantom, image, Ntheta=4):
     LSF = -np.diff(ESF, axis=1)
 
     # trim the LSF so that the edge is in the center of the data
-    edge_center = int(phantom.feature[0].radius / R_bin_width)
+    edge_center = int(phantom.geometry.radius / R_bin_width)
     # print(edge_center)
     pad = int(LSF.shape[1] / 5)
     LSF = LSF[:, edge_center - pad:edge_center + pad + 1]
@@ -257,7 +257,7 @@ def compute_mtf(phantom, image, Ntheta=4):
     return faxis, MTF, bin_centers
 
 
-def compute_mtf_siemens(phantom, image):
+def compute_mtf_lwkj(phantom, image):
     """Calculates the MTF using the modulated Siemens Star method in
     Loebich et al. (2007).
 
@@ -421,7 +421,7 @@ def periodic_function(p, x):
     return value
 
 
-def compute_nps(phantom, A, B=None, plot_type='frequency'):
+def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
     '''Calculates the noise power spectrum from a unit circle image using the
     method from :cite:`Friedman:13`.
 
@@ -474,7 +474,7 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
     # cut out uniform region (square circumscribed by unit circle)
     i_half = int(image.shape[0] / 2)  # half image
     # half of the square inside the circle
-    s_half = int(image.shape[0] * phantom.feature[0].radius / np.sqrt(2))
+    s_half = int(image.shape[0] * phantom.geometry.radius / np.sqrt(2))
     unif_region = image[i_half - s_half:i_half +
                         s_half, i_half - s_half:i_half + s_half]
 
@@ -517,7 +517,7 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
         return X, Y, NPS
 
 
-def compute_neq(phantom, A, B):
+def compute_neq_d(phantom, A, B):
     '''Calculates the NEQ according to recommendations by :cite:`Dobbins:95`.
 
     Parameters
@@ -558,73 +558,6 @@ def compute_neq(phantom, A, B):
     NEQ = MTF/np.sqrt(NPS_binned)  # or something similiar
 
     return mu_b, NEQ
-
-
-def probability_mask(phantom, size, ratio=8, uniform=True):
-    """Returns the probability mask for each phase in the phantom.
-
-    Parameters
-    ------------
-    size : scalar
-        The side length in pixels of the resulting square image.
-    ratio : scalar, optional
-        The discretization works by drawing the shapes in a larger space
-        then averaging and downsampling. This parameter controls how many
-        pixels in the larger representation are averaged for the final
-        representation. e.g. if ratio = 8, then the final pixel values
-        are the average of 64 pixels.
-    uniform : boolean, optional
-        When set to False, changes the way pixels are averaged from a
-        uniform weights to gaussian weights.
-
-    Returns
-    ------------
-    image : list of numpy.ndarray
-        A list of float masks for each phase in the phantom.
-    """
-
-    # Make a higher resolution grid to sample the continuous space
-    _x = np.arange(0, 1, 1 / size / ratio)
-    _y = np.arange(0, 1, 1 / size / ratio)
-    px, py = np.meshgrid(_x, _y)
-
-    phases = {0}  # tracks what values exist in this phantom
-
-    # Draw the shapes to the higher resolution grid
-    image = np.zeros((size * ratio, size * ratio), dtype=np.float)
-    for m in range(phantom.population):
-        x = phantom.feature[m].center.x
-        y = phantom.feature[m].center.y
-        rad = phantom.feature[m].radius
-        val = phantom.feature[m].mass_atten
-        # image *= ((px - x)**2 + (py - y)**2 >= rad**2) # partial overlap
-        # support
-        image += ((px - x)**2 + (py - y)**2 < rad**2) * val
-
-        # collect a list of the unique values in the phantom
-        phases = phases | {val}
-
-    # generate a separate mask for each phase
-    masks = []
-    phases = list(phases)
-    phases.sort()
-    for m in range(0, len(phases)):
-        masks.append(0)
-
-        # First make a boolean array for each value,
-        val = phases[m]
-        masks[m] = (image == val).astype(float)
-
-        # then use a uniform filter to calculate the local percentage for each
-        # phase.
-        if uniform:
-            masks[m] = scipy.ndimage.uniform_filter(masks[m], ratio)
-        else:
-            masks[m] = scipy.ndimage.gaussian_filter(masks[m], ratio / 4.)
-        # Resample
-        masks[m] = masks[m][::ratio, ::ratio]
-
-    return masks
 
 
 def compute_PCC(A, B, masks=None):
