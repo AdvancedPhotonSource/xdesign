@@ -331,7 +331,8 @@ class LinearEntity(Entity):
         self._dim = p1.dim
 
     def __repr__(self):
-        return "LinearEntity({}, {})".format(self.p1, self.p2)
+        return "{}({}, {})".format(type(self).__name__, repr(self.p1),
+                                   repr(self.p2))
 
     @property
     def vertical(self):
@@ -424,9 +425,6 @@ class Line(LinearEntity):
 
     def __init__(self, p1, p2):
         super(Line, self).__init__(p1, p2)
-
-    def __repr__(self):
-        return "Line({}, {})".format(self.p1, self.p2)
 
     def __str__(self):
         """Return line equation."""
@@ -547,7 +545,7 @@ class Curve(Entity):
         self.center = center
 
     def __repr__(self):
-        return "Curve({})".format(self.center)
+        return "{}(center={})".format(type(self).__name__, repr(self.center))
 
     def translate(self, vector):
         """Translates the Curve along a vector."""
@@ -579,10 +577,10 @@ class Superellipse(Curve):
         self.n = float(n)
 
     def __repr__(self):
-        return "Superellipse({}, {}, {}, {})".format(self.center,
-                                                     self.a,
-                                                     self.b,
-                                                     self.n)
+        return "Superellipse(center={}, a={}, b={}, n={})".format(repr(self.center),
+                                                                  repr(self.a),
+                                                                  repr(self.b),
+                                                                  repr(self.n))
 
     @property
     def list(self):
@@ -609,7 +607,9 @@ class Ellipse(Superellipse):
         super(Ellipse, self).__init__(center, a, b, 2)
 
     def __repr__(self):
-        return "Ellipse({}, {}, {})".format(self.center, self.a, self.b)
+        return "Ellipse(center={}, a={}, b={})".format(repr(self.center),
+                                                       repr(self.a),
+                                                       repr(self.b))
 
     @property
     def list(self):
@@ -643,7 +643,8 @@ class Circle(Curve):
         self.radius = float(radius)
 
     def __repr__(self):
-        return "Circle({}, {})".format(self.center, self.radius)
+        return "Circle(center={}, radius={})".format(repr(self.center),
+                                                     repr(self.radius))
 
     def __str__(self):
         """Return the analytical equation."""
@@ -742,10 +743,11 @@ class Polygon(Entity):
         self._dim = vertices[0].dim
 
     def __repr__(self):
-        return "Polygon({})".format(self.vertices)
+        return "{}(vertices={})".format(type(self).__name__,
+                                        repr(self.vertices))
 
     def __str__(self):
-        return "Polygon(" + str(self.numpy) + ")"
+        return "{}({})".format(type(self).__name__, str(self.numpy))
     # return "Polygon(%s" % ', '.join([str(n) for n in self.vertices]) + ")"
 
     @property
@@ -763,10 +765,7 @@ class Polygon(Entity):
     @property
     def numpy(self):
         """Return Numpy representation."""
-        points = np.empty([self.numverts, self.dim])
-        for m in range(self.numverts):
-            points[m] = self.vertices[m]._x
-        return points
+        return _points_to_array(self.vertices)
 
     @property
     def area(self):
@@ -885,9 +884,6 @@ class Triangle(Polygon):
                                              self.vertices[1],
                                              self.vertices[2])
 
-    def __str__(self):
-        return "Triangle(" + str(self.numpy) + ")"
-
     @property
     def center(self):
         center = Point([0, 0])
@@ -916,9 +912,6 @@ class Rectangle(Polygon):
                                                   self.vertices[1],
                                                   self.vertices[2],
                                                   self.vertices[3])
-
-    def __str__(self):
-        return "Rectangle(" + str(self.numpy) + ")"
 
     @property
     def center(self):
@@ -958,24 +951,29 @@ class Square(Rectangle):
 
         return super(Square, self).__repr__()
 
-    def __str__(self):
-        return "Square(" + str(self.numpy) + ")"
-
 
 class Mesh(Entity):
     """A mesh object. It is a collection of polygons"""
 
-    def __init__(self, obj=None):
+    def __init__(self, obj=None, faces=[]):
         self.faces = []
         self.area = 0
         self.population = 0
         self.radius = 0
 
         if obj is not None:
+            assert not faces
             self.import_triangle(obj)
+        else:
+            assert obj is None
+            for face in faces:
+                self.append(face)
 
     def __str__(self):
         return "Mesh(" + str(self.center) + ")"
+
+    def __repr__(self):
+        return "Mesh(faces={})".format(repr(self.faces))
 
     def import_triangle(self, obj):
         """Loads mesh data from a Python Triangle dict.

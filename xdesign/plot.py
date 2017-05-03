@@ -121,6 +121,9 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
         A function which takes the list of prop(s) for a :class:`.Feature` as
         input and returns a matplolib color specifier. :cite:`Hunter:07`
     """
+    assert isinstance(phantom, Phantom), ('phantom is a ' +
+                                          '{}'.format(type(phantom)))
+
     # IDEA: Allow users to provide list or generator for labels.
     if axis is None:
         fig, axis = _make_axis()
@@ -350,11 +353,14 @@ def _discrete_geometry(phantom, image, px, py, prop):
         value = getattr(phantom, prop)
 
         size = px.shape  # is equivalent to image.shape?
-        x = np.vstack([px.flatten(), py.flatten()]).T
-        logger.debug("x: {}".format(x))
+        pixel_coords = np.vstack([px.flatten(), py.flatten()]).T
+
+        logger.debug("pixel_coords: {}".format(pixel_coords))
         logger.debug("geometry: {}".format(phantom.geometry))
-        new_feature = phantom.geometry.contains(x) * value
+
+        new_feature = phantom.geometry.contains(pixel_coords) * value
         logger.debug("new_feature: {}".format(new_feature))
+
         new_feature = np.reshape(new_feature, size)
 
         image += new_feature

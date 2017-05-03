@@ -60,7 +60,27 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Phantom']
+__all__ = ['Phantom',
+           'save_phantom',
+           'load_phantom']
+
+
+# IMPORT AND EXPORT
+def save_phantom(phantom, filename):
+    """Save phantom to file."""
+    f = open(filename, 'w')
+    f.write("{}".format(repr(phantom)))
+    f.close()
+    logger.info('Save Phantom to {}'.format(filename))
+
+
+def load_phantom(filename):
+    """Load phantom from file."""
+    f = open(filename, 'r')
+    raw_phantom = f.read()
+    f.close()
+    logger.info('Load Phantom from {}'.format(filename))
+    return eval(raw_phantom)
 
 
 class Phantom(object):
@@ -106,6 +126,9 @@ class Phantom(object):
         parent.append(self)
         parent.append(other)
         return parent
+
+    def __str__(self):
+        return "{}()".format(type(self).__name__)
 
     def __repr__(self):
         return "Phantom(geometry={}, children={}, mass_atten={})".format(
@@ -210,16 +233,6 @@ class Phantom(object):
         self.children[i].parent = None
         self.population -= self.children[i].population + 1
         return self.children.pop(i)
-
-    # IMPORT AND EXPORT
-    def save(self, filename):
-        """Save phantom to file."""
-        np.savetxt(filename, repr(self), delimiter=',')
-
-    def load(self, filename):
-        """Load phantom from file."""
-        arr = np.loadtxt(filename, delimiter=',')
-        self = eval(arr[0])
 
     def sprinkle(self, counts, radius, gap=0, region=None, mass_atten=1.0,
                  max_density=1):

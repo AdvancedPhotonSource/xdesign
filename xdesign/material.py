@@ -253,10 +253,10 @@ class DynamicRange(Phantom):
         super(DynamicRange, self).__init__(geometry=geometry)
 
         # determine the size and and spacing of the circles around the box.
-        spacing = 1. / np.ceil(np.sqrt(steps))
+        spacing = 1.0 / np.ceil(np.sqrt(steps))
         radius = spacing / 4
 
-        colors = [2**j for j in range(0, steps)]
+        colors = [2.0**j for j in range(0, steps)]
         np.random.shuffle(colors)
 
         if jitter:
