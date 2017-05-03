@@ -80,14 +80,9 @@ __all__ = ['compute_PCC',
 
 
 def compute_mtf(phantom, image):
-    """Approximates the modulation tranfer function using the
-    HyperbolicCocentric phantom. Calculates the MTF from the modulation depth
+    """Approximate the modulation tranfer function using the
+    HyperbolicCocentric phantom. Calculate the MTF from the modulation depth
     at each edge on the line from (0.5,0.5) to (0.5,1). MTF = (hi-lo)/(hi+lo)
-
-    This method rapidly becomes inaccurate at small wavelenths because the
-    measurement gets out of phase with the waves due to rounding error. It
-    should be replaced with a method that fits a decaying damped cylindrical
-    sine function.
 
     Parameters
     ---------------
@@ -102,7 +97,19 @@ def compute_mtf(phantom, image):
         wavelenth in the scale of the original phantom
     MTF : list
         MTF values
+
+    .. deprecated:: 0.3
+        This method rapidly becomes inaccurate at small wavelenths because the
+        measurement gets out of phase with the waves due to rounding error. Use
+        another one of the MTF functions instead.
+
+    .. seealso::
+        :meth:`compute_mtf_ffst`
+        :meth:`compute_mtf_lwkj`
     """
+    DeprecationWarning('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
+                       'compute_mtf_ffst instead')
+
     if not isinstance(phantom, HyperbolicConcentric):
         raise TypeError
 
@@ -140,7 +147,7 @@ def compute_mtf(phantom, image):
 
 
 def compute_mtf_ffst(phantom, image, Ntheta=4):
-    '''Uses method described in :cite:`Friedman:13` to calculate the MTF.
+    '''Calculate the MTF using the method described in :cite:`Friedman:13`.
 
     Parameters
     ---------------
@@ -159,6 +166,9 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
         MTF values
     bin_centers : ndarray
         the center of the bins if Ntheta >= 1
+
+    .. seealso::
+        :meth:`compute_mtf_lwkj`
     '''
     if not isinstance(phantom, UnitCircle):
         raise TypeError('MTF requires unit circle phantom.')
@@ -258,7 +268,7 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
 
 
 def compute_mtf_lwkj(phantom, image):
-    """Calculates the MTF using the modulated Siemens Star method in
+    """Calculate the MTF using the modulated Siemens Star method in
     Loebich et al. (2007).
 
     parameters
@@ -273,6 +283,9 @@ def compute_mtf_lwkj(phantom, image):
         The spatial frequency in cycles per unit length
     M : array
         The MTF values for each frequency
+
+    .. seealso::
+        :meth:`compute_mtf_ffst`
     """
     # Determine which radii to sample. Do not sample linearly because the
     # spatial frequency changes as 1/r
@@ -291,7 +304,7 @@ def compute_mtf_lwkj(phantom, image):
 
 
 def get_line_at_radius(image, fradius, N):
-    """Returns an Nx1 array of the values of the image at a radius.
+    """Return an Nx1 array of the values of the image at a radius.
 
     parameters
     ----------
@@ -342,7 +355,7 @@ def get_line_at_radius(image, fradius, N):
 
 
 def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
-    """Fits a periodic function of known frequency, f, to the value and angle
+    """Fit a periodic function of known frequency, f, to the value and angle
     data. value = Func(angle, f). NOTE: Because the fiting function is
     sinusoidal instead of square, contrast values larger than unity are clipped
     back to unity.
@@ -392,7 +405,7 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
 
 
 def periodic_function(p, x):
-    """periodic function for fitting to the spokes of the Siemens Star.
+    """A periodic function for fitting to the spokes of the Siemens Star.
 
     parameters
     ----------
@@ -422,7 +435,7 @@ def periodic_function(p, x):
 
 
 def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
-    '''Calculates the noise power spectrum from a unit circle image using the
+    '''Calculate the noise power spectrum from a unit circle image using the
     method from :cite:`Friedman:13`.
 
     Parameters
@@ -518,7 +531,7 @@ def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
 
 
 def compute_neq_d(phantom, A, B):
-    '''Calculates the NEQ according to recommendations by :cite:`Dobbins:95`.
+    '''Calculate the NEQ according to recommendations by :cite:`Dobbins:95`.
 
     Parameters
     ----------
@@ -561,7 +574,7 @@ def compute_neq_d(phantom, A, B):
 
 
 def compute_PCC(A, B, masks=None):
-    """ Computes the Pearson product-moment correlation coefficients (PCC) for
+    """Computes the Pearson product-moment correlation coefficients (PCC) for
     the two images.
 
     Parameters
@@ -592,7 +605,7 @@ def compute_PCC(A, B, masks=None):
 
 
 def compute_likeness(A, B, masks):
-    """ Predicts the likelihood that each pixel in B belongs to a phase based
+    """Predict the likelihood that each pixel in B belongs to a phase based
     on the histogram of A.
 
     Parameters
@@ -620,7 +633,7 @@ def compute_likeness(A, B, masks):
 
 
 def compute_background_ttest(image, masks):
-    """Determines whether the background has significantly different luminance
+    """Determine whether the background has significantly different luminance
     than the other phases.
 
     Parameters
@@ -653,7 +666,7 @@ def compute_background_ttest(image, masks):
 
 
 class ImageQuality(object):
-    """Stores information about image quality.
+    """Store information about image quality.
 
     Attributes
     ----------------
@@ -775,34 +788,30 @@ def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
     """Calculates the Visual Information Fidelity (VIFp) between two images in
     in a multiscale pixel domain with scalar.
 
------------COPYRIGHT NOTICE STARTS WITH THIS LINE------------
-Copyright (c) 2005 The University of Texas at Austin
-All rights reserved.
+    -----------COPYRIGHT NOTICE STARTS WITH THIS LINE------------
+    Copyright (c) 2005 The University of Texas at Austin
+    All rights reserved.
 
-Permission is hereby granted, without written agreement and without license or
-royalty fees, to use, copy, modify, and distribute this code (the source files)
-and its documentation for any purpose, provided that the copyright notice in
-its entirety appear in all copies of this code, and the original source of this
-code, Laboratory for Image and Video Engineering
-(LIVE, http://live.ece.utexas.edu) at the University of Texas at Austin
-(UT Austin, http://www.utexas.edu), is acknowledged in any publication that
-reports research using this code. The research is to be cited in the
-bibliography as:
-
-H. R. Sheikh and A. C. Bovik, "Image Information and Visual Quality", IEEE
-Transactions on Image Processing, (to appear).
-
-IN NO EVENT SHALL THE UNIVERSITY OF TEXAS AT AUSTIN BE LIABLE TO ANY PARTY FOR
-DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF
-THE USE OF THIS DATABASE AND ITS DOCUMENTATION, EVEN IF THE UNIVERSITY OF TEXAS
-AT AUSTIN HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-THE UNIVERSITY OF TEXAS AT AUSTIN SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE. THE DATABASE PROVIDED HEREUNDER IS ON AN "AS
-IS" BASIS, AND THE UNIVERSITY OF TEXAS AT AUSTIN HAS NO OBLIGATION TO PROVIDE
-MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
------------COPYRIGHT NOTICE ENDS WITH THIS LINE------------
+    Permission is hereby granted, without written agreement and without license
+    or royalty fees, to use, copy, modify, and distribute this code (the source
+    files) and its documentation for any purpose, provided that the copyright
+    notice in its entirety appear in all copies of this code, and the original
+    source of this code, Laboratory for Image and Video Engineering (LIVE,
+    http://live.ece.utexas.edu) at the University of Texas at Austin (UT
+    Austin, http://www.utexas.edu), is acknowledged in any publication that
+    reports research using this code. The research is to be cited in the
+    bibliography as: H. R. Sheikh and A. C. Bovik, "Image Information and
+    Visual Quality", IEEE Transactions on Image Processing, (to appear). IN NO
+    EVENT SHALL THE UNIVERSITY OF TEXAS AT AUSTIN BE LIABLE TO ANY PARTY FOR
+    DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT
+    OF THE USE OF THIS DATABASE AND ITS DOCUMENTATION, EVEN IF THE UNIVERSITY
+    OF TEXAS AT AUSTIN HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. THE
+    UNIVERSITY OF TEXAS AT AUSTIN SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+    INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+    AND FITNESS FOR A PARTICULAR PURPOSE. THE DATABASE PROVIDED HEREUNDER IS ON
+    AN "AS IS" BASIS, AND THE UNIVERSITY OF TEXAS AT AUSTIN HAS NO OBLIGATION
+    TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+    -----------COPYRIGHT NOTICE ENDS WITH THIS LINE------------
 
     Parameters
     -----------
