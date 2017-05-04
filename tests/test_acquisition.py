@@ -23,7 +23,7 @@ def test_raster_scan():
 
 def test_sinogram():
     p = XDesignDefault()
-    sino = sinogram(32, 32, p)
+    sino, _ = sinogram(32, 32, p)
 
     ref_file = 'tests/test_sinogram.npy'
 

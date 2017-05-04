@@ -307,7 +307,7 @@ class Probe(Beam):
 
 
 def sinogram(sx, sy, phantom, noise=False):
-    """Generate a sinogram from the given phantom.
+    """Return a sinogram of phantom and the probe.
 
     Parameters
     ----------
@@ -319,19 +319,23 @@ def sinogram(sx, sy, phantom, noise=False):
 
     Returns
     -------
-    ndarray
+    sino : ndarray
         Sinogram.
+    probe : Probe
+        Probe with history.
     """
     scan = raster_scan(sx, sy)
     sino = np.zeros((sx, sy))
     for m in range(sx):
         for n in range(sy):
-            sino[m, n] = next(scan).measure(phantom, noise)
-    return sino
+            probe = next(scan)
+            sino[m, n] = probe.measure(phantom, noise)
+
+    return sino, probe
 
 
 def angleogram(sx, sy, phantom, noise=False):
-    """Generate an angleogram from the given phantom.
+    """Return a angleogram of phantom and the probe.
 
     Parameters
     ----------
@@ -343,15 +347,19 @@ def angleogram(sx, sy, phantom, noise=False):
 
     Returns
     -------
-    ndarray
+    angl : ndarray
         Angleogram.
+    probe : Probe
+        Probe with history.
     """
     scan = angle_scan(sx, sy)
     angl = np.zeros((sx, sy))
     for m in range(sx):
         for n in range(sy):
-            angl[m, n] = next(scan).measure(phantom, noise)
-    return angl
+            probe = next(scan)
+            angl[m, n] = probe.measure(phantom, noise)
+
+    return angl, probe
 
 
 def raster_scan(sx, sy):

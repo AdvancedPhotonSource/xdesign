@@ -117,11 +117,10 @@ def test_Soil():
 
 def test_XDesignDefault():
     _save_and_load(XDesignDefault)
-
     p = XDesignDefault()
     sidebyside(p)
-    plt.show(block=True)
 
 
 if __name__ == '__main__':
     test_XDesignDefault()
+    plt.show(block=True)
