@@ -392,13 +392,13 @@ class LinearEntity(Entity):
     def numpy(self):
         """Returns an array of coordinates where the first row is p1 and the
         second row is p2."""
-        return np.vstack((self.p1._x, self.p2._x))
+        return np.stack((self.p1._x, self.p2._x), axis=0)
 
     @property
     def list(self):
         """Returns an list of coordinates where p1 is the first D coordinates
         and p2 is the next D coordinates."""
-        return np.hstack((self.p1._x, self.p2._x))
+        return np.concatenate((self.p1._x, self.p2._x), axis=0)
 
     def translate(self, vector):
         """Translates the :class:`.LinearEntity` by the given vector."""
@@ -470,7 +470,7 @@ class Line(LinearEntity):
     def standard(self):
         """Returns coeffients for the first N-1 standard equation coefficients.
         The Nth is returned separately."""
-        A = np.vstack((self.p1._x, self.p2._x))
+        A = np.stack([self.p1._x, self.p2._x], axis=0)
         return calc_standard(A)
 
     def distance(self, other):
