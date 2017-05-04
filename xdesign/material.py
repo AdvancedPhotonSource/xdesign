@@ -489,29 +489,27 @@ class Soil(UnitCircle):
         self.sprinkle(100, 0.02, 0.01, mass_atten=-.25)
 
 
-class WetCircles(Phantom):
+class WetCircles(UnitCircle):
     def __init__(self):
-        super(WetCircles, self).__init__(shape='circle')
+        super(WetCircles, self).__init__(radius=0.5, mass_atten=0.5)
         porosity = 0.412
         np.random.seed(0)
 
         self.sprinkle(30, [0.1, 0.03], 0.005, mass_atten=0.5,
                       max_density=1 - porosity)
-        background = Feature(Circle(Point([0.5, 0.5]), 0.5), mass_atten=0.5)
-        self.insert(0, background)
 
         pairs = [(23, 12), (12, 19), (29, 11), (22, 5), (1, 3), (21, 9),
                  (8, 2), (2, 27)]
         for p in pairs:
-            A = self.feature[p[0]].geometry
-            B = self.feature[p[1]].geometry
+            A = self.children[p[0]-1].geometry
+            B = self.children[p[1]-1].geometry
 
             thetaA = [np.pi/2, 10]
             thetaB = [np.pi/2, 10]
 
             mesh = wet_circles(A, B, thetaA, thetaB)
 
-            self.append(Feature(mesh, mass_atten=-.25))
+            self.append(Phantom(geometry=mesh, mass_atten=-.25))
 
 
 def wet_circles(A, B, thetaA, thetaB):

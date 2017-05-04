@@ -551,8 +551,8 @@ def compute_neq_d(phantom, A, B):
     NEQ :
         the Noise Equivalent Quanta
     '''
-    mu_a, NPS = compute_nps(phantom, A, B, plot_type='histogram')
-    mu_b, MTF, bins = compute_mtf(phantom, A, Ntheta=1)
+    mu_a, NPS = compute_nps_ffst(phantom, A, B, plot_type='histogram')
+    mu_b, MTF, bins = compute_mtf_ffst(phantom, A, Ntheta=1)
 
     # remove negative MT
     MTF = MTF[:, mu_b > 0]

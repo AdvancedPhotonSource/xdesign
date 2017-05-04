@@ -271,7 +271,7 @@ class Phantom(object):
             ValueError('Radius range must be larger than zero and largest' +
                        'radius must be listed first.')
         if gap < 0:
-            # Support for partially overlapping features is not yet supported
+            # Support for partially overlapping phantoms is not yet supported
             # in the aquisition module
             raise NotImplementedError
         if max_density < 0:

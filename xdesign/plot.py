@@ -112,13 +112,12 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
         The axis where the phantom should be plotted. `None` creates
         a new axis.
     labels : bool, optional
-        `True` : Each :class:`.Feature` is numbered according to its index in
-        the :class:`.Phantom`.
+        `True` : Each :class:`.Phantom` given a uniqe number.
     c_props : list of str, optional
-        List of :class:`.Feature` properties to use for colormapping the
+        List of :class:`.Phantom` properties to use for colormapping the
         geometries.
     c_map : function, optional
-        A function which takes the list of prop(s) for a :class:`.Feature` as
+        A function which takes the list of prop(s) for a :class:`.Phantom` as
         input and returns a matplolib color specifier. :cite:`Hunter:07`
     """
     assert isinstance(phantom, Phantom), ('phantom is a ' +
@@ -169,12 +168,12 @@ def plot_geometry(geometry, axis=None, alpha=None, c=None):
     geometry : :class:`.Entity`
         A geometry to plot on the given axis.
     axis : :class:`matplotlib.axis.Axis`, optional
-        The axis where the Feature should be plotted. `None` creates
+        The axis where the geometry should be plotted. `None` creates
         a new axis.
     alpha : :class:`.float`, optional
         The plot opaqueness. 0 is transparent. 1 is opaque.
     c : :mod:`matplotlib.color`, optional
-        The color of the plotted Feature.
+        The color of the plotted geometry.
     """
     if axis is None:
         fig, axis = _make_axis()
@@ -189,7 +188,7 @@ def plot_geometry(geometry, axis=None, alpha=None, c=None):
     elif isinstance(geometry, Polygon):
         plot_polygon(geometry, axis, alpha, c)
     else:
-        raise NotImplemented('Feature geometry is not Mesh, Curve or Polygon.')
+        raise NotImplemented('geometry is not Mesh, Curve or Polygon.')
 
 
 def plot_mesh(mesh, axis=None, alpha=None, c=None):
@@ -326,7 +325,7 @@ def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
     # Draw the shapes at the higher resolution.
     image = np.zeros((size * ratio, size * ratio), dtype=np.float)
 
-    # Rasterize all features in the phantom.
+    # Rasterize all geometry in the phantom.
     image = _discrete_geometry(phantom, image, px, py, prop)
 
     # Resample down to the desired size. Roll image so that decimation chooses

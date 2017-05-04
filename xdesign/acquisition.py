@@ -157,7 +157,9 @@ class Beam(Line):
 
 def beamintersect(beam, geometry):
     """Intersection area of infinite beam with a geometry"""
-    if isinstance(geometry, Mesh):
+    if geometry is None:
+        return None
+    elif isinstance(geometry, Mesh):
         return beammesh(beam, geometry)
     elif isinstance(geometry, Polygon):
         return beampoly(beam, geometry)
