@@ -6,7 +6,7 @@
    :show-inheritance:
    :inherited-members:
    :undoc-members:
-   :synopsis: Defines geometric objects for the purpose of supporting :class:`.Feature` definition and calculating intersections for the :mod:`.acquisition` module.
+   :synopsis: Defines geometric objects for the purpose of supporting :class:`.Phantom` definition and calculating intersections for the :mod:`.acquisition` module.
 
    .. rubric:: **Classes:**
 

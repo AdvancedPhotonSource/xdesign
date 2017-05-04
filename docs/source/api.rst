@@ -7,7 +7,6 @@ API
 
    api/xdesign.acquisition
    api/xdesign.algorithms
-   api/xdesign.feature
    api/xdesign.geometry
    api/xdesign.material
    api/xdesign.metrics
@@ -17,4 +16,4 @@ API
 .. automodule:: xdesign
    :members:
    :undoc-members:
-   :show-inheritance: 
+   :show-inheritance:

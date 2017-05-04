@@ -5,7 +5,7 @@
    :members:
    :show-inheritance:
    :undoc-members:
-   :synopsis: Defines an object for organizing :class:`.Feature`.
+   :synopsis: Defines an object for simulating X-ray phantoms.
 
    .. rubric:: **Functions:**
 

@@ -14,7 +14,6 @@
       sidebyside
       discrete_phantom
       plot_phantom
-      plot_feature
       plot_mesh
       plot_polygon
       plot_curve
