@@ -161,6 +161,9 @@ class Beam(Line):
 
 def beamintersect(beam, geometry):
     """Intersection area of infinite beam with a geometry"""
+
+    logger.debug('BEAMINTERSECT: {}'.format(repr(geometry)))
+
     if geometry is None:
         return None
     elif isinstance(geometry, Mesh):
