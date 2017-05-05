@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['reconstruct', 'art', 'sirt', 'mlem', 'stream', 'update_progress']
+__all__ = ['art', 'sirt', 'mlem', 'stream', 'update_progress']
 
 """Defines unoptimized implementations of popular reconstruction methods.
 
@@ -67,6 +67,7 @@ including gridrec, SIRT, ART, and MLEM. These methods can be used as benchmarks
 for custom reconstruction methods or as an easy way to access reconstruction
 algorithms for developing other methods such as noise correction.
 """
+
 
 def update_progress(progress):
     """Draw a process bar in the terminal.
@@ -84,79 +85,10 @@ def update_progress(progress):
         print('')
 
 
-def reconstruct(probe, shape, data, rec):
-    """Reconstruct single x-ray beam data.
-
-    Parameters
-    ----------
-    probe : Probe
-    shape : list
-        shape of the reconstruction grid.
-    data : scalar
-        Probe measurement dtaa.
-    rec : ndarray
-        Initialization matrix.
-    """
-    x0 = probe.p1.x
-    y0 = probe.p1.y
-    x1 = probe.p2.x
-    y1 = probe.p2.y
-    sx, sy = shape
-
-    # grid frame (gx, gy)
-    gx = np.linspace(0, 1, sy + 1)
-    gy = np.linspace(0, 1, sy + 1)
-
-    # avoid upper-right boundary errors
-    if (x1 - x0) == 0:
-        x0 += 1e-6
-    if (y1 - y0) == 0:
-        y0 += 1e-6
-
-    # vector lengths (ax, ay)
-    ax = (gx - x0) / (x1 - x0)
-    ay = (gy - y0) / (y1 - y0)
-
-    # edges of alpha (a0, a1)
-    ax0 = min(ax[0], ax[-1])
-    ax1 = max(ax[0], ax[-1])
-    ay0 = min(ay[0], ay[-1])
-    ay1 = max(ay[0], ay[-1])
-    a0 = max(max(ax0, ay0), 0)
-    a1 = min(min(ax1, ay1), 1)
-
-    # sorted alpha vector
-    cx = (ax >= a0) & (ax <= a1)
-    cy = (ay >= a0) & (ay <= a1)
-    alpha = np.sort(np.r_[ax[cx], ay[cy]])
-
-    # lengths
-    xv = x0 + alpha * (x1 - x0)
-    yv = y0 + alpha * (y1 - y0)
-    lx = np.ediff1d(xv)
-    ly = np.ediff1d(yv)
-    dist = np.sqrt(lx**2 + ly**2)
-    dist2 = np.dot(dist, dist)
-    ind = dist != 0
-
-    # indexing
-    mid = alpha[:-1] + np.ediff1d(alpha) / 2.
-    xm = x0 + mid * (x1 - x0)
-    ym = y0 + mid * (y1 - y0)
-    ix = np.floor(sy * xm).astype('int')
-    iy = np.floor(sy * ym).astype('int')
-
-    # reconstruct
-    sim = np.dot(dist[ind], rec[ix[ind], iy[ind]])
-    if not dist2 == 0:
-        upd = np.true_divide((data - sim), dist2)
-        rec[ix[ind], iy[ind]] += dist[ind] * upd
-    return rec
-
-
 def art(probe, data, init, niter=10):
     """Reconstruct data using ART algorithm."""
     sx, sy = init.shape
+    data = data.flatten()
 
     # grid frame (gx, gy)
     gx = np.linspace(0, 1, sy + 1)
@@ -223,6 +155,7 @@ def art(probe, data, init, niter=10):
 def sirt(probe, data, init, niter=10):
     """Reconstruct data using SIRT algorithm."""
     sx, sy = init.shape
+    data = data.flatten()
 
     # grid frame (gx, gy)
     gx = np.linspace(0, 1, sy + 1)
@@ -293,6 +226,7 @@ def sirt(probe, data, init, niter=10):
 def mlem(probe, data, init, niter=10):
     """Reconstruct data using MLEM algorithm."""
     sx, sy = init.shape
+    data = data.flatten()
 
     # grid frame (gx, gy)
     gx = np.linspace(0, 1, sy + 1)
@@ -364,6 +298,7 @@ def mlem(probe, data, init, niter=10):
 def stream(probe, data, init):
     """Reconstruct data."""
     sx, sy = init.shape
+    data = data.flatten()
 
     # grid frame (gx, gy)
     gx = np.linspace(0, 1, sy + 1)
