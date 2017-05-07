@@ -6,3 +6,4 @@ scipy
 matplotlib
 phasepack
 cached-property
+polytope >= 0.1.4
