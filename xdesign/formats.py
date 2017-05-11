@@ -49,7 +49,9 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import numpy as np
+import os.path
+import json
+import requests
 import logging
 
 logger = logging.getLogger(__name__)
@@ -58,7 +60,57 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = []
+__all__ = ['get_NIST_table']
 
 """Placeholder module for reading/writing various formatted phantoms,
 experiments, meshes, data, etc."""
+
+
+def get_NIST_table(class_name):
+    """Return a dictionary with the NIST data and the density."""
+
+    with open('./NIST/NIST_index.json', 'r', encoding="utf-8") as f:
+        index = json.load(f)
+
+    try:
+        density = index[class_name]['density']
+    except KeyError:
+        raise ValueError('{} is not in the NIST index. '.format(class_name) +
+                         'Check NIST_index.json for spelling errors.')
+
+    nist_file = "./NIST/{}.json".format(class_name)
+
+    if not os.path.isfile(nist_file):
+        logger.info('Grabbing %s NIST data from the internet.', class_name)
+
+        # Determine which URL to use.
+
+        url = "http://xrayplots.2mrd.com.au/api/"
+
+        if not index[class_name]['symbol']:
+            url += "material/" + class_name
+        else:
+            url += "element/{Z}".format(Z=index[class_name]['z'])
+
+        # Fetch the NIST data from the internet.
+        response = requests.get(url)
+        jsondata = response.json()
+
+        # Reformat the JSON.
+        table = dict()
+        table['energy'] = [point[u'e'] for point in jsondata]
+        table['mass_attenuation'] = [point[u'a'] for point in jsondata]
+        table['mass_energy_absorption'] = [point[u'm'] for point in jsondata]
+
+        # Save the JSON for later.
+        with open(nist_file, 'w', encoding="utf-8") as f:
+            json.dump(table, f)
+
+    else:
+        logger.info('Found %s NIST data locally.', class_name)
+
+        with open(nist_file, 'r', encoding="utf-8") as f:
+            # If it's already downloaded, then just load it.
+            table = json.load(f)
+
+    return table, density
