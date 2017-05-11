@@ -67,7 +67,7 @@ __all__ = ['Phantom',
 
 # IMPORT AND EXPORT
 def save_phantom(phantom, filename):
-    """Save phantom to file."""
+    """Save phantom to file as a python repr."""
     f = open(filename, 'w')
     f.write("{}".format(repr(phantom)))
     f.close()
@@ -75,7 +75,7 @@ def save_phantom(phantom, filename):
 
 
 def load_phantom(filename):
-    """Load phantom from file."""
+    """Load phantom from file containing a python repr."""
     f = open(filename, 'r')
     raw_phantom = f.read()
     f.close()
