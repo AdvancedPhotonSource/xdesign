@@ -50,13 +50,17 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
+from copy import deepcopy
+from functools import lru_cache
+from scipy.spatial import Delaunay
 import logging
+
 from xdesign.phantom import *
 from xdesign.geometry import *
 from xdesign.plot import *
-from scipy.spatial import Delaunay
+from xdesign.formats import get_NIST_table
 from xdesign.constants import PI
-from copy import deepcopy
+
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +68,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Material',
+__all__ = ['NISTMaterial',
            'XDesignDefault',
            'HyperbolicConcentric',
            'DynamicRange',
@@ -81,72 +85,110 @@ __all__ = ['Material',
            'FiberComposite']
 
 
-class Material(object):
-    """Placeholder for class which uses NIST data to automatically calculate
-    material properties based on beam energy.
+class NISTMaterial(object):
+    """Materials which use NIST data to automatically calculate material
+    properties based on beam energy in MeV.
+
+    Attributes
+    ----------
+    density : float [g/cm^3]
+        The density of the material.
+    coefficent_table : Dictionary
+        A Dictionary which contains the equal size arrays describing material
+        properties at various beam energies [MeV].
+
+        For Example:
+        coefficent_table['energy']           = array([0, 1, 2])
+        coefficent_table['mass_attenuation'] = array([8, 6, 2])
+
+    Hubbell, J.H. and Seltzer, S.M. (2004), Tables of X-Ray Mass Attenuation
+    Coefficients and Mass Energy-Absorption Coefficients (version 1.4).
+    [Online] Available: http://physics.nist.gov/xaamdi [2017, May 11].
+    National Institute of Standards and Technology, Gaithersburg, MD.
     """
 
-    def __init__(self, formula, density):
-        # calculate the mass_atten based on the photon energy
-        super(Material, self).__init__()
-        self.formula = formula
-        self.density = density
+    def __init__(self, name, coefficent_table=None, density=None):
+        super(NISTMaterial, self).__init__()
 
-    @property
+        self.name = name
+
+        if coefficent_table is None or density is None:
+            table, density = get_NIST_table(name)
+            self.coefficent_table = table
+            self.density = density
+
+        else:
+            self.coefficent_table = coefficent_table
+            self.density = density
+
+    def __repr__(self):
+        return "NISTMaterial(name={0}, coefficent_table={1}, density={2})".format(
+                repr(self.name),
+                repr(self.coefficent_table),
+                repr(self.density))
+
     def compton_cross_section(self, energy):
         """Compton cross-section of the electron [cm^2]."""
         raise NotImplementedError
 
-    @property
     def photoelectric_cross_section(self, energy):
         raise NotImplementedError
 
-    @property
     def atomic_form_factor(self, energy):
         """Measure of the scattering amplitude of a wave by an isolated atom.
         Read from NIST database [Unitless]."""
         raise NotImplementedError
 
-    @property
     def atom_concentration(self, energy):
         """Number of atoms per unit volume [1/cm^3]."""
         raise NotImplementedError
 
-    @property
     def reduced_energy_ratio(self, energy):
         """Energy ratio of the incident x-ray and the electron energy
         [Unitless]."""
         raise NotImplementedError
 
-    @property
     def photoelectric_absorption(self, energy):
         """X-ray attenuation due to the photoelectric effect [1/cm]."""
         raise NotImplementedError
 
-    @property
     def compton_scattering(self, energy):
         """X-ray attenuation due to the Compton scattering [1/cm]."""
         raise NotImplementedError
 
-    @property
     def electron_density(self, energy):
         """Electron density [e/cm^3]."""
         raise NotImplementedError
 
-    @property
     def linear_attenuation(self, energy):
         """Total x-ray attenuation [1/cm]."""
-        raise NotImplementedError
+        return self.mass_attenuation(energy) * self.density
 
-    @property
     def refractive_index(self, energy):
         raise NotImplementedError
+
+    @lru_cache(maxsize=4)
+    def mass_attenuation(self, energy):
+        """x-ray mass attenuation [cm^2/g]"""
+        return self.predict_property('mass_attenuation', energy,
+                                     loglogscale=True)
 
     def mass_ratio(self):
         raise NotImplementedError
 
     def number_of_elements(self):
         raise NotImplementedError
+
+    def predict_property(self, property_name, energy, loglogscale=False):
+        """Interpolate a property from the coefficient table."""
+        y = self.coefficent_table[property_name]
+        x = self.coefficent_table['energy']
+
+        if loglogscale:
+            return np.power(10, np.interp(np.log10(energy), np.log10(x),
+                                          np.log10(y)))
+
+        return np.interp(energy, x, y)
 
 
 class XDesignDefault(Phantom):
@@ -504,8 +546,8 @@ class WetCircles(UnitCircle):
             A = self.children[p[0]-1].geometry
             B = self.children[p[1]-1].geometry
 
-            thetaA = [np.pi/2, 10]
-            thetaB = [np.pi/2, 10]
+            thetaA = [PI/2, 10]
+            thetaB = [PI/2, 10]
 
             mesh = wet_circles(A, B, thetaA, thetaB)
 
@@ -526,10 +568,10 @@ def wet_circles(A, B, thetaA, thetaB):
     vector = B.center - A.center
     if vector.x > 0:
         angleA = np.arctan(vector.y/vector.x)
-        angleB = np.pi + angleA
+        angleB = PI + angleA
     else:
         angleB = np.arctan(vector.y/vector.x)
-        angleA = np.pi + angleB
+        angleA = PI + angleB
     # print(vector)
     rA = A.radius
     rB = B.radius
@@ -601,7 +643,7 @@ class SiemensStar(Phantom):
 
         # generate an even number of points around the unit circle
         points = []
-        for t in (np.arange(0, n_points)/n_points) * 2 * np.pi:
+        for t in (np.arange(0, n_points)/n_points) * 2 * PI:
             x = radius*np.cos(t) + center.x
             y = radius*np.sin(t) + center.y
             points.append(Point([x, y]))
@@ -613,7 +655,7 @@ class SiemensStar(Phantom):
                         mass_atten=1)
             self.append(f)
 
-        self.ratio = n_points / (4 * np.pi * radius)
+        self.ratio = n_points / (4 * PI * radius)
         self.n_sectors = n_sectors
 
 
