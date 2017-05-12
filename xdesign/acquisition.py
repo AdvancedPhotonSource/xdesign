@@ -291,7 +291,7 @@ class Probe(Beam):
         sigma : float >= 0
             The standard deviation of the normally distributed noise.
         """
-        newdata = self.intensity * exp(-self._get_attenuation(phantom))
+        newdata = self.intensity * np.exp(-self._get_attenuation(phantom))
 
         if sigma > 0:
             newdata += newdata * np.random.normal(scale=sigma)
@@ -303,17 +303,17 @@ class Probe(Beam):
         """Return the attenuation coefficient of the phantom."""
         intersection = beamintersect(self, phantom.geometry)
 
-        if intersection is not None and phantom.mass_atten != 0:
+        if intersection is not None and phantom.material.mass_attenuation != 0:
             # [ ] = [cm^2] / [cm] * [g/cm^3] * [cm^2/g]
-            attenuation = (intersection / self.size * phantom.density
-                           * phantom.mass_atten)
+            attenuation = (intersection / self.size * phantom.material.density
+                           * phantom.material.mass_attenuation)
         else:
-            assert intersection is None or phantom.mass_atten == 0
+            assert intersection is None or phantom.material.mass_attenuation == 0
             attenuation = 0
 
         if intersection > 0:
             for child in phantom.children:
-                attenuation += self._measure_helper(child)
+                attenuation += self._get_attenuation(child)
 
         return attenuation
 
