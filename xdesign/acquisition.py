@@ -300,18 +300,18 @@ class Probe(Beam):
         return newdata
 
     def _get_attenuation(self, phantom):
-        """Return the attenuation coefficient of the phantom."""
+        """Return the beam intensity attenuation due to the phantom."""
         intersection = beamintersect(self, phantom.geometry)
 
-        if intersection is not None and phantom.material.mass_attenuation != 0:
+        if intersection is None or phantom.material is None:
+            attenuation = 0.0
+        else:
             # [ ] = [cm^2] / [cm] * [g/cm^3] * [cm^2/g]
             attenuation = (intersection / self.size * phantom.material.density
                            * phantom.material.mass_attenuation)
-        else:
-            assert intersection is None or phantom.material.mass_attenuation == 0
-            attenuation = 0
 
-        if intersection > 0:
+        if phantom.geometry is None or intersection > 0:
+            # check the children for containers and intersecting geometries
             for child in phantom.children:
                 attenuation += self._get_attenuation(child)
 
