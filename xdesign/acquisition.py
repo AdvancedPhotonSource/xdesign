@@ -270,8 +270,9 @@ class Probe(Beam):
     """
     # TODO: Implement additional attributes for Probe such as beam energy,
     # brightness, wavelength, etc.
-    def __init__(self, p1, p2, size=0.0, intensity=1.0):
+    def __init__(self, p1, p2, size=0.0, intensity=1.0, energy=15.0):
         super(Probe, self).__init__(p1, p2, size, intensity)
+        self.energy = energy
         self.history = []
 
     def __repr__(self):
@@ -308,7 +309,7 @@ class Probe(Beam):
         else:
             # [ ] = [cm^2] / [cm] * [g/cm^3] * [cm^2/g]
             attenuation = (intersection / self.size * phantom.material.density
-                           * phantom.material.mass_attenuation)
+                           * phantom.material.mass_attenuation(self.energy))
 
         if phantom.geometry is None or intersection > 0:
             # check the children for containers and intersecting geometries

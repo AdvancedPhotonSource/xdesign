@@ -92,6 +92,7 @@ POLY_EDGE_COLOR = 'black'
 LABEL_COLOR = 'black'
 POLY_LINEWIDTH = 0.1
 CURVE_LINEWIDTH = 0.5
+DEFAULT_ENERGY = 15
 
 # cycle through 126 unique line styles
 PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
@@ -142,8 +143,9 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
                 color = None
             else:
                 # use the colormap to determine the color
+                # TODO: Add parameter to pass other things besides energy
                 for j in num_props:
-                    props[j] = getattr(phantom.material, c_props[j])
+                    props[j] = getattr(phantom.material, c_props[j])(DEFAULT_ENERGY)
                 color = c_map(props)[0]
 
             plot_geometry(phantom.geometry, axis, c=color)
@@ -353,7 +355,7 @@ def _discrete_geometry(phantom, image, px, py, prop):
     phantom.prop.
     """
     if phantom.geometry is not None and hasattr(phantom.material, prop):
-        value = getattr(phantom.material, prop)
+        value = getattr(phantom.material, prop)(DEFAULT_ENERGY)
 
         size = px.shape  # is equivalent to image.shape?
         pixel_coords = np.vstack([px.flatten(), py.flatten()]).T

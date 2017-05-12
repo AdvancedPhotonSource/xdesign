@@ -69,15 +69,15 @@ class SimpleMaterial(object):
     """Simple material with constant mass_attenuation parameter only."""
     def __init__(self, mass_attenuation=1.0):
         super(SimpleMaterial, self).__init__()
-        self.mass_attenuation = mass_attenuation
+        self._mass_attenuation = mass_attenuation
         self.density = 1.0
 
     def __repr__(self):
         return "SimpleMaterial(mass_attenuation={})".format(
-                repr(self.mass_attenuation))
+                repr(self._mass_attenuation))
 
     def mass_attenuation(self, energy):
-        return self.mass_attenuation
+        return self._mass_attenuation
 
 
 class NISTMaterial(object):
@@ -117,7 +117,7 @@ class NISTMaterial(object):
             self.density = density
 
     def __repr__(self):
-        return "NISTMaterial(name={0}, coefficent_table={1}, density={2})".format(
+        return "NISTMaterial({0})".format(
                 repr(self.name),
                 repr(self.coefficent_table),
                 repr(self.density))
@@ -162,7 +162,6 @@ class NISTMaterial(object):
     def refractive_index(self, energy):
         raise NotImplementedError
 
-    @lru_cache(maxsize=4)
     def mass_attenuation(self, energy):
         """x-ray mass attenuation [cm^2/g]"""
         return self.predict_property('mass_attenuation', energy,
