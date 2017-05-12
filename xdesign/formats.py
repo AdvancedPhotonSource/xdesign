@@ -49,10 +49,11 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import os.path
+from pkg_resources import Requirement, resource_filename, resource_exists
 import json
 import requests
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +68,14 @@ experiments, meshes, data, etc."""
 
 
 def get_NIST_table(class_name):
-    """Return a dictionary with the NIST data and the density."""
+    """Return a dictionary with the NIST data and the density.
 
-    with open('./NIST/NIST_index.json', 'r', encoding="utf-8") as f:
+    Energy values are converted to keV. Attenuation values remain cm^2/g.
+    """
+
+    NIST_folder = resource_filename(Requirement.parse("xdesign"), "NIST")
+
+    with open(NIST_folder + '/NIST_index.json', 'r', encoding="utf-8") as f:
         index = json.load(f)
 
     try:
@@ -78,11 +84,10 @@ def get_NIST_table(class_name):
         raise ValueError('{} is not in the NIST index. '.format(class_name) +
                          'Check NIST_index.json for spelling errors.')
 
-    nist_file = "./NIST/{}.json".format(class_name)
+    NIST_file = "/{}.json".format(class_name)
 
-    if not os.path.isfile(nist_file):
+    if not resource_exists(Requirement.parse("xdesign"), "NIST" + NIST_file):
         logger.info('Grabbing %s NIST data from the internet.', class_name)
-
         # Determine which URL to use.
 
         url = "http://xrayplots.2mrd.com.au/api/"
@@ -98,18 +103,18 @@ def get_NIST_table(class_name):
 
         # Reformat the JSON.
         table = dict()
-        table['energy'] = [point[u'e'] for point in jsondata]
+        table['energy'] = [point[u'e'] * 1000 for point in jsondata]
         table['mass_attenuation'] = [point[u'a'] for point in jsondata]
         table['mass_energy_absorption'] = [point[u'm'] for point in jsondata]
 
         # Save the JSON for later.
-        with open(nist_file, 'w', encoding="utf-8") as f:
+        with open(NIST_folder + NIST_file, 'w', encoding="utf-8") as f:
             json.dump(table, f)
 
     else:
         logger.info('Found %s NIST data locally.', class_name)
 
-        with open(nist_file, 'r', encoding="utf-8") as f:
+        with open(NIST_folder + NIST_file, 'r', encoding="utf-8") as f:
             # If it's already downloaded, then just load it.
             table = json.load(f)
 
