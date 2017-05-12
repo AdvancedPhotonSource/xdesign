@@ -49,10 +49,15 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from xdesign.geometry import *
 import numpy as np
 import logging
 import warnings
+from copy import deepcopy
+from scipy.spatial import Delaunay
+
+from xdesign.geometry import *
+from xdesign.material import *
+from xdesign.constants import PI
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +67,23 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Phantom',
            'save_phantom',
-           'load_phantom']
+           'load_phantom',
+           'XDesignDefault',
+           'HyperbolicConcentric',
+           'DynamicRange',
+           'DogaCircles',
+           'SlantedSquares',
+           'UnitCircle',
+           'Soil',
+           'WetCircles',
+           'SiemensStar',
+           'Foam',
+           'Metal',
+           'SoftBiomaterial',
+           'Electronics',
+           'FiberComposite']
 
 
-# IMPORT AND EXPORT
 def save_phantom(phantom, filename):
     """Save phantom to file as a python repr."""
     f = open(filename, 'w')
@@ -103,18 +121,18 @@ class Phantom(object):
         A list of Phantoms contained in this Phantom.
     parent :
         The Phantom containing this Phantom.
-    mass_atten :
+    material :
         The mass_attenuation of the phantom.
     population :
         The number of decendents of this phantom.
     """
     # OPERATOR OVERLOADS
-    def __init__(self, geometry=None, children=[], mass_atten=0.0):
+    def __init__(self, geometry=None, children=[], material=None):
 
         self._geometry = geometry
         self.population = 0
         self.parent = None
-        self.mass_atten = mass_atten
+        self.material = material
 
         self.children = list()
         for child in children:
@@ -131,10 +149,10 @@ class Phantom(object):
         return "{}()".format(type(self).__name__)
 
     def __repr__(self):
-        return "Phantom(geometry={}, children={}, mass_atten={})".format(
+        return "Phantom(geometry={}, children={}, material={})".format(
                 repr(self.geometry),
                 repr(self.children),
-                repr(self.mass_atten))
+                repr(self.material))
 
     # PROPERTIES
     @property
@@ -234,8 +252,8 @@ class Phantom(object):
         self.population -= self.children[i].population + 1
         return self.children.pop(i)
 
-    def sprinkle(self, counts, radius, gap=0, region=None, mass_atten=1.0,
-                 max_density=1):
+    def sprinkle(self, counts, radius, gap=0, region=None,
+                 material=None, max_density=1):
         """Sprinkle a number of :class:`.Circle` shaped Phantoms around the
         Phantom. Uses various termination criteria to determine when to stop
         trying to add circles.
@@ -255,7 +273,7 @@ class Phantom(object):
         max_density : scalar, optional
             Stops adding circles when the geometric density of the phantom
             reaches this ratio.
-        mass_atten : scalar, optional
+        material : scalar, optional
             A mass attenuation parameter passed to the circles.
 
         Returns
@@ -296,7 +314,7 @@ class Phantom(object):
 
             if collision:
                 self.append(Phantom(geometry=Circle(center, radius[0]),
-                                    mass_atten=mass_atten))
+                                    material=material))
                 n_added += 1
                 continue
 
@@ -305,7 +323,7 @@ class Phantom(object):
             if overlap <= radius[0] - radius[1]:
                 self.append(Phantom(geometry=Circle(center,
                                                     radius[0] - overlap),
-                                    mass_atten=mass_atten))
+                                    material=material))
                 n_added += 1
                 n_tries = 0
 

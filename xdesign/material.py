@@ -50,17 +50,10 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
-from copy import deepcopy
-from functools import lru_cache
-from scipy.spatial import Delaunay
 import logging
+from functools import lru_cache
 
-from xdesign.phantom import *
-from xdesign.geometry import *
-from xdesign.plot import *
 from xdesign.formats import get_NIST_table
-from xdesign.constants import PI
-
 
 logger = logging.getLogger(__name__)
 
@@ -68,21 +61,23 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['NISTMaterial',
-           'XDesignDefault',
-           'HyperbolicConcentric',
-           'DynamicRange',
-           'DogaCircles',
-           'SlantedSquares',
-           'UnitCircle',
-           'Soil',
-           'WetCircles',
-           'SiemensStar',
-           'Foam',
-           'Metal',
-           'SoftBiomaterial',
-           'Electronics',
-           'FiberComposite']
+__all__ = ['SimpleMaterial',
+           'NISTMaterial']
+
+
+class SimpleMaterial(object):
+    """Simple material with constant mass_attenuation parameter only."""
+    def __init__(self, mass_attenuation=1.0):
+        super(SimpleMaterial, self).__init__()
+        self.mass_attenuation = mass_attenuation
+        self.density = 1.0
+
+    def __repr__(self):
+        return "SimpleMaterial(mass_attenuation={})".format(
+                repr(self.mass_attenuation))
+
+    def mass_attenuation(self, energy):
+        return self.mass_attenuation
 
 
 class NISTMaterial(object):
@@ -95,7 +90,7 @@ class NISTMaterial(object):
         The density of the material.
     coefficent_table : Dictionary
         A Dictionary which contains the equal size arrays describing material
-        properties at various beam energies [MeV].
+        properties at various beam energies [keV].
 
         For Example:
         coefficent_table['energy']           = array([0, 1, 2])
@@ -188,6 +183,7 @@ class NISTMaterial(object):
             return np.power(10, np.interp(np.log10(energy), np.log10(x),
                                           np.log10(y)))
 
+        # TODO: Make special case for electron shell edges
         return np.interp(energy, x, y)
 
 
@@ -203,7 +199,8 @@ class XDesignDefault(Phantom):
 
     def __init__(self):
         super(XDesignDefault, self).__init__(geometry=Circle(Point([0.5, 0.5]),
-                                                             radius=0.5))
+                                                             radius=0.5),
+                                             material=SimpleMaterial(0.0))
 
         # define the points of the mesh
         a = Point([0.6, 0.6])
@@ -224,10 +221,11 @@ class XDesignDefault(Phantom):
         c1 = Circle(Point([0.3, 0.5]), radius=0.02)
 
         # construct Phantoms
-        self.append(Phantom(geometry=t0, mass_atten=0.5))
-        self.append(Phantom(geometry=m0, mass_atten=0.5))
-        self.append(Phantom(geometry=c0, mass_atten=1.0,
-                            children=[Phantom(geometry=c1, mass_atten=-1.0)]))
+        self.append(Phantom(geometry=t0, material=SimpleMaterial(0.5)))
+        self.append(Phantom(geometry=m0, material=SimpleMaterial(0.5)))
+        self.append(Phantom(geometry=c0, material=SimpleMaterial(1.0),
+                            children=[Phantom(geometry=c1,
+                                              material=SimpleMaterial(-1.0))]))
 
 
 class HyperbolicConcentric(Phantom):
@@ -266,7 +264,7 @@ class HyperbolicConcentric(Phantom):
                 break
 
             self.append(Phantom(geometry=Circle(center, radius),
-                                mass_atten=(-1.)**(ring % 2)))
+                                material=SimpleMaterial((-1.)**(ring % 2))))
             # record information about the rings
             widths.append(radius - radii[-1])
             radii.append(radius)
@@ -315,12 +313,12 @@ class DynamicRange(Phantom):
             for i in range(0, steps):
                 center = Point([px[i] + jitters[0, i], py[i] + jitters[1, i]])
                 self.append(Phantom(geometry=Circle(center, radius),
-                                    mass_atten=colors[i]))
+                                    material=SimpleMaterial(colors[i])))
         else:
             # completely random
             for i in range(0, steps):
                 if 1 > self.sprinkle(1, radius, gap=radius * 0.9,
-                                     mass_atten=colors[i]):
+                                     material=SimpleMaterial(colors[i])):
                     None
                     # TODO: ensure that all circles are placed
 
@@ -397,7 +395,7 @@ class DogaCircles(Phantom):
         for (k, x, y) in zip(radii.flatten(), _x.flatten(),
                              _y.flatten()):
             self.append(Phantom(geometry=Circle(Point([x, y]), k),
-                                mass_atten=1))
+                                material=SimpleMaterial(1.0)))
 
         self.radii = radii
         self.x = _x
@@ -492,7 +490,7 @@ class SlantedSquares(Phantom):
             center = Point([x[i], y[i]])
             s = Square(center=center, side_length=side_length)
             s.rotate(angle, center)
-            self.append(Phantom(geometry=s, mass_atten=1))
+            self.append(Phantom(geometry=s, material=SimpleMaterial(1)))
 
         self.angle = angle
         self.count = count
@@ -506,10 +504,10 @@ class SlantedSquares(Phantom):
 class UnitCircle(Phantom):
     """Generates a phantom with a single circle in its center."""
 
-    def __init__(self, radius=0.5, mass_atten=1):
+    def __init__(self, radius=0.5, material=SimpleMaterial(1.0)):
         super(UnitCircle, self).__init__(geometry=Circle(Point([0.5, 0.5]),
                                                          radius),
-                                         mass_atten=mass_atten)
+                                         material=material)
 
 
 class Soil(UnitCircle):
@@ -523,21 +521,22 @@ class Soil(UnitCircle):
     """
 
     def __init__(self, porosity=0.412):
-        super(Soil, self).__init__(radius=0.5, mass_atten=0.5)
-        self.sprinkle(30, [0.1, 0.03], 0, mass_atten=0.5,
+        super(Soil, self).__init__(radius=0.5, material=SimpleMaterial(0.5))
+        self.sprinkle(30, [0.1, 0.03], 0, material=SimpleMaterial(0.5),
                       max_density=1-porosity)
         # use overlap to approximate area opening transform because opening is
         # not discrete
-        self.sprinkle(100, 0.02, 0.01, mass_atten=-.25)
+        self.sprinkle(100, 0.02, 0.01, material=SimpleMaterial(-.25))
 
 
 class WetCircles(UnitCircle):
     def __init__(self):
-        super(WetCircles, self).__init__(radius=0.5, mass_atten=0.5)
+        super(WetCircles, self).__init__(radius=0.5,
+                                         material=SimpleMaterial(0.5))
         porosity = 0.412
         np.random.seed(0)
 
-        self.sprinkle(30, [0.1, 0.03], 0.005, mass_atten=0.5,
+        self.sprinkle(30, [0.1, 0.03], 0.005, material=SimpleMaterial(0.5),
                       max_density=1 - porosity)
 
         pairs = [(23, 12), (12, 19), (29, 11), (22, 5), (1, 3), (21, 9),
@@ -551,7 +550,7 @@ class WetCircles(UnitCircle):
 
             mesh = wet_circles(A, B, thetaA, thetaB)
 
-            self.append(Phantom(geometry=mesh, mass_atten=-.25))
+            self.append(Phantom(geometry=mesh, material=-.25))
 
 
 def wet_circles(A, B, thetaA, thetaB):
@@ -652,24 +651,22 @@ class SiemensStar(Phantom):
         # connect pairs of points to the center to make triangles
         for i in range(0, n_sectors//2):
             f = Phantom(geometry=Triangle(points[2*i], points[2*i+1], center),
-                        mass_atten=1)
+                        material=SimpleMaterial(1))
             self.append(f)
 
         self.ratio = n_points / (4 * PI * radius)
         self.n_sectors = n_sectors
 
 
-class Foam(Phantom):
+class Foam(UnitCircle):
     """Generates a phantom with structure similar to foam."""
 
     def __init__(self, size_range=[0.05, 0.01], gap=0, porosity=1):
-        super(Foam, self).__init__(shape='circle')
+        super(Foam, self).__init__(radius=0.5, material=SimpleMaterial(1.0))
         if porosity < 0 or porosity > 1:
             raise ValueError('Porosity must be in the range [0,1).')
-        self.sprinkle(300, size_range, gap, mass_atten=-1,
+        self.sprinkle(300, size_range, gap, material=SimpleMaterial(-1.0),
                       max_density=porosity)
-        background = Feature(Circle(Point([0.5, 0.5]), 0.5), mass_atten=1)
-        self.insert(0, background)
 
 
 class Metal(Phantom):

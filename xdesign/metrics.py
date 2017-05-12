@@ -49,8 +49,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from xdesign.material import HyperbolicConcentric, UnitCircle
-
 import scipy.ndimage
 import logging
 import warnings
@@ -62,7 +60,10 @@ from scipy import optimize
 from scipy.stats import norm, exponnorm, expon, ttest_ind
 from phasepack import phasecongmono as _phasecongmono
 
+from xdesign.phantom import HyperbolicConcentric, UnitCircle
+
 logger = logging.getLogger(__name__)
+
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
