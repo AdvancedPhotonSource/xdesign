@@ -282,11 +282,11 @@ class Phantom(object):
             The number of circles successfully added.
         """
         if counts < 0:
-            ValueError('Cannot add negative number of circles.')
+            raise ValueError('Cannot add negative number of circles.')
         if not isinstance(radius, list):
             radius = [radius, radius]
         if len(radius) != 2 or radius[0] < radius[1] or radius[1] <= 0:
-            ValueError('Radius range must be larger than zero and largest' +
+            raise ValueError('Radius range must be larger than zero and largest' +
                        'radius must be listed first.')
         if gap < 0:
             # Support for partially overlapping phantoms is not yet supported
@@ -377,7 +377,7 @@ def _random_point(geometry, margin=0.0):
     elif isinstance(geometry, Circle):
         radius = geometry.radius
         center = geometry.center
-        r = np.random.uniform(0, radius - margin)
+        r = (radius - margin) * np.sqrt(np.random.uniform(0, 1))
         a = np.random.uniform(0, 2 * np.pi)
         x = r * np.cos(a) + center.x
         y = r * np.sin(a) + center.y
