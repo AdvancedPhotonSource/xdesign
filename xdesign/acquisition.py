@@ -55,7 +55,7 @@ from xdesign.geometry import *
 from xdesign.geometry import halfspacecirc
 import logging
 import polytope as pt
-from copy import copy
+from copy import deepcopy
 from cached_property import cached_property
 
 logger = logging.getLogger(__name__)
@@ -284,7 +284,7 @@ class Probe(Beam):
         vec = self.normal * dx
         super(Probe, self).translate(vec._x)
 
-    def measure(self, phantom, sigma=0.0):
+    def measure(self, phantom, sigma=0.0, pool=None):
         """Return the probe measurement with optional Gaussian noise.
 
         Parameters
@@ -322,7 +322,57 @@ class Probe(Beam):
         self.history.append(self.list)
 
 
-def sinogram(sx, sy, phantom, noise=False):
+def probe_wrapper(probes, phantom, noise):
+    """Wrap probe.measure to make it suitable for multiprocessing.
+
+    This method does two things: (1) it puts the Probe.measure method in the
+    f(*args) format for the pool workers (2) it passes chunks of work (multiple
+    probes) to the workers to reduce overhead.
+    """
+
+    for i in range(len(probes)):
+        probes[i] = probes[i].measure(phantom, noise)
+
+    return probes
+
+
+def calculate_gram(procedure, measurements, phantom, noise=0.0, pool=None,
+                   chunksize=1):
+    """This part of the code is identical for angleogram and sinogram."""
+
+    if pool is None:
+        sx = measurements.size
+
+        for m in range(sx):
+            probe = next(procedure)
+            measurements[m] = probe.measure(phantom, noise)
+
+    else:
+        sx = measurements.size//chunksize
+        sy = chunksize
+        measurements.shape = (sx, sy)
+
+        async_data = [None] * sx
+        for m in range(sx):
+
+            probes = [None] * sy
+            for n in range(sy):
+
+                probes[n] = deepcopy(next(procedure))
+
+            async_data[m] = pool.apply_async(probe_wrapper,
+                                             (probes, phantom, noise,))
+
+        for m in range(sx):
+            measurements[m, :] = async_data[m].get()
+
+        probe = probes.pop()
+        measurements = measurements.flatten()
+
+    return measurements, probe
+
+
+def sinogram(sx, sy, phantom, noise=False, pool=None):
     """Return a sinogram of phantom and the probe.
 
     Parameters
@@ -341,11 +391,12 @@ def sinogram(sx, sy, phantom, noise=False):
         Probe with history.
     """
     scan = raster_scan(sx, sy)
-    sino = np.zeros((sx, sy))
-    for m in range(sx):
-        for n in range(sy):
-            probe = next(scan)
-            sino[m, n] = probe.measure(phantom, noise)
+    sino = np.zeros(sx*sy)
+
+    sino, probe = calculate_gram(scan, sino, phantom, noise, pool,
+                                 chunksize=sy)
+
+    sino.shape = (sx, sy)
 
     return sino, probe
 
@@ -369,11 +420,12 @@ def angleogram(sx, sy, phantom, noise=False):
         Probe with history.
     """
     scan = angle_scan(sx, sy)
-    angl = np.zeros((sx, sy))
-    for m in range(sx):
-        for n in range(sy):
-            probe = next(scan)
-            angl[m, n] = probe.measure(phantom, noise)
+    angl = np.zeros(sx*sy)
+
+    angl, probe = calculate_gram(scan, angl,  phantom, noise, pool,
+                                 chunksize=sy)
+
+    angl.shape = (sx, sy)
 
     return angl, probe
 
