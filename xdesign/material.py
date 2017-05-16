@@ -51,7 +51,6 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 import logging
-from functools import lru_cache
 
 from xdesign.formats import get_NIST_table
 
