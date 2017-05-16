@@ -49,7 +49,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from pkg_resources import Requirement, resource_filename, resource_exists
+from pkg_resources import resource_filename, resource_exists
+from codecs import open
 import json
 import requests
 import logging
@@ -73,7 +74,7 @@ def get_NIST_table(class_name):
     Energy values are converted to keV. Attenuation values remain cm^2/g.
     """
 
-    NIST_folder = resource_filename(Requirement.parse("xdesign"), "NIST")
+    NIST_folder = resource_filename("xdesign", "NIST")
 
     with open(NIST_folder + '/NIST_index.json', 'r', encoding="utf-8") as f:
         index = json.load(f)
@@ -86,7 +87,7 @@ def get_NIST_table(class_name):
 
     NIST_file = "/{}.json".format(class_name)
 
-    if not resource_exists(Requirement.parse("xdesign"), "NIST" + NIST_file):
+    if not resource_exists("xdesign", "NIST" + NIST_file):
         logger.info('Grabbing %s NIST data from the internet.', class_name)
         # Determine which URL to use.
 
