@@ -70,7 +70,7 @@ def _plot_both(ref, target):
     plt.subplot(1, 2, 2)
     plt.imshow(target, cmap='viridis')
     plt.colorbar()
-    plt.show(block=False)
+    # plt.show(block=False)
 
 
 def _save_and_load(phantom_class, args=[]):
