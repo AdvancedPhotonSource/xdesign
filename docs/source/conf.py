@@ -41,6 +41,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
     'sphinxcontrib.bibtex',
+    'nbsphinx',
+    'IPython.sphinxext.ipython_console_highlighting',
 ]
 
 # Napoleon settings
@@ -97,7 +99,7 @@ language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = []
+exclude_patterns = ['_build', '**.ipynb_checkpoints']
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -169,7 +171,7 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# html_static_path = ['_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -320,18 +322,18 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 
 
 # picked from http://read-the-docs.readthedocs.org/en/latest/faq.html
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-            return MagicMock()
-
-
-MOCK_MODULES = [
-    'cached_property', 'cycler', 'intertools',
-    'matplotlib', 'matplotlib.pyplot', 'matplotlib.patches',
-    'matplotlib.path', 'matplotlib.patheffects', 'matplotlib.axis',
-    'math', 'numpy', 'numbers', 'phasepack', 'polytope',
-    'scipy', 'scipy.stats', 'scipy.ndimage', 'scipy.spatial',
-    ]
-
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+# class Mock(MagicMock):
+#     @classmethod
+#     def __getattr__(cls, name):
+#             return MagicMock()
+#
+#
+# MOCK_MODULES = [
+#     'cached_property', 'cycler', 'intertools',
+#     'matplotlib', 'matplotlib.pyplot', 'matplotlib.patches',
+#     'matplotlib.path', 'matplotlib.patheffects', 'matplotlib.axis',
+#     'math', 'numpy', 'numbers', 'phasepack', 'polytope',
+#     'scipy', 'scipy.stats', 'scipy.ndimage', 'scipy.spatial',
+#     ]
+#
+# sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
