@@ -46,6 +46,17 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
+"""
+Defines objects and methods for simulated data acquisition.
+
+The acquistion module contains the objects and procedures necessary to simulate
+the operation of equipment used to collect tomographic data. This not only
+includes physical things like Probes, detectors, turntables, and lenses, but
+also non-physical things such as scanning patterns and programs.
+
+.. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
+"""
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -70,14 +81,6 @@ __all__ = ['Beam',
            'angleogram',
            'raster_scan',
            'angle_scan']
-
-"""Define objects and methods for simulated data acquisition.
-
-The acquistion module contains the objects and procedures necessary to simulate
-the operation of equipment used to collect tomographic data. This not only
-includes physical things like Probes, detectors, turntables, and lenses, but
-also non-physical things such as scanning patterns and programs.
-"""
 
 
 class Beam(Line):

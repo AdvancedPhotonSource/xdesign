@@ -46,6 +46,11 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
+"""Defines an object for simulating X-ray phantoms.
+
+.. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
+"""
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 

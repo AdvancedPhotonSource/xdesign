@@ -46,6 +46,12 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
+"""Contains functions for visualizing :class:`.Phantom` and
+:class:`.ImageQuality` metrics.
+
+.. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
+"""
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -245,7 +251,7 @@ def plot_polygon(polygon, axis=None, alpha=None, c=None):
 
 
 def plot_curve(curve, axis=None, alpha=None, c=None):
-    """Plots a :class:`.Curve' to the given axis.
+    """Plots a :class:`.Curve` to the given axis.
 
     Parameters
     ----------

@@ -45,7 +45,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
+"""Objects and methods for computing the quality of reconstructions.
 
+.. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
+"""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -269,7 +272,7 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
 
 def compute_mtf_lwkj(phantom, image):
     """Calculate the MTF using the modulated Siemens Star method in
-    Loebich et al. (2007).
+    :cite:`loebich2007digital`.
 
     parameters
     ----------
