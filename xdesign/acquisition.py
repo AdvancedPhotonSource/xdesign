@@ -61,7 +61,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
-from numbers import Number
 from xdesign.geometry import *
 from xdesign.geometry import halfspacecirc
 import logging
@@ -100,8 +99,6 @@ class Beam(Line):
     # be merged with Probe.
     def __init__(self, p1, p2, size=0):
         """Return a new Beam from two given points and optional size."""
-        if not isinstance(size, Number):
-            raise TypeError("Size must be scalar.")
         super(Beam, self).__init__(p1, p2)
         self.size = float(size)
         self.count = 0

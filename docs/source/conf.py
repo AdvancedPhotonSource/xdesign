@@ -318,22 +318,24 @@ texinfo_documents = [
 # texinfo_no_detailmenu = False
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {'https://docs.python.org/3': None}
 
 
 # picked from http://read-the-docs.readthedocs.org/en/latest/faq.html
-# class Mock(MagicMock):
-#     @classmethod
-#     def __getattr__(cls, name):
-#             return MagicMock()
-#
-#
-# MOCK_MODULES = [
-#     'cached_property', 'cycler', 'intertools',
-#     'matplotlib', 'matplotlib.pyplot', 'matplotlib.patches',
-#     'matplotlib.path', 'matplotlib.patheffects', 'matplotlib.axis',
-#     'math', 'numpy', 'numbers', 'phasepack', 'polytope',
-#     'scipy', 'scipy.stats', 'scipy.ndimage', 'scipy.spatial',
-#     ]
-#
-# sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return MagicMock()
+
+
+MOCK_MODULES = ['numpy',
+                'matplotlib', 'matplotlib.pyplot', 'matplotlib.patches',
+                'matplotlib.path', 'matplotlib.patheffects', 'matplotlib.axis',
+                'polytope',
+                'cached_property',
+                'scipy', 'scipy.stats', 'scipy.ndimage', 'scipy.spatial',
+                'cycler',
+                'phasepack',
+                ]
+
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
