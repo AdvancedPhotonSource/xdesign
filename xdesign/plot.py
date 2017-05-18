@@ -503,7 +503,7 @@ def multiroll(x, shift, axis=None):
 
 
 def plot_metrics(imqual):
-    """Plots full reference metrics of ImageQuality data.
+    """Plot local quality maps from ImageQuality data.
 
     Parameters
     ----------
@@ -514,63 +514,48 @@ def plot_metrics(imqual):
     ----------
     Colors taken from this gist <https://gist.github.com/thriveth/8560036>
     """
-    fig_lineplot = plt.figure(0)
-    plt.rc('axes', prop_cycle=PLOT_STYLES)
 
-    for i in range(0, len(imqual)):
-        # Draw a plot of the mean quality vs scale using different colors for
-        # each reconstruction.
-        plt.figure(fig_lineplot.number)
-        plt.plot(imqual[i].scales, imqual[i].qualities)
+    # Plot the reconstruction
+    f = plt.figure()
+    N = len(imqual.maps) + 1
+    p = _pyramid(N)
+    plt.subplot2grid((p[0][0], p[0][0]), p[0][1], colspan=p[0][2],
+                     rowspan=p[0][2])
+    plt.imshow(imqual.img1, cmap=plt.cm.inferno,
+               interpolation="none", aspect='equal')
+    # plt.colorbar()
+    plt.axis('off')
+    # plt.title("Reconstruction")
 
-        # Plot the reconstruction
-        f = plt.figure(i + 1)
-        N = len(imqual[i].maps) + 1
-        p = _pyramid(N)
-        plt.subplot2grid((p[0][0], p[0][0]), p[0][1], colspan=p[0][2],
-                         rowspan=p[0][2])
-        plt.imshow(imqual[i].recon, cmap=plt.cm.inferno,
-                   interpolation="none", aspect='equal')
+    lo = 1.  # Determine the min local quality for all the scales
+    for m in imqual.maps:
+        lo = min(lo, np.min(m))
+
+    # Draw a plot of the local quality at each scale.
+    for j in range(1, N):
+        plt.subplot2grid((p[j][0], p[j][0]), p[j][1], colspan=p[j][2],
+                         rowspan=p[j][2])
+        im = plt.imshow(imqual.maps[j - 1], cmap=plt.cm.viridis,
+                        vmin=lo, vmax=1, interpolation="none",
+                        aspect='equal')
         # plt.colorbar()
         plt.axis('off')
-        # plt.title("Reconstruction")
+        plt.annotate(r'$\sigma$ =' + str(imqual.scales[j - 1]),
+                     xy=(0.05, 0.05), xycoords='axes fraction',
+                     weight='heavy')
 
-        lo = 1.  # Determine the min local quality for all the scales
-        for m in imqual[i].maps:
-            lo = min(lo, np.min(m))
+    # plot one colorbar to the right of these images.
+    f.subplots_adjust(right=0.8)
+    cbar_ax = f.add_axes([0.85, 0.15, 0.05, 0.7])
+    f.colorbar(im, cax=cbar_ax)
+    plt.title(imqual.method)
 
-        # Draw a plot of the local quality at each scale.
-        for j in range(1, N):
-            plt.subplot2grid((p[j][0], p[j][0]), p[j][1], colspan=p[j][2],
-                             rowspan=p[j][2])
-            im = plt.imshow(imqual[i].maps[j - 1], cmap=plt.cm.viridis,
-                            vmin=lo, vmax=1, interpolation="none",
-                            aspect='equal')
-            # plt.colorbar()
-            plt.axis('off')
-            plt.annotate(r'$\sigma$ =' + str(imqual[i].scales[j - 1]),
-                         xy=(0.05, 0.05), xycoords='axes fraction',
-                         weight='heavy')
-
-        # plot one colorbar to the right of these images.
-        f.subplots_adjust(right=0.8)
-        cbar_ax = f.add_axes([0.85, 0.15, 0.05, 0.7])
-        f.colorbar(im, cax=cbar_ax)
-        plt.title(imqual[i].method)
-
-        '''
-        plt.subplot(121)
-        plt.imshow(imqual[i].orig, cmap=plt.cm.viridis, vmin=0, vmax=1,
-                   interpolation="none", aspect='equal')
-        plt.title("Ideal")
-        '''
-    plt.figure(fig_lineplot.number)
-    plt.ylabel('Quality')
-    plt.xlabel('Scale')
-    plt.ylim([0, 1])
-    plt.grid(True)
-    plt.legend([str(x) for x in range(1, len(imqual) + 1)])
-    plt.title("Comparison of Reconstruction Methods")
+    '''
+    plt.subplot(121)
+    plt.imshow(imqual.orig, cmap=plt.cm.viridis, vmin=0, vmax=1,
+               interpolation="none", aspect='equal')
+    plt.title("Ideal")
+    '''
 
 
 def _pyramid(N):
