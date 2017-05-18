@@ -46,6 +46,20 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
+"""Defines methods for reconstructing data from the :mod:`.acquisition` module.
+
+The algorithm module contains methods for reconstructing tomographic data
+including gridrec, SIRT, ART, and MLEM. These methods can be used as benchmarks
+for custom reconstruction methods or as an easy way to access reconstruction
+algorithms for developing other methods such as noise correction.
+
+.. note::
+    Using `tomopy <https://github.com/tomopy/tomopy>` is recommended instead
+    of these functions for heavy computation.
+
+.. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
+"""
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -59,14 +73,6 @@ __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['art', 'sirt', 'mlem', 'stream', 'update_progress']
-
-"""Defines unoptimized implementations of popular reconstruction methods.
-
-The algorithm module contains methods for reconstructing tomographic data
-including gridrec, SIRT, ART, and MLEM. These methods can be used as benchmarks
-for custom reconstruction methods or as an easy way to access reconstruction
-algorithms for developing other methods such as noise correction.
-"""
 
 
 def update_progress(progress):

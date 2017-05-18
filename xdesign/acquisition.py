@@ -46,11 +46,21 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
+"""
+Defines objects and methods for simulated data acquisition.
+
+The acquistion module contains the objects and procedures necessary to simulate
+the operation of equipment used to collect tomographic data. This not only
+includes physical things like Probes, detectors, turntables, and lenses, but
+also non-physical things such as scanning patterns and programs.
+
+.. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
+"""
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
-from numbers import Number
 from xdesign.geometry import *
 from xdesign.geometry import halfspacecirc
 import logging
@@ -71,14 +81,6 @@ __all__ = ['Beam',
            'raster_scan',
            'angle_scan']
 
-"""Define objects and methods for simulated data acquisition.
-
-The acquistion module contains the objects and procedures necessary to simulate
-the operation of equipment used to collect tomographic data. This not only
-includes physical things like Probes, detectors, turntables, and lenses, but
-also non-physical things such as scanning patterns and programs.
-"""
-
 
 class Beam(Line):
     """A thick line in 2-D cartesian space.
@@ -97,8 +99,6 @@ class Beam(Line):
     # be merged with Probe.
     def __init__(self, p1, p2, size=0):
         """Return a new Beam from two given points and optional size."""
-        if not isinstance(size, Number):
-            raise TypeError("Size must be scalar.")
         super(Beam, self).__init__(p1, p2)
         self.size = float(size)
         self.count = 0

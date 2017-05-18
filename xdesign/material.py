@@ -45,6 +45,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
+"""Defines objects which auto-generate a parameterized :class:`.Phantom`.
+
+.. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
+"""
+
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -152,11 +157,10 @@ class Material(object):
 class XDesignDefault(Phantom):
     """Generates a Phantom for internal testing of XDesign.
 
-    The default phantom is:
-    nested, it contains phantoms within phantoms;
-    geometrically simple, the sinogram can be verified visually; and
-    representative, it contains the three main geometric elements: circle,
-        polygon, and mesh.
+    The default phantom is: **nested**, it contains phantoms within phantoms;
+    **geometrically simple**, the sinogram can be verified visually; and
+    **representative**, it contains the three main geometric elements: circle,
+    polygon, and mesh.
     """
 
     def __init__(self):

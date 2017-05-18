@@ -2,15 +2,14 @@
 =======================
 
 .. automodule:: xdesign.geometry
-   :members:
-   :show-inheritance:
-   :inherited-members:
-   :undoc-members:
-   :synopsis: Defines geometric objects for the purpose of supporting :class:`.Phantom` definition and calculating intersections for the :mod:`.acquisition` module.
+    :members:
+    :show-inheritance:
+    :inherited-members:
 
-   .. rubric:: **Classes:**
+    .. rubric:: **Classes:**
 
-   .. autosummary::
+    .. autosummary::
+
       Entity
       Point
       Circle
@@ -20,6 +19,3 @@
       Square
       Polygon
       Mesh
-
-.. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
-.. moduleauthor:: Daniel J Ching <daniel.j.ching@gmail.com>
