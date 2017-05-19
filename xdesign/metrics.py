@@ -52,7 +52,9 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+from xdesign.acquisition import beamintersect
 from xdesign.material import HyperbolicConcentric, UnitCircle
+from xdesign.geometry import Circle, Point
 
 import scipy.ndimage
 import logging
@@ -79,7 +81,123 @@ __all__ = ['compute_PCC',
            'compute_nps_ffst',
            'compute_neq_d',
            'ImageQuality',
-           'compute_quality']
+           'compute_quality',
+           'procedure_coverage']
+
+
+def make_grid(box, pixel_size):
+    """Return a 3D grid for line dicretiziation.
+
+    Return an (x, y, 3) shaped grid whose first two dimensions are the
+    coordinates inside the region and the third dimension is [real_x,
+    real_y, color].
+    """
+    _x = np.arange(box[0, 0] + pixel_size / 2, box[1, 0], pixel_size)
+    _y = np.arange(box[0, 1] + pixel_size / 2, box[1, 1], pixel_size)
+
+    px, py = np.meshgrid(_x, _y, indexing='ij')
+
+    pc = np.zeros(px.shape)
+
+    return np.stack([px, py, pc], axis=2)
+
+
+def flip_grid(grid):
+    """Flip the 3D grid over the xy line."""
+    grid = np.swapaxes(grid, 1, 0)
+    temp = grid[:, :, 0].copy()
+    grid[:, :, 0] = grid[:, :, 1]
+    grid[:, :, 1] = temp
+    return grid
+
+
+def procedure_coverage(procedure, region, pixel_size=0.1):
+    """Return a discrete coverage map of the procedure.
+
+    Procedure coverage is defined as the number of times the probe passes
+    through a given space during a procedure. The discrete map of this metric
+    has units of touches per pixel volume. i.e. If half of a pixel is touched
+    by the probe once during a procedure, then the pixel is assigned a value of
+    `0.5`. However, if the same half of the pixel is touched twice during a
+    procedure, then the pixel is assigned value `1.0`.
+
+    Parameters
+    ----------
+    procedure : :py:class:`aquisition.Probe` generator
+        A generator which defines a scanning procedure by returning a sequence
+        of :py:class:`aquisition.Probe` objects.
+    region : :py:class:`np.array`
+        A rectangle in which to map the coverage. Specify the bounds as
+        `[[min_corner], [max_corner]]`.
+    pixel_size : float (default : 0.1) [cm]
+        The edge length of the pixels in the coverage map in centimeters.
+
+    Returns
+    -------
+    coverage_map : :py:class:`numpy.ndarray`
+        A discretized map of the :py:class:`aquisition.Probe` coverage.
+    """
+    # Find the bounding box of the region of interest
+    # box = np.array([[0, 0],
+    #                 [1, 1]])
+    box = np.array(region)
+
+    # Create an array for storing values
+    grid = make_grid(box, pixel_size)
+
+    # Preallocate geometry of each pixel
+    pixel_volume = np.pi * (pixel_size/2)**2
+
+    squares = [None] * grid[:, :, 0].size
+    c = np.stack([grid[:, :, 0].flatten(), grid[:, :, 1].flatten()], axis=1)
+
+    for i in range(len(squares)):
+        squares[i] = Circle(Point(c[i]), pixel_size/2)
+
+    squares = np.array(squares)
+    squares.shape = grid.shape[0:2]
+
+    # TODO: Special cases for slope = 0 and slope = inf for faster computation
+
+    for probe in procedure:
+        # algorithm only valid for ranges [-1, 1]. Decide whether to flip grid.
+        flip_back = False
+        slope = probe.slope
+        yintercept = probe.yintercept
+
+        if slope < -1 or 1 < slope:
+            flip_back = True
+            # flip elements over xy line
+            slope = 1/slope
+            yintercept = probe.xintercept
+            grid = flip_grid(grid)
+            squares = np.swapaxes(squares, 1, 0)
+
+        # vertical beam thickness
+        gamma = (probe.size / pixel_size) * np.sqrt(1 + slope**2)
+        # max distance from center to search
+        d = int(np.ceil(gamma/2))
+
+        # Illuminate each pixel touched by the beam
+        for x in range(grid.shape[0]):
+
+            y0 = int(np.round((slope * grid[x, 0, 0] + yintercept
+                               - grid[0, 0, 1]) / pixel_size))
+
+            # For rows +/- center of line by gamma
+            for y in range(-d, d+1):
+                y += y0
+                if y >= 0 and y < grid.shape[1]:
+                    grid[x, y, 2] += beamintersect(probe, squares[x, y])
+
+        if flip_back:
+            # flip elements over xy line
+            grid = flip_grid(grid)
+            squares = np.swapaxes(squares, 1, 0)
+
+    coverage_map = grid[:, :, 2] / pixel_volume
+
+    return coverage_map
 
 
 def compute_mtf(phantom, image):

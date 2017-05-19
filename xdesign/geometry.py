@@ -810,8 +810,17 @@ class Polygon(Entity):
 
     @property
     def area(self):
-        """Returns the area of the Polygon."""
-        raise NotImplementedError
+        """Return the area of the Polygon.
+
+        References
+        ----------
+        https://en.wikipedia.org/wiki/Shoelace_formula
+        https://stackoverflow.com/a/30408825
+        """
+        a = _points_to_array(self.vertices)
+        x = a[:, 0]
+        y = a[:, 1]
+        return 0.5*np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
     @property
     def perimeter(self):
