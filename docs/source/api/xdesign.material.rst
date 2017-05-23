@@ -5,13 +5,13 @@
    :members:
    :show-inheritance:
    :undoc-members:
-   :synopsis: Defines objects which auto-generate a parameterized :class:`.Phantom`.
 
-   .. rubric:: **Functions:**
+   .. rubric:: **Classes:**
 
    .. autosummary::
 
       Material
+      XDesignDefault
       HyperbolicConcentric
       DynamicRange
       DogaCircles
@@ -25,5 +25,3 @@
       SoftBiomaterial
       Electronics
       FiberComposite
-
-.. moduleauthor:: Daniel J Ching <daniel.j.ching@gmail.com>

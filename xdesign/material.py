@@ -45,6 +45,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
+"""Defines objects which auto-generate a parameterized :class:`.Phantom`.
+
+.. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
+.. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
+"""
+
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
