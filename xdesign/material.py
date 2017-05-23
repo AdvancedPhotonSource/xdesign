@@ -45,6 +45,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
+"""Defines objects which auto-generate a parameterized :class:`.Phantom`.
+
+.. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
+"""
+
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -53,10 +58,10 @@ import numpy as np
 import logging
 from xdesign.phantom import *
 from xdesign.geometry import *
-from xdesign.feature import *
 from xdesign.plot import *
 from scipy.spatial import Delaunay
 from xdesign.constants import PI
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +70,7 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Material',
+           'XDesignDefault',
            'HyperbolicConcentric',
            'DynamicRange',
            'DogaCircles',
@@ -148,6 +154,44 @@ class Material(object):
         raise NotImplementedError
 
 
+class XDesignDefault(Phantom):
+    """Generates a Phantom for internal testing of XDesign.
+
+    The default phantom is: **nested**, it contains phantoms within phantoms;
+    **geometrically simple**, the sinogram can be verified visually; and
+    **representative**, it contains the three main geometric elements: circle,
+    polygon, and mesh.
+    """
+
+    def __init__(self):
+        super(XDesignDefault, self).__init__(geometry=Circle(Point([0.5, 0.5]),
+                                                             radius=0.5))
+
+        # define the points of the mesh
+        a = Point([0.6, 0.6])
+        b = Point([0.6, 0.4])
+        c = Point([0.8, 0.4])
+        d = (a + c) / 2
+        e = (a + b) / 2
+
+        t0 = Triangle(deepcopy(b), deepcopy(c), deepcopy(d))
+
+        # construct and reposition the mesh
+        m0 = Mesh()
+        m0.append(Triangle(deepcopy(a), deepcopy(e), deepcopy(d)))
+        m0.append(Triangle(deepcopy(b), deepcopy(d), deepcopy(e)))
+
+        # define the circles
+        c0 = Circle(Point([0.3, 0.5]), radius=0.1)
+        c1 = Circle(Point([0.3, 0.5]), radius=0.02)
+
+        # construct Phantoms
+        self.append(Phantom(geometry=t0, mass_atten=0.5))
+        self.append(Phantom(geometry=m0, mass_atten=0.5))
+        self.append(Phantom(geometry=c0, mass_atten=1.0,
+                            children=[Phantom(geometry=c1, mass_atten=-1.0)]))
+
+
 class HyperbolicConcentric(Phantom):
     """Generates a series of cocentric alternating black and white circles whose
     radii are changing at a parabolic rate. These line spacings cover a range
@@ -172,7 +216,7 @@ class HyperbolicConcentric(Phantom):
             The exponent in the function r(n) = r0*(n+1)^k.
         """
 
-        super(HyperbolicConcentric, self).__init__(shape='circle')
+        super(HyperbolicConcentric, self).__init__()
         center = Point([0.5, 0.5])
         Nmax_rings = 512
 
@@ -183,13 +227,13 @@ class HyperbolicConcentric(Phantom):
             if radius > 0.5 and ring % 2:
                 break
 
-            self.append(Feature(
-                        Circle(center, radius), mass_atten=(-1.)**(ring % 2)))
+            self.append(Phantom(geometry=Circle(center, radius),
+                                mass_atten=(-1.)**(ring % 2)))
             # record information about the rings
             widths.append(radius - radii[-1])
             radii.append(radius)
 
-        self.reverse()  # smaller circles on top
+        self.children.reverse()  # smaller circles on top
         self.radii = radii
         self.widths = widths
 
@@ -208,14 +252,15 @@ class DynamicRange(Phantom):
     shape : string, optional
     """
 
-    def __init__(self, steps=10, jitter=True, shape='square'):
-        super(DynamicRange, self).__init__(shape=shape)
+    def __init__(self, steps=10, jitter=True,
+                 geometry=Square(center=Point([0.5, 0.5]), side_length=1)):
+        super(DynamicRange, self).__init__(geometry=geometry)
 
         # determine the size and and spacing of the circles around the box.
-        spacing = 1. / np.ceil(np.sqrt(steps))
+        spacing = 1.0 / np.ceil(np.sqrt(steps))
         radius = spacing / 4
 
-        colors = [2**j for j in range(0, steps)]
+        colors = [2.0**j for j in range(0, steps)]
         np.random.shuffle(colors)
 
         if jitter:
@@ -231,8 +276,8 @@ class DynamicRange(Phantom):
             # place the circles
             for i in range(0, steps):
                 center = Point([px[i] + jitters[0, i], py[i] + jitters[1, i]])
-                self.append(Feature(
-                            Circle(center, radius), mass_atten=colors[i]))
+                self.append(Phantom(geometry=Circle(center, radius),
+                                    mass_atten=colors[i]))
         else:
             # completely random
             for i in range(0, steps):
@@ -269,7 +314,9 @@ class DogaCircles(Phantom):
         n_shuffles : int
             The number of times to shuffles the latin square
         """
-        super(DogaCircles, self).__init__(shape='square')
+        super(DogaCircles, self).__init__(geometry=Square(center=Point([0.5,
+                                                                        0.5]),
+                                                          side_length=1))
 
         n_sizes = int(n_sizes)
         if n_sizes <= 0:
@@ -311,7 +358,8 @@ class DogaCircles(Phantom):
 
         for (k, x, y) in zip(radii.flatten(), _x.flatten(),
                              _y.flatten()):
-            self.append(Feature(Circle(Point([x, y]), k)))
+            self.append(Phantom(geometry=Circle(Point([x, y]), k),
+                                mass_atten=1))
 
         self.radii = radii
         self.x = _x
@@ -343,7 +391,7 @@ class SlantedSquares(Phantom):
     """
 
     def __init__(self, count=10, angle=5/360*2*PI, gap=0):
-        super(SlantedSquares, self).__init__(shape='circle')
+        super(SlantedSquares, self).__init__()
         if count < 1:
             raise ValueError("There must be at least one square.")
 
@@ -404,9 +452,9 @@ class SlantedSquares(Phantom):
         side_length = d_max/np.sqrt(2)
         for i in range(0, x.size):
             center = Point([x[i], y[i]])
-            s = Square(center, side_length)
+            s = Square(center=center, side_length=side_length)
             s.rotate(angle, center)
-            self.append(Feature(s))
+            self.append(Phantom(geometry=s, mass_atten=1))
 
         self.angle = angle
         self.count = count
@@ -421,12 +469,12 @@ class UnitCircle(Phantom):
     """Generates a phantom with a single circle in its center."""
 
     def __init__(self, radius=0.5, mass_atten=1):
-        super(UnitCircle, self).__init__()
-        self.append(Feature(
-                    Circle(Point([0.5, 0.5]), radius), mass_atten))
+        super(UnitCircle, self).__init__(geometry=Circle(Point([0.5, 0.5]),
+                                                         radius),
+                                         mass_atten=mass_atten)
 
 
-class Soil(Phantom):
+class Soil(UnitCircle):
     """Generates a phantom with structure similar to soil.
 
     References
@@ -437,39 +485,35 @@ class Soil(Phantom):
     """
 
     def __init__(self, porosity=0.412):
-        super(Soil, self).__init__(shape='circle')
+        super(Soil, self).__init__(radius=0.5, mass_atten=0.5)
         self.sprinkle(30, [0.1, 0.03], 0, mass_atten=0.5,
                       max_density=1-porosity)
         # use overlap to approximate area opening transform because opening is
         # not discrete
         self.sprinkle(100, 0.02, 0.01, mass_atten=-.25)
-        background = Feature(Circle(Point([0.5, 0.5]), 0.5), mass_atten=0.5)
-        self.insert(0, background)
 
 
-class WetCircles(Phantom):
+class WetCircles(UnitCircle):
     def __init__(self):
-        super(WetCircles, self).__init__(shape='circle')
+        super(WetCircles, self).__init__(radius=0.5, mass_atten=0.5)
         porosity = 0.412
         np.random.seed(0)
 
         self.sprinkle(30, [0.1, 0.03], 0.005, mass_atten=0.5,
                       max_density=1 - porosity)
-        background = Feature(Circle(Point([0.5, 0.5]), 0.5), mass_atten=0.5)
-        self.insert(0, background)
 
         pairs = [(23, 12), (12, 19), (29, 11), (22, 5), (1, 3), (21, 9),
                  (8, 2), (2, 27)]
         for p in pairs:
-            A = self.feature[p[0]].geometry
-            B = self.feature[p[1]].geometry
+            A = self.children[p[0]-1].geometry
+            B = self.children[p[1]-1].geometry
 
             thetaA = [np.pi/2, 10]
             thetaB = [np.pi/2, 10]
 
             mesh = wet_circles(A, B, thetaA, thetaB)
 
-            self.append(Feature(mesh, mass_atten=-.25))
+            self.append(Phantom(geometry=mesh, mass_atten=-.25))
 
 
 def wet_circles(A, B, thetaA, thetaB):
@@ -495,13 +539,17 @@ def wet_circles(A, B, thetaA, thetaB):
     rB = B.radius
 
     points = []
-    for t in (np.arange(0, thetaA[1])/(thetaA[1]-1) - 0.5) * thetaA[0] + angleA:
+    for t in ((np.arange(0, thetaA[1])/(thetaA[1]-1) - 0.5)
+              * thetaA[0] + angleA):
+
         x = rA*np.cos(t) + A.center.x
         y = rA*np.sin(t) + A.center.y
         points.append([x, y])
 
     mid = len(points)
-    for t in (np.arange(0, thetaB[1])/(thetaB[1]-1) - 0.5) * thetaB[0] + angleB:
+    for t in ((np.arange(0, thetaB[1])/(thetaB[1]-1) - 0.5)
+              * thetaB[0] + angleB):
+
         x = rB*np.cos(t) + B.center.x
         y = rB*np.sin(t) + B.center.y
         points.append([x, y])
@@ -565,7 +613,8 @@ class SiemensStar(Phantom):
 
         # connect pairs of points to the center to make triangles
         for i in range(0, n_sectors//2):
-            f = Feature(Triangle(points[2*i], points[2*i+1], center))
+            f = Phantom(geometry=Triangle(points[2*i], points[2*i+1], center),
+                        mass_atten=1)
             self.append(f)
 
         self.ratio = n_points / (4 * np.pi * radius)

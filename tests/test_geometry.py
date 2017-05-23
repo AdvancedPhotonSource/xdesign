@@ -50,7 +50,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from xdesign.geometry import *
-from xdesign.geometry import beamcirc, beampoly
+from xdesign.acquisition import beamcirc, beampoly
 from xdesign.acquisition import *
 from numpy.testing import assert_allclose, assert_raises, assert_equal
 import numpy as np
@@ -207,10 +207,12 @@ def test_beamcirc_intersecting_fully():
     beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 3.14159265359, rtol=1e-6)
 
+
 def test_beampoly_intersecting_fully():
     tri = Rectangle(Point([-1, -1]), Point([1, -1]), Point([1, 1]), Point([-1, 1]))
     beam = Beam(Point([-2, 0]), Point([2, 0]), 3)
     assert_allclose(beampoly(beam, tri), 4, rtol=1e-6)
+
 
 # Vertical intersection.
 
@@ -219,10 +221,12 @@ def test_beamcirc_vertical_intersection():
     beam = Beam(Point([-1, -1]), Point([1, 1]), 1)
     assert_allclose(beamcirc(beam, circ), 1.91322295498, rtol=1e-6)
 
+
 def test_beampoly_vertical_intersection():
     tri = Rectangle(Point([-5, 0]), Point([5, 0]), Point([5, 1]), Point([-5, 1]))
     beam = Beam(Point([0, -1]), Point([0, 1]), 1)
     assert_allclose(beampoly(beam, tri), 1, rtol=1e-6)
+
 
 # Line
 
@@ -292,6 +296,59 @@ def test_Mesh_center():
     m.pop()
     m.pop()
     assert_equal(m.center, Point([0, 0]))
+
+
+def test_Circle_contains():
+    circle0 = Circle(Point([0, 0]), 1)
+    circle1 = Circle(Point([0, 0]), 0.1)
+    circle2 = Circle(Point([-1, 0]), 1)
+    circle3 = Circle(Point([0, 1]), 5)
+    circle4 = Circle(Point([10, 14]), 3)
+
+    triangle0 = Triangle(Point([0, 0]), Point([1, 0]), Point([0, 1]))
+    triangle1 = Triangle(Point([0, 0]), Point([1/2, 0]), Point([0, 1/2]))
+    triangle2 = Triangle(Point([-2, 0]), Point([1/2, 0]), Point([0, 1/2]))
+    triangle3 = Triangle(Point([-5, -5]), Point([5, 5]), Point([5, 10]))
+    triangle4 = Triangle(Point([-50, -50]), Point([-50, -51]),
+                         Point([-20, -51]))
+
+    assert circle0.contains(circle0)  # self containing
+    assert circle0.contains(circle1)      # full containing
+    assert not circle0.contains(circle2)  # partial containing
+    assert not circle0.contains(circle3)  # contained by
+    assert not circle0.contains(circle4)  # not containing
+
+    assert circle0.contains(triangle0)
+    assert not circle0.contains(triangle2)
+    assert not circle0.contains(triangle3)
+    assert not circle0.contains(triangle4)
+
+
+def test_Polygon_contains():
+    circle0 = Circle(Point([0, 0]), 1)
+    circle1 = Circle(Point([0.2, 0.2]), 0.1)
+    circle2 = Circle(Point([-1, 0]), 1)
+    circle3 = Circle(Point([0, 1]), 5)
+    circle4 = Circle(Point([10, 14]), 3)
+
+    triangle0 = Triangle(Point([0, 0]), Point([1, 0]), Point([0, 1]))
+    triangle1 = Triangle(Point([0.1, 0.1]), Point([0.5, 0.1]),
+                         Point([0.1, 0.5]))
+    triangle2 = Triangle(Point([-2, 0]), Point([1/2, 0]), Point([0, 1/2]))
+    triangle3 = Triangle(Point([-5, -5]), Point([5, 5]), Point([5, 10]))
+    triangle4 = Triangle(Point([-50, -50]), Point([-50, -51]),
+                         Point([-20, -51]))
+
+    assert triangle0.contains(triangle0)
+    assert triangle0.contains(triangle1)
+    assert not triangle0.contains(triangle2)
+    assert not triangle0.contains(triangle3)
+    assert not triangle0.contains(triangle4)
+
+    assert triangle0.contains(circle1)
+    assert not triangle0.contains(circle2)  # partial containing
+    assert not triangle0.contains(circle3)  # contained by
+    assert not triangle0.contains(circle4)  # not containing
 
 
 if __name__ == '__main__':

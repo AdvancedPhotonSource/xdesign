@@ -2,20 +2,22 @@
 ==========================
 
 .. automodule:: xdesign.acquisition
-   :members:
-   :show-inheritance:
-   :undoc-members:
-   :synopsis: Defines objects related to collection and organization of probe data.
+  :members:
+  :show-inheritance:
+  :undoc-members:
 
-   .. rubric:: **Functions:**
+  .. rubric:: **Classes:**
 
-   .. autosummary::
+  .. autosummary::
 
-      Beam
-      Probe
-      sinogram
-      angleogram
-      raster_scan
-      angle_scan
+    Beam
+    Probe
 
-.. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
+  .. rubric:: **Functions:**
+
+  .. autosummary::
+
+    sinogram
+    angleogram
+    raster_scan
+    angle_scan

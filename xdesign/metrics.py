@@ -45,7 +45,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
+"""Objects and methods for computing the quality of reconstructions.
 
+.. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
+"""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -67,27 +70,22 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['ImageQuality',
-           'probability_mask',
-           'compute_quality',
-           'compute_PCC',
+__all__ = ['compute_PCC',
            'compute_likeness',
            'compute_background_ttest',
            'compute_mtf',
-           'compute_nps',
-           'compute_neq',
-           'compute_mtf_siemens']
+           'compute_mtf_ffst',
+           'compute_mtf_lwkj',
+           'compute_nps_ffst',
+           'compute_neq_d',
+           'ImageQuality',
+           'compute_quality']
 
 
-def compute_mtf2(phantom, image):
-    """Approximates the modulation tranfer function using the
-    HyperbolicCocentric phantom. Calculates the MTF from the modulation depth
+def compute_mtf(phantom, image):
+    """Approximate the modulation tranfer function using the
+    HyperbolicCocentric phantom. Calculate the MTF from the modulation depth
     at each edge on the line from (0.5,0.5) to (0.5,1). MTF = (hi-lo)/(hi+lo)
-
-    This method rapidly becomes inaccurate at small wavelenths because the
-    measurement gets out of phase with the waves due to rounding error. It
-    should be replaced with a method that fits a decaying damped cylindrical
-    sine function.
 
     Parameters
     ---------------
@@ -102,7 +100,19 @@ def compute_mtf2(phantom, image):
         wavelenth in the scale of the original phantom
     MTF : list
         MTF values
+
+    .. deprecated:: 0.3
+        This method rapidly becomes inaccurate at small wavelenths because the
+        measurement gets out of phase with the waves due to rounding error. Use
+        another one of the MTF functions instead.
+
+    .. seealso::
+        :meth:`compute_mtf_ffst`
+        :meth:`compute_mtf_lwkj`
     """
+    DeprecationWarning('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
+                       'compute_mtf_ffst instead')
+
     if not isinstance(phantom, HyperbolicConcentric):
         raise TypeError
 
@@ -139,8 +149,8 @@ def compute_mtf2(phantom, image):
     return wavelength, MTF
 
 
-def compute_mtf(phantom, image, Ntheta=4):
-    '''Uses method described in :cite:`Friedman:13` to calculate the MTF.
+def compute_mtf_ffst(phantom, image, Ntheta=4):
+    '''Calculate the MTF using the method described in :cite:`Friedman:13`.
 
     Parameters
     ---------------
@@ -159,10 +169,13 @@ def compute_mtf(phantom, image, Ntheta=4):
         MTF values
     bin_centers : ndarray
         the center of the bins if Ntheta >= 1
+
+    .. seealso::
+        :meth:`compute_mtf_lwkj`
     '''
     if not isinstance(phantom, UnitCircle):
         raise TypeError('MTF requires unit circle phantom.')
-    if phantom.feature[0].radius >= 0.5:
+    if phantom.geometry.radius >= 0.5:
         raise ValueError('Radius of the phantom should be less than 0.5.')
     if Ntheta <= 0:
         raise ValueError('Must calculate MTF in at least one direction.')
@@ -178,8 +191,8 @@ def compute_mtf(phantom, image, Ntheta=4):
     # print(x)
 
     # Normalize the data to [0,1)
-    x_circle = np.mean(image[R < phantom.feature[0].radius - 0.01])
-    x_air = np.mean(image[R > phantom.feature[0].radius + 0.01])
+    x_circle = np.mean(image[R < phantom.geometry.radius - 0.01])
+    x_air = np.mean(image[R > phantom.geometry.radius + 0.01])
     # print(x_air)
     # print(x_circle)
     image = (image - x_air) / (x_circle - x_air)
@@ -232,7 +245,7 @@ def compute_mtf(phantom, image, Ntheta=4):
     LSF = -np.diff(ESF, axis=1)
 
     # trim the LSF so that the edge is in the center of the data
-    edge_center = int(phantom.feature[0].radius / R_bin_width)
+    edge_center = int(phantom.geometry.radius / R_bin_width)
     # print(edge_center)
     pad = int(LSF.shape[1] / 5)
     LSF = LSF[:, edge_center - pad:edge_center + pad + 1]
@@ -257,9 +270,9 @@ def compute_mtf(phantom, image, Ntheta=4):
     return faxis, MTF, bin_centers
 
 
-def compute_mtf_siemens(phantom, image):
-    """Calculates the MTF using the modulated Siemens Star method in
-    Loebich et al. (2007).
+def compute_mtf_lwkj(phantom, image):
+    """Calculate the MTF using the modulated Siemens Star method in
+    :cite:`loebich2007digital`.
 
     parameters
     ----------
@@ -273,6 +286,9 @@ def compute_mtf_siemens(phantom, image):
         The spatial frequency in cycles per unit length
     M : array
         The MTF values for each frequency
+
+    .. seealso::
+        :meth:`compute_mtf_ffst`
     """
     # Determine which radii to sample. Do not sample linearly because the
     # spatial frequency changes as 1/r
@@ -291,7 +307,7 @@ def compute_mtf_siemens(phantom, image):
 
 
 def get_line_at_radius(image, fradius, N):
-    """Returns an Nx1 array of the values of the image at a radius.
+    """Return an Nx1 array of the values of the image at a radius.
 
     parameters
     ----------
@@ -342,7 +358,7 @@ def get_line_at_radius(image, fradius, N):
 
 
 def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
-    """Fits a periodic function of known frequency, f, to the value and angle
+    """Fit a periodic function of known frequency, f, to the value and angle
     data. value = Func(angle, f). NOTE: Because the fiting function is
     sinusoidal instead of square, contrast values larger than unity are clipped
     back to unity.
@@ -392,7 +408,7 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
 
 
 def periodic_function(p, x):
-    """periodic function for fitting to the spokes of the Siemens Star.
+    """A periodic function for fitting to the spokes of the Siemens Star.
 
     parameters
     ----------
@@ -421,8 +437,8 @@ def periodic_function(p, x):
     return value
 
 
-def compute_nps(phantom, A, B=None, plot_type='frequency'):
-    '''Calculates the noise power spectrum from a unit circle image using the
+def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
+    '''Calculate the noise power spectrum from a unit circle image using the
     method from :cite:`Friedman:13`.
 
     Parameters
@@ -474,7 +490,7 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
     # cut out uniform region (square circumscribed by unit circle)
     i_half = int(image.shape[0] / 2)  # half image
     # half of the square inside the circle
-    s_half = int(image.shape[0] * phantom.feature[0].radius / np.sqrt(2))
+    s_half = int(image.shape[0] * phantom.geometry.radius / np.sqrt(2))
     unif_region = image[i_half - s_half:i_half +
                         s_half, i_half - s_half:i_half + s_half]
 
@@ -517,8 +533,8 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
         return X, Y, NPS
 
 
-def compute_neq(phantom, A, B):
-    '''Calculates the NEQ according to recommendations by :cite:`Dobbins:95`.
+def compute_neq_d(phantom, A, B):
+    '''Calculate the NEQ according to recommendations by :cite:`Dobbins:95`.
 
     Parameters
     ----------
@@ -538,8 +554,8 @@ def compute_neq(phantom, A, B):
     NEQ :
         the Noise Equivalent Quanta
     '''
-    mu_a, NPS = compute_nps(phantom, A, B, plot_type='histogram')
-    mu_b, MTF, bins = compute_mtf(phantom, A, Ntheta=1)
+    mu_a, NPS = compute_nps_ffst(phantom, A, B, plot_type='histogram')
+    mu_b, MTF, bins = compute_mtf_ffst(phantom, A, Ntheta=1)
 
     # remove negative MT
     MTF = MTF[:, mu_b > 0]
@@ -560,75 +576,8 @@ def compute_neq(phantom, A, B):
     return mu_b, NEQ
 
 
-def probability_mask(phantom, size, ratio=8, uniform=True):
-    """Returns the probability mask for each phase in the phantom.
-
-    Parameters
-    ------------
-    size : scalar
-        The side length in pixels of the resulting square image.
-    ratio : scalar, optional
-        The discretization works by drawing the shapes in a larger space
-        then averaging and downsampling. This parameter controls how many
-        pixels in the larger representation are averaged for the final
-        representation. e.g. if ratio = 8, then the final pixel values
-        are the average of 64 pixels.
-    uniform : boolean, optional
-        When set to False, changes the way pixels are averaged from a
-        uniform weights to gaussian weights.
-
-    Returns
-    ------------
-    image : list of numpy.ndarray
-        A list of float masks for each phase in the phantom.
-    """
-
-    # Make a higher resolution grid to sample the continuous space
-    _x = np.arange(0, 1, 1 / size / ratio)
-    _y = np.arange(0, 1, 1 / size / ratio)
-    px, py = np.meshgrid(_x, _y)
-
-    phases = {0}  # tracks what values exist in this phantom
-
-    # Draw the shapes to the higher resolution grid
-    image = np.zeros((size * ratio, size * ratio), dtype=np.float)
-    for m in range(phantom.population):
-        x = phantom.feature[m].center.x
-        y = phantom.feature[m].center.y
-        rad = phantom.feature[m].radius
-        val = phantom.feature[m].mass_atten
-        # image *= ((px - x)**2 + (py - y)**2 >= rad**2) # partial overlap
-        # support
-        image += ((px - x)**2 + (py - y)**2 < rad**2) * val
-
-        # collect a list of the unique values in the phantom
-        phases = phases | {val}
-
-    # generate a separate mask for each phase
-    masks = []
-    phases = list(phases)
-    phases.sort()
-    for m in range(0, len(phases)):
-        masks.append(0)
-
-        # First make a boolean array for each value,
-        val = phases[m]
-        masks[m] = (image == val).astype(float)
-
-        # then use a uniform filter to calculate the local percentage for each
-        # phase.
-        if uniform:
-            masks[m] = scipy.ndimage.uniform_filter(masks[m], ratio)
-        else:
-            masks[m] = scipy.ndimage.gaussian_filter(masks[m], ratio / 4.)
-        # Resample
-        masks[m] = masks[m][::ratio, ::ratio]
-
-    return masks
-
-
 def compute_PCC(A, B, masks=None):
-    """ Computes the Pearson product-moment correlation coefficients (PCC) for
+    """Computes the Pearson product-moment correlation coefficients (PCC) for
     the two images.
 
     Parameters
@@ -659,7 +608,7 @@ def compute_PCC(A, B, masks=None):
 
 
 def compute_likeness(A, B, masks):
-    """ Predicts the likelihood that each pixel in B belongs to a phase based
+    """Predict the likelihood that each pixel in B belongs to a phase based
     on the histogram of A.
 
     Parameters
@@ -687,7 +636,7 @@ def compute_likeness(A, B, masks):
 
 
 def compute_background_ttest(image, masks):
-    """Determines whether the background has significantly different luminance
+    """Determine whether the background has significantly different luminance
     than the other phases.
 
     Parameters
@@ -720,7 +669,7 @@ def compute_background_ttest(image, masks):
 
 
 class ImageQuality(object):
-    """Stores information about image quality.
+    """Store information about image quality.
 
     Attributes
     ----------------
@@ -792,9 +741,11 @@ class ImageQuality(object):
 
 def compute_quality(reference, reconstructions, method="MSSSIM", L=1):
     """
-    Computes full-reference image quality metrics for each of the reconstructions.
+    Computes full-reference image quality metrics for each of the
+    reconstructions.
 
-    Available methods include SSIM :cite:`wang:02`, MSSSIM :cite:`wang:03`, VIFp :cite:`Sheikh:15`, and FSIM :cite:`zhang:11`.
+    Available methods include SSIM :cite:`wang:02`, MSSSIM :cite:`wang:03`,
+    VIFp :cite:`Sheikh:15`, and FSIM :cite:`zhang:11`.
 
     Parameters
     ---------
@@ -840,34 +791,30 @@ def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
     """Calculates the Visual Information Fidelity (VIFp) between two images in
     in a multiscale pixel domain with scalar.
 
------------COPYRIGHT NOTICE STARTS WITH THIS LINE------------
-Copyright (c) 2005 The University of Texas at Austin
-All rights reserved.
+    -----------COPYRIGHT NOTICE STARTS WITH THIS LINE------------
+    Copyright (c) 2005 The University of Texas at Austin
+    All rights reserved.
 
-Permission is hereby granted, without written agreement and without license or
-royalty fees, to use, copy, modify, and distribute this code (the source files)
-and its documentation for any purpose, provided that the copyright notice in
-its entirety appear in all copies of this code, and the original source of this
-code, Laboratory for Image and Video Engineering
-(LIVE, http://live.ece.utexas.edu) at the University of Texas at Austin
-(UT Austin, http://www.utexas.edu), is acknowledged in any publication that
-reports research using this code. The research is to be cited in the
-bibliography as:
-
-H. R. Sheikh and A. C. Bovik, "Image Information and Visual Quality", IEEE
-Transactions on Image Processing, (to appear).
-
-IN NO EVENT SHALL THE UNIVERSITY OF TEXAS AT AUSTIN BE LIABLE TO ANY PARTY FOR
-DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF
-THE USE OF THIS DATABASE AND ITS DOCUMENTATION, EVEN IF THE UNIVERSITY OF TEXAS
-AT AUSTIN HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-THE UNIVERSITY OF TEXAS AT AUSTIN SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE. THE DATABASE PROVIDED HEREUNDER IS ON AN "AS
-IS" BASIS, AND THE UNIVERSITY OF TEXAS AT AUSTIN HAS NO OBLIGATION TO PROVIDE
-MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
------------COPYRIGHT NOTICE ENDS WITH THIS LINE------------
+    Permission is hereby granted, without written agreement and without license
+    or royalty fees, to use, copy, modify, and distribute this code (the source
+    files) and its documentation for any purpose, provided that the copyright
+    notice in its entirety appear in all copies of this code, and the original
+    source of this code, Laboratory for Image and Video Engineering (LIVE,
+    http://live.ece.utexas.edu) at the University of Texas at Austin (UT
+    Austin, http://www.utexas.edu), is acknowledged in any publication that
+    reports research using this code. The research is to be cited in the
+    bibliography as: H. R. Sheikh and A. C. Bovik, "Image Information and
+    Visual Quality", IEEE Transactions on Image Processing, (to appear). IN NO
+    EVENT SHALL THE UNIVERSITY OF TEXAS AT AUSTIN BE LIABLE TO ANY PARTY FOR
+    DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT
+    OF THE USE OF THIS DATABASE AND ITS DOCUMENTATION, EVEN IF THE UNIVERSITY
+    OF TEXAS AT AUSTIN HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. THE
+    UNIVERSITY OF TEXAS AT AUSTIN SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+    INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+    AND FITNESS FOR A PARTICULAR PURPOSE. THE DATABASE PROVIDED HEREUNDER IS ON
+    AN "AS IS" BASIS, AND THE UNIVERSITY OF TEXAS AT AUSTIN HAS NO OBLIGATION
+    TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+    -----------COPYRIGHT NOTICE ENDS WITH THIS LINE------------
 
     Parameters
     -----------
@@ -1054,10 +1001,10 @@ def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
     # The relative imporance of each level as determined by human experiment
     # weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
-    for l in range(0, nlevels):
+    for level in range(0, nlevels):
         imQual += _compute_ssim(ImageQuality(img1, img2), sigma=sigma, L=L,
-                                K=K, scale=sigma * 2**l)
-        if l == nlevels - 1:
+                                K=K, scale=sigma * 2**level)
+        if level == nlevels - 1:
             break
 
         # Downsample (using ndimage.zoom to prevent sampling bias)

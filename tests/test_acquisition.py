@@ -1,9 +1,12 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from xdesign.acquisition import raster_scan
-from numpy.testing import assert_allclose, assert_raises, assert_equal
 import numpy as np
+import os.path
+
+from xdesign.acquisition import raster_scan, sinogram
+from xdesign.material import XDesignDefault
+from numpy.testing import assert_allclose
 
 
 def test_raster_scan():
@@ -16,3 +19,18 @@ def test_raster_scan():
                         11.,   0.75,   -9.,     0.75])
 
     assert_allclose(positions, correct)
+
+
+def test_sinogram():
+    p = XDesignDefault()
+    sino, _ = sinogram(32, 32, p)
+
+    ref_file = 'tests/test_sinogram.npy'
+
+    if not os.path.isfile(ref_file):
+        ImportError('sinogram reference not found; use test_sinogram.ipynb' +
+                    'to generate it')
+
+    sino_reference = np.load(ref_file)
+
+    assert_allclose(sino, sino_reference, atol=1e-2)

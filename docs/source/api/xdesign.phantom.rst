@@ -5,12 +5,9 @@
    :members:
    :show-inheritance:
    :undoc-members:
-   :synopsis: Defines an object for organizing :class:`.Feature`.
 
-   .. rubric:: **Functions:**
+   .. rubric:: **Classes:**
 
    .. autosummary::
 
       Phantom
-
-.. moduleauthor:: Daniel J Ching <daniel.j.ching@gmail.com>
