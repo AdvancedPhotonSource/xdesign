@@ -307,9 +307,9 @@ class Probe(Beam):
         if intersection is None or phantom.material is None:
             attenuation = 0.0
         else:
-            # [ ] = [cm^2] / [cm] * [g/cm^3] * [cm^2/g]
-            attenuation = (intersection / self.size * phantom.material.density
-                           * phantom.material.mass_attenuation(self.energy))
+            # [ ] = [cm^2] / [cm] * [1/cm]
+            attenuation = (intersection / self.size
+                           * phantom.material.linear_attenuation(self.energy))
 
         if phantom.geometry is None or intersection > 0:
             # check the children for containers and intersecting geometries
