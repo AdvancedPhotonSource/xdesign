@@ -45,7 +45,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
+"""Objects and methods for computing the quality of reconstructions.
 
+.. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
+"""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -107,8 +110,8 @@ def compute_mtf(phantom, image):
         :meth:`compute_mtf_ffst`
         :meth:`compute_mtf_lwkj`
     """
-    DeprecationWarning('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
-                       'compute_mtf_ffst instead')
+    warnings.warn('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
+                  'compute_mtf_ffst instead', DeprecationWarning)
 
     if not isinstance(phantom, HyperbolicConcentric):
         raise TypeError
@@ -269,7 +272,7 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
 
 def compute_mtf_lwkj(phantom, image):
     """Calculate the MTF using the modulated Siemens Star method in
-    Loebich et al. (2007).
+    :cite:`loebich2007digital`.
 
     parameters
     ----------

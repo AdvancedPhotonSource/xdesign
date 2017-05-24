@@ -45,14 +45,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
+"""Defines objects which auto-generate a parameterized :class:`.Phantom`.
+
+.. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
+.. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
+"""
+
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
 import logging
+import warnings
+
+try:
+    import xraylib as xl
+except ImportError:
+    warnings.warn("xraylib is requried for XraylibMaterial", ImportWarning)
 
 from xdesign.formats import get_NIST_table
+
 
 logger = logging.getLogger(__name__)
 
@@ -61,33 +74,107 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['SimpleMaterial',
-           'NISTMaterial']
+           'NISTMaterial',
+           'XraylibMaterial']
 
 
-class SimpleMaterial(object):
-    """Simple material with constant mass_attenuation parameter only."""
+def memodict(f):
+    """Memoization decorator for a function taking a single argument
+    http://code.activestate.com/recipes/578231-probably-the-fastest-memoization-decorator-in-the-/
+    """
+    class memodict(dict):
+        def __missing__(self, key):
+            ret = self[key] = f(key)
+            return ret
+    return memodict().__getitem__
+
+
+class Material(object):
+    """A base class for Materials.
+
+    Attributes
+    ----------
+    density : float [g/cm^3] (default: 1.0)
+        The mass density of the material
+    """
+
+    def __init__(self, density=1.0):
+        super(Material, self).__init__()
+        self.density = density
+
+
+class SimpleMaterial(Material):
+    """Simple material with constant mass_attenuation parameter only.
+
+    Attributes
+    ----------
+    density : float [g/cm^3] (default: 1.0)
+        The mass density of the material
+    """
     def __init__(self, mass_attenuation=1.0):
-        super(SimpleMaterial, self).__init__()
+        super(SimpleMaterial, self).__init__(density=1.0)
         self._mass_attenuation = mass_attenuation
-        self.density = 1.0
 
     def __repr__(self):
         return "SimpleMaterial(mass_attenuation={})".format(
                 repr(self._mass_attenuation))
 
+    def linear_attenuation(self, energy):
+        """linear x-ray attenuation [1/cm] for the energy [KeV]."""
+        return self._mass_attenuation
+
     def mass_attenuation(self, energy):
+        """mass x-ray attenuation [1/cm] for the energy [KeV]."""
         return self._mass_attenuation
 
 
-class NISTMaterial(object):
-    """Materials which use NIST data to automatically calculate material
-    properties based on beam energy in MeV.
+class XraylibMaterial(Material):
+    """Materials which use `xraylib` data to automatically calculate material
+    properties based on beam energy in KeV.
 
     Attributes
     ----------
-    density : float [g/cm^3]
-        The density of the material.
-    coefficent_table : Dictionary
+    compound : string
+        Molecular formula of the material.
+    density : float [g/cm^3] (default: 1.0)
+        The mass density of the material
+    """
+
+    def __init__(self, compound, density):
+        self.compound = compound
+        self.density = density
+
+    def __repr__(self):
+        return "XraylibMaterial({0}, {1})".format(repr(self.compound),
+                                                  repr(self.density))
+
+    @memodict
+    def beta(self, energy):
+        """Absorption coefficient."""
+        return xl.Refractive_Index_Im(self.compound, energy, self.density)
+
+    @memodict
+    def delta(self, energy):
+        """Decrement of refractive index."""
+        return 1 - xl.Refractive_Index_Re(self.compound, energy, self.density)
+
+
+class NISTMaterial(Material):
+    """Materials which use NIST data to automatically calculate material
+    properties based on beam energy in KeV.
+
+    If no density is provided, then density defaults to the density in the NIST
+    database.
+
+    Attributes
+    ----------
+    name : string
+        The NIST string decribing the material.
+    density : float [g/cm^3] (default: None)
+        The mass density of the material.
+    nist_density : float [g/cm^3] (default: None)
+        The mass density of the material accordint to NIST.
+    coefficent_table : :py:class:`Dictionary`
         A Dictionary which contains the equal size arrays describing material
         properties at various beam energies [keV].
 
@@ -95,82 +182,42 @@ class NISTMaterial(object):
         coefficent_table['energy']           = array([0, 1, 2])
         coefficent_table['mass_attenuation'] = array([8, 6, 2])
 
+    References
+    ----------
     Hubbell, J.H. and Seltzer, S.M. (2004), Tables of X-Ray Mass Attenuation
     Coefficients and Mass Energy-Absorption Coefficients (version 1.4).
     [Online] Available: http://physics.nist.gov/xaamdi [2017, May 11].
     National Institute of Standards and Technology, Gaithersburg, MD.
     """
 
-    def __init__(self, name, coefficent_table=None, density=None):
+    def __init__(self, name, density=None):
         super(NISTMaterial, self).__init__()
 
         self.name = name
 
-        if coefficent_table is None or density is None:
-            table, density = get_NIST_table(name)
-            self.coefficent_table = table
-            self.density = density
+        table, nist_density = get_NIST_table(name)
+        self.coefficent_table = table
+        self.nist_density = nist_density
 
+        if density is None:
+            self.density = nist_density
         else:
-            self.coefficent_table = coefficent_table
             self.density = density
 
     def __repr__(self):
-        return "NISTMaterial({0})".format(
-                repr(self.name),
-                repr(self.coefficent_table),
-                repr(self.density))
+        return "NISTMaterial({0}, density={1})".format(repr(self.name),
+                                                       repr(self.density))
 
-    def compton_cross_section(self, energy):
-        """Compton cross-section of the electron [cm^2]."""
-        raise NotImplementedError
-
-    def photoelectric_cross_section(self, energy):
-        raise NotImplementedError
-
-    def atomic_form_factor(self, energy):
-        """Measure of the scattering amplitude of a wave by an isolated atom.
-        Read from NIST database [Unitless]."""
-        raise NotImplementedError
-
-    def atom_concentration(self, energy):
-        """Number of atoms per unit volume [1/cm^3]."""
-        raise NotImplementedError
-
-    def reduced_energy_ratio(self, energy):
-        """Energy ratio of the incident x-ray and the electron energy
-        [Unitless]."""
-        raise NotImplementedError
-
-    def photoelectric_absorption(self, energy):
-        """X-ray attenuation due to the photoelectric effect [1/cm]."""
-        raise NotImplementedError
-
-    def compton_scattering(self, energy):
-        """X-ray attenuation due to the Compton scattering [1/cm]."""
-        raise NotImplementedError
-
-    def electron_density(self, energy):
-        """Electron density [e/cm^3]."""
-        raise NotImplementedError
-
+    @memodict
     def linear_attenuation(self, energy):
-        """Total x-ray attenuation [1/cm]."""
+        """linear x-ray attenuation [1/cm] for the energy [KeV]."""
         return self.mass_attenuation(energy) * self.density
 
-    def refractive_index(self, energy):
-        raise NotImplementedError
-
+    @memodict
     def mass_attenuation(self, energy):
-        """x-ray mass attenuation [cm^2/g]"""
+        """mass x-ray attenuation [1/cm] for the energy [KeV]."""
         return self.predict_property('mass_attenuation', energy,
                                      loglogscale=True)
-
-    def mass_ratio(self):
-        raise NotImplementedError
-
-    def number_of_elements(self):
-        raise NotImplementedError
 
     def predict_property(self, property_name, energy, loglogscale=False):
         """Interpolate a property from the coefficient table."""

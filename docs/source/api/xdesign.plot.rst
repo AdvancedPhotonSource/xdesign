@@ -5,7 +5,6 @@
    :members:
    :show-inheritance:
    :undoc-members:
-   :synopsis: Contains functions for visualizing :class:`.Phantom` and :class:`.ImageQuality` metrics.
 
    .. rubric:: **Functions:**
 
@@ -21,5 +20,3 @@
       plot_mtf
       plot_nps
       plot_neq
-
-.. moduleauthor:: Daniel J Ching <daniel.j.ching@gmail.com>
