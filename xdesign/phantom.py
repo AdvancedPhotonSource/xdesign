@@ -206,7 +206,7 @@ class Phantom(object):
 
             if collision:
                 self.append(Feature(Circle(center, radius[0]),
-                            mass_atten=mass_atten))
+                            mass_atten=-np.random.rand()))
                 n_added += 1
                 continue
 
@@ -214,7 +214,7 @@ class Phantom(object):
             overlap = self._collision(circle)
             if overlap <= radius[0] - radius[1]:
                 self.append(Feature(Circle(center, radius[0] - overlap),
-                                    mass_atten=mass_atten))
+                                    mass_atten=-np.random.rand()))
                 n_added += 1
                 n_tries = 0
 
@@ -307,7 +307,7 @@ class Phantom(object):
             The largest amount that the circle is overlapping
         """
         if not isinstance(circle, Feature):
-            raise TypeErrorz
+            raise TypeError
 
         overlap = 0
         for m in range(self.population):

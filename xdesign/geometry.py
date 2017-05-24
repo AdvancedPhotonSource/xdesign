@@ -117,62 +117,86 @@ class Point(Entity):
     y : scalar
     """
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, z=None):
         if not (isinstance(x, Number) and isinstance(x, Number)):
             raise TypeError("x, y must be scalars.")
         super(Point, self).__init__()
         self.x = float(x)
         self.y = float(y)
+        self.z = float(z) if z is not None else None
 
     def __eq__(self, point):
-        return (self.x, self.y) == (point.x, point.y)
+        return (self.x, self.y, self.z) == (point.x, point.y, self.z)
 
     def __hash__(self):
-        return hash((self.x, self.y))
+        return hash((self.x, self.y, self.z))
 
     def __add__(self, point):
         """Addition."""
         if not isinstance(point, Point):
             raise TypeError("Points can only add to other points.")
-        return Point(self.x + point.x, self.y + point.y)
+        if self.z is None:
+            return Point(self.x + point.x, self.y + point.y)
+        else:
+            return Point(self.x + point.x, self.y + point.y, self.z + point.z)
 
     def __sub__(self, point):
         """Subtraction."""
         if not isinstance(point, Point):
             raise TypeError("Points can only subtract from other points.")
-        return Point(self.x - point.x, self.y - point.y)
+        if self.z is None:
+            return Point(self.x - point.x, self.y - point.y)
+        else:
+            return Point(self.x - point.x, self.y - point.y, self.z - point.z)
 
     def __mul__(self, c):
         """Scalar multiplication."""
         if not isinstance(c, Number):
             raise TypeError("Points can only multiply scalars.")
-        return Point(c * self.x, c * self.y)
+        if self.z is None:
+            return Point(c * self.x, c * self.y)
+        else:
+            return Point(c * self.x, c * self.y, c * self.z)
 
     def __truediv__(self, c):
         """Scalar division."""
         if not isinstance(c, Number):
             raise TypeError("Points can only divide by scalars.")
-        return Point(self.x / c, self.y / c)
+        if self.z is None:
+            return Point(self.x / c, self.y / c)
+        else:
+            return Point(self.x / c, self.y / c, self.z / c)
 
     def __str__(self):
-        return "(%s, %s)" % (self.x, self.y)
+        if self.z is None:
+            return "(%s, %s)" % (self.x, self.y)
+        else:
+            return "(%s, %s, %s)" % (self.x, self.y, self.z)
 
     @property
     def list(self):
         """Return list representation."""
-        return [self.x, self.y]
+        if self.z is None:
+            return [self.x, self.y]
+        else:
+            return [self.x, self.y, self.z]
 
     @property
     def norm(self):
         """Return the norm of the point."""
-        return np.hypot(self.x, self.y)
+        if self.z is None:
+            return np.hypot(self.x, self.y)
+        else:
+            return np.linalg.norm([self.x, self.y, self.z])
 
-    def translate(self, dx, dy):
+    def translate(self, dx, dy, dz=None):
         """Translate."""
         if not (isinstance(dx, Number) and isinstance(dy, Number)):
             raise TypeError("dx, dy must be scalars.")
         self.x += dx
         self.y += dy
+        if dz is not None:
+            self.z += dz
 
     def rotate(self, theta, point=None):
         """Rotate around a point."""
@@ -193,7 +217,10 @@ class Point(Entity):
         """Return the distance from an entity."""
         if not isinstance(entity, Point):
             raise NotImplementedError("Point to point distance only.")
-        return np.hypot(self.x - entity.x, self.y - entity.y)
+        if self.z is None:
+            return np.hypot(self.x - entity.x, self.y - entity.y)
+        else:
+            return np.linalg.norm(self.x - entity.x, self.y - entity.y, self.z - entity.z)
 
     def midpoint(self, entity):
         """Return the midpoint between entity and a point."""
@@ -704,6 +731,65 @@ class Square(Rectangle):
         p3 = Point(center.x - s, center.y - s)
         p4 = Point(center.x + s, center.y - s)
         super(Square, self).__init__(p1, p2, p3, p4)
+
+
+class Cuboid_3d(Entity):
+    """Cuboid in 3-D cartesian space. 
+    """
+
+    def __init__(self, x1, x2):
+        if not isinstance(x1, Point) and isinstance(x2, Point):
+            raise TypeError("input must be of type Point.")
+        super(Cuboid_3d, self).__init__()
+        self.x1 = x1
+        self.x2 = x2
+
+
+class Sphere_3d(Entity):
+    """Sphere in 3-D catesian space.
+    """
+
+    def __init__(self, center, radius):
+        if not isinstance(center, Point):
+            raise TypeError("center must be of type Point.")
+        super(Sphere_3d, self).__init__()
+        self.center = center
+        self.radius = radius
+
+
+class Rod_3d(Entity):
+    """Rod in 3-D cartesian space.
+    """
+
+    def __init__(self, x1, x2, radius):
+        if not isinstance(x1, Point) and isinstance(x2, Point):
+            raise TypeError("end points must be of type Point.")
+        super(Rod_3d, self).__init__()
+        self.x1 = x1
+        self.x2 = x2
+        self.radius = radius
+
+
+class TruncatedCone_3d(Entity):
+
+    def __init__(self, top_center, length, top_radius, bottom_radius):
+        if not isinstance(top_center, Point):
+            raise TypeError("center must be of type Point.")
+        super(TruncatedCone_3d, self).__init__()
+        self.top_center = top_center
+        self.length = length
+        self.top_radius = top_radius
+        self.bottom_radius = bottom_radius
+
+
+class Cylinder_3d(TruncatedCone_3d):
+    """Cylinder in 3-D cartesian space.
+    """
+
+    def __init__(self, top_center, length, radius):
+        if not isinstance(top_center, Point):
+            raise TypeError("center must be of type Point.")
+        super(Cylinder_3d, self).__init__(top_center, length, radius, radius)
 
 
 class Mesh(Entity):

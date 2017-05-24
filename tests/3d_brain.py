@@ -51,7 +51,6 @@ else:
     print 'Building grid...'
     t0 = time.time()
     grid = Grid3d(shape, voxel, 20)
-    grid.add_cuboid([50, -78, -78], [206, 78, 78], epoxy)
     grid.add_sphere([128, 0, 0], 50, protein)
     grid.add_rod([55, 0, -25], [200, 0, -25], 10, epoxy)
     grid.add_rod([128, -50, 5], [128, 50, 5], 10, epoxy)

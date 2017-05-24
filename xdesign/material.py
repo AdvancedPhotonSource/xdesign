@@ -463,7 +463,7 @@ class Soil(Phantom):
                       max_density=1-porosity)
         # use overlap to approximate area opening transform because opening is
         # not discrete
-        self.sprinkle(100, 0.02, 0.01, mass_atten=-.25)
+        self.sprinkle(100, 0.02, 0.01, mass_atten=-1)
         background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=0.5)
         self.insert(0, background)
 
@@ -599,6 +599,8 @@ class Foam(Phantom):
         if porosity < 0 or porosity > 1:
             raise ValueError('Porosity must be in the range [0,1).')
         self.sprinkle(300, size_range, gap, mass_atten=-1,
+                      max_density=porosity)
+        self.sprinkle(300, [0.1, 0.2], gap, mass_atten=-0.5,
                       max_density=porosity)
         background = Feature(Circle(Point(0.5, 0.5), 0.5), mass_atten=1)
         self.insert(0, background)
