@@ -111,8 +111,8 @@ def compute_mtf(phantom, image):
         :meth:`compute_mtf_ffst`
         :meth:`compute_mtf_lwkj`
     """
-    DeprecationWarning('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
-                       'compute_mtf_ffst instead')
+    warnings.warn('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
+                  'compute_mtf_ffst instead', DeprecationWarning)
 
     if not isinstance(phantom, HyperbolicConcentric):
         raise TypeError

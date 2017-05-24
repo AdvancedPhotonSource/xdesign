@@ -1223,7 +1223,8 @@ def halfspacecirc(d, r):
 
     # Returns the smaller fraction of the circle, so it can be at most 1/2.
     if f < 0 or 0.5 < f:
-        RuntimeWarning("halfspacecirc was out of bounds, {}".format(f))
+        warnings.warn("halfspacecirc was out of bounds, {}".format(f),
+                      RuntimeWarning)
         f = 0
 
     return f
