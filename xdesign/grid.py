@@ -25,17 +25,17 @@ class Grid3d(object):
         self.phantom = phantom
         self.grid_delta = None
         self.grid_beta = None
-        self.energy = None
+        self.energy_kev = None
         self.voxel_z, self.voxel_y, self.voxel_x = (None, None, None)
         self.xx, self.yy, self.zz = (None, None, None)
         self.x_range, self.y_range, self.z_range = (None, None, None)
 
-    def generate_phantom_array(self, size, voxel, energy):
+    def generate_phantom_array(self, size, voxel, energy_kev):
 
         self.size = np.array(size)
         self.grid_delta = np.zeros(size, dtype='float')
         self.grid_beta = np.zeros(size, dtype='float')
-        self.energy = energy
+        self.energy_kev = energy_kev
         self.voxel_z, self.voxel_y, self.voxel_x = voxel
         y_lim, x_lim = (self.size[0:2] - 1) / 2 * np.array(voxel[0:2])
         z_lim = (self.size[2] - 1) * voxel[2]

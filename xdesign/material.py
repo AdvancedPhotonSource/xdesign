@@ -81,11 +81,13 @@ class Material(object):
     material properties based on beam energy.
     """
 
-    def __init__(self, formula, density):
+    def __init__(self, formula=None, density=None, delta=None, beta=None):
         # calculate the mass_atten based on the photon energy
         super(Material, self).__init__()
         self.formula = formula
         self.density = density
+        self.delta = delta
+        self.beta = beta
 
 
     #@property
@@ -156,11 +158,17 @@ class Material(object):
 
     #@property
     def refractive_index_delta(self, energy):
-        return 1 - xraylib.Refractive_Index_Re(self.formula, energy, self.density)
+        if self.delta is None:
+            return 1 - xraylib.Refractive_Index_Re(self.formula, energy, self.density)
+        else:
+            return self.delta
 
     #@property
     def refractive_index_beta(self, energy):
-        return -xraylib.Refractive_Index_Im(self.formula, energy, self.density)
+        if self.beta is None:
+            return -xraylib.Refractive_Index_Im(self.formula, energy, self.density)
+        else:
+            return self.beta
 
     def mass_ratio(self):
         raise NotImplementedError

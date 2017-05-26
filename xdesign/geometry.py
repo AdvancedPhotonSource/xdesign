@@ -756,8 +756,8 @@ class Cuboid_3d(Entity):
         judge = (grid.zz >= self.x1.z) * (grid.zz <= self.x2.z) * \
                 (grid.yy >= self.x1.y) * (grid.yy <= self.x2.y) * \
                 (grid.xx >= self.x1.x) * (grid.xx <= self.x2.x)
-        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy)
-        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy)
+        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy_kev)
+        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy_kev)
         print('Cuboid added.')
 
 
@@ -776,8 +776,8 @@ class Sphere_3d(Entity):
         judge = (grid.zz - self.center.z) ** 2 + \
                 (grid.yy - self.center.y) ** 2 + \
                 (grid.xx - self.center.x) ** 2 <= self.radius ** 2
-        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy)
-        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy)
+        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy_kev)
+        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy_kev)
         print('Sphere added.')
 
 
@@ -807,8 +807,8 @@ class Rod_3d(Entity):
         judge_seg = -(np.array(self.x1.list()) - x0).dot((self.x2 - self.x1).list()) / \
                     np.linalg.norm((self.x2 - self.x1).list()) ** 2
         judge = judge * (judge_seg >= 0) * (judge_seg <= 1)
-        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy)
-        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy)
+        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy_kev)
+        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy_kev)
         print('Rod added.')
 
 
@@ -819,7 +819,7 @@ class TruncatedCone_3d(Entity):
             raise TypeError("center must be of type Point.")
         super(TruncatedCone_3d, self).__init__()
         self.top_center = top_center
-        self.length = length
+        self.length = int(length)
         self.top_radius = top_radius
         self.bottom_radius = bottom_radius
 
@@ -830,8 +830,8 @@ class TruncatedCone_3d(Entity):
             z_coords = int(self.top_center.z+slice)
             judge = (grid.xx[z_coords, :, :] - self.top_center.x) ** 2 + \
                     (grid.yy[z_coords, :, :] - self.top_center.y) ** 2 <= rad ** 2
-            grid.grid_delta[z_coords, :, :][judge] = material.refractive_index_delta(grid.energy)
-            grid.grid_beta[z_coords, :, :][judge] = material.refractive_index_beta(grid.energy)
+            grid.grid_delta[z_coords, :, :][judge] = material.refractive_index_delta(grid.energy_kev)
+            grid.grid_beta[z_coords, :, :][judge] = material.refractive_index_beta(grid.energy_kev)
         print('Truncated cone added.')
 
 
