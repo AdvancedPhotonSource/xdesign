@@ -72,11 +72,12 @@ class Feature(object):
     mass_atten : scalar
         The mass attenuation coefficient of the Feature.
     '''
-    def __init__(self, geometry, mass_atten=1):
+    def __init__(self, geometry, mass_atten=1, material=None):
         if not isinstance(geometry, Entity):
             raise TypeError("Feature must have a defined region.")
         self.geometry = geometry
         self.mass_atten = mass_atten
+        self.material = material
 
     def add_property(self, name, function):
         """Adds a property by name to the Feature.
@@ -115,3 +116,7 @@ class Feature(object):
         """Rotate feature geometry around a line. Rotating property
         functions is not supported."""
         self.geometry.rotate(theta, p)
+
+    def generate(self, grid):
+        """Generate 3D array"""
+        self.geometry.generate(grid, self.material)

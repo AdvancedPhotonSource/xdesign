@@ -119,7 +119,10 @@ class Phantom(object):
         if not isinstance(feature, Feature):
             raise TypeError("Can only add Features to Phantoms.")
         self.feature.append(feature)
-        self.area += feature.area
+        try:
+            self.area += feature.area
+        except:
+            pass
         self.population += 1
 
     def pop(self, i=-1):

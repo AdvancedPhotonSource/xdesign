@@ -73,6 +73,11 @@ __all__ = ['Entity',
            'Triangle',
            'Rectangle',
            'Square',
+           'Cuboid_3d',
+           'Rod_3d',
+           'Sphere_3d',
+           'TruncatedCone_3d',
+           'Cylinder_3d',
            'Mesh']
 
 
@@ -106,6 +111,9 @@ class Entity(object):
     def distance(self, entity):
         """Return the closest distance between entities."""
         raise NotImplementedError
+
+    def generate(self, grid, material):
+        pass
 
 
 class Point(Entity):
@@ -744,6 +752,14 @@ class Cuboid_3d(Entity):
         self.x1 = x1
         self.x2 = x2
 
+    def generate(self, grid, material):
+        judge = (grid.zz >= self.x1.z) * (grid.zz <= self.x2.z) * \
+                (grid.yy >= self.x1.y) * (grid.yy <= self.x2.y) * \
+                (grid.xx >= self.x1.x) * (grid.xx <= self.x2.x)
+        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy)
+        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy)
+        print('Cuboid added.')
+
 
 class Sphere_3d(Entity):
     """Sphere in 3-D catesian space.
@@ -755,6 +771,14 @@ class Sphere_3d(Entity):
         super(Sphere_3d, self).__init__()
         self.center = center
         self.radius = radius
+
+    def generate(self, grid, material):
+        judge = (grid.zz - self.center.z) ** 2 + \
+                (grid.yy - self.center.y) ** 2 + \
+                (grid.xx - self.center.x) ** 2 <= self.radius ** 2
+        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy)
+        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy)
+        print('Sphere added.')
 
 
 class Rod_3d(Entity):
@@ -769,6 +793,24 @@ class Rod_3d(Entity):
         self.x2 = x2
         self.radius = radius
 
+    def generate(self, grid, material):
+        """Refer to http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html"""
+        x0 = np.empty(np.append(grid.xx.shape, 3))
+        x0[:, :, :, 0] = grid.xx
+        x0[:, :, :, 1] = grid.yy
+        x0[:, :, :, 2] = grid.zz
+        judge = np.cross((self.x2 - self.x1).list(), (np.array(self.x1.list()) - x0))
+        judge = judge.reshape([-1, 3])
+        judge = np.asarray(map(np.linalg.norm, judge))
+        judge = judge.reshape(grid.xx.shape)
+        judge = judge / np.linalg.norm((self.x2 - self.x1).list()) <= self.radius
+        judge_seg = -(np.array(self.x1.list()) - x0).dot((self.x2 - self.x1).list()) / \
+                    np.linalg.norm((self.x2 - self.x1).list()) ** 2
+        judge = judge * (judge_seg >= 0) * (judge_seg <= 1)
+        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy)
+        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy)
+        print('Rod added.')
+
 
 class TruncatedCone_3d(Entity):
 
@@ -781,12 +823,23 @@ class TruncatedCone_3d(Entity):
         self.top_radius = top_radius
         self.bottom_radius = bottom_radius
 
+    def generate(self, grid, material):
+        for slice in range(self.length):
+            rad = self.top_radius + (self.bottom_radius - self.top_radius) / (self.length - 1) * slice
+            rad = np.round(rad)
+            z_coords = int(self.top_center.z+slice)
+            judge = (grid.xx[z_coords, :, :] - self.top_center.x) ** 2 + \
+                    (grid.yy[z_coords, :, :] - self.top_center.y) ** 2 <= rad ** 2
+            grid.grid_delta[z_coords, :, :][judge] = material.refractive_index_delta(grid.energy)
+            grid.grid_beta[z_coords, :, :][judge] = material.refractive_index_beta(grid.energy)
+        print('Truncated cone added.')
+
 
 class Cylinder_3d(TruncatedCone_3d):
     """Cylinder in 3-D cartesian space.
     """
 
-    def __init__(self, top_center, length, radius):
+    def __init__(self, top_center, length, radius, material):
         if not isinstance(top_center, Point):
             raise TypeError("center must be of type Point.")
         super(Cylinder_3d, self).__init__(top_center, length, radius, radius)
@@ -940,7 +993,7 @@ def beamcirc(beam, circle):
     else:
         dy = -beam.yintercept
 
-    # Calculate the area deending on how the beam intersects the circle.
+    # Calculate the area depending on how the beam intersects the circle.
     p1 = _center.y - beam.size / 2. + dy
     p2 = _center.y + beam.size / 2. + dy
     pmin = min(abs(p1), abs(p2))
