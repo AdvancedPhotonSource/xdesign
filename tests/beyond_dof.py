@@ -7,7 +7,7 @@ from xdesign.feature import Feature
 from xdesign.phantom import Phantom
 
 
-n_particles = 20.
+n_particles = 20
 top_z = 50.
 top_radius = 20.
 bottom_radius = 200.
