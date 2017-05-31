@@ -59,6 +59,7 @@ import logging
 import warnings
 from copy import deepcopy
 from scipy.spatial import Delaunay
+import itertools
 
 from xdesign.geometry import *
 from xdesign.material import *
@@ -86,7 +87,8 @@ __all__ = ['Phantom',
            'Metal',
            'SoftBiomaterial',
            'Electronics',
-           'FiberComposite']
+           'FiberComposite',
+           'Softwood']
 
 
 def save_phantom(phantom, filename):
@@ -875,6 +877,136 @@ class Foam(UnitCircle):
             raise ValueError('Porosity must be in the range [0,1).')
         self.sprinkle(300, size_range, gap, material=SimpleMaterial(-1.0),
                       max_density=porosity)
+
+
+class Softwood(Phantom):
+    """Generate a Phantom with structure similar to wood.
+
+    Parameters
+    ----------
+    ringsize : float [cm]
+        The thickness of the annual rings in cm.
+    latewood_fraction : float
+        The volume ratio of latewood cells to earlywood cells
+    ray_fraction : float
+        The ratio of rows of ray cells to rows of tracheids
+    ray_height : float [cm]
+        The height of the ray cells
+    cell_width, cell_height : float [cm]
+        The shape of the earlywood cells
+    cell_thickness : float [cm]
+        The thickness of the earlywood cell walls
+    frame : arraylike [cm]
+        A bounding box for the cells
+    """
+
+    def __init__(self):
+        super(Softwood, self).__init__()
+
+        ring_size = 0.5
+        latewood_fraction = 0.2
+
+        ray_fraction = 1/8
+        ray_height = 0.01
+        ray_width = 0.09
+
+        cell_width, cell_height = 0.03, 0.03
+        cell_thickness = 0.008
+
+        frame = np.array([[0.0, 0.0], [1, 1]])
+
+        # -------------------
+        atol = 1e-16  # for rounding errors
+        cellulose = SimpleMaterial(1)
+
+        x0, y0 = frame[0, 0], frame[0, 1]
+        x1, y1 = frame[1, 0], frame[1, 1]
+
+        # Place the cells one by one at (x, y)
+        y = y0
+        for r in itertools.count():
+            # Check that the row is in the frame
+            if y + cell_height > y1 and abs(y + cell_height - y1) > atol:
+                # Stop if cell reaches out of frame
+                break
+
+            # Add random jitter to each row
+            x = x0 + cell_width * np.random.normal(scale=0.1)
+            if r % 2 == 1:
+                # Offset odd number rows by 1/2 cell width
+                x += cell_width / 2
+
+            # Decide whether to make a ray cell
+            if np.random.rand() < ray_fraction:
+                is_ray = True
+            else:
+                is_ray = False
+
+            ring_progress = 0
+            for c in itertools.count():
+
+                if x < x0 and abs(x - x0) > atol:
+                    # skip first cell if jittered outside the frame
+                    x += cell_width
+
+                if is_ray:
+                    cell = WoodCell(corner=Point([x, y]), material=cellulose,
+                                    width=ray_width, height=ray_height)
+
+                else:  # not ray cells
+                    if ring_progress < 1 - latewood_fraction:
+                        # TODO: Add some randomness to when latewood starts
+                        dw, dt = 1, 1
+                    else:
+                        # transition to latewood
+                        dw = 0.6
+                        dt = 4.0
+
+                    # TODO: Add some randomness to cell widths and heights
+                    cell = WoodCell(corner=Point([x, y]), material=cellulose,
+                                    width=cell_width * dw,
+                                    height=cell_height,
+                                    wall_thickness=cell_thickness * dt)
+                self.append(cell)
+
+                x += cell.width
+                ring_progress = (x / ring_size) % 1
+
+                if x + cell.width > x1 and abs(x + cell.width - x1) > atol:
+                    # Stop if cell reaches out of frame
+                    break
+
+            y += cell.height
+
+
+class WoodCell(Phantom):
+    """Generate a Phantom with structure similar to a single wood cell.
+
+    A wood cell has two parts: the lumen which is the empty center area of the
+    cell and the cell wall substance which is generally hexagonal.
+    """
+
+    def __init__(self, corner=Point([0.5, 0.5]), width=0.003, height=0.003,
+                 wall_thickness=0.0008, material=None):
+        super(WoodCell, self).__init__()
+
+        p0 = deepcopy(corner) + Point([width/2, height/2])
+        p1 = deepcopy(corner)
+        p2 = deepcopy(corner) + Point([width, 0])
+        p3 = deepcopy(corner) + Point([width, height])
+        p4 = deepcopy(corner) + Point([0, height])
+        outer = Rectangle(p1, p2, p3, p4)
+
+        lumen = Circle(center=p0,
+                       radius=min(width/2, height/2) - wall_thickness)
+
+        center = Phantom(geometry=lumen, material=SimpleMaterial(-1))
+
+        self._geometry = outer
+        self.material = material
+        self.height = height
+        self.width = width
+        # self.append(center)
 
 
 class Metal(Phantom):
