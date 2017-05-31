@@ -49,6 +49,9 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import time
+import sys
+
 import numpy as np
 import scipy.ndimage
 import logging
@@ -57,7 +60,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from xdesign.grid import *
 from xdesign.util import gen_mesh
-from numpy.fft import fftn, ifftn, fftshift, ifftshift
+from numpy.fft import fft2, fftn, ifftn, fftshift, ifftshift
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +76,7 @@ __all__ = ['multislice_propagate',
 
 
 
-def initialize_wavefront(grid, **kwargs):
+def initialize_wavefront(grid, type, **kwargs):
     """Initialize wavefront.
 
     Parameters:
@@ -81,17 +84,35 @@ def initialize_wavefront(grid, **kwargs):
     wvfnt_width : int
         Pixel width of wavefront.
     """
-    type = kwargs['type']
     wave_shape = grid.grid_delta.shape[1:]
     if type == 'plane':
         wavefront = np.ones(wave_shape).astype('complex64')
-    if type == 'point':
+    elif type == 'point':
         wid = kwargs['width']
         wavefront = np.zeros(wave_shape).astype('complex64')
         center = int(wave_shape / 2)
         radius = int(wid / 2)
         wavefront[:wid] = 1.
         wavefront = np.roll(wavefront, int((wave_shape - wid) / 2))
+    elif type == 'point_projection_lens':
+        f = kwargs['focal_length']
+        s = kwargs['lens_sample_dist']
+        xx = grid.xx[0, :, :]
+        yy = grid.yy[0, :, :]
+        r = np.sqrt(xx ** 2 + yy ** 2)
+        dxchange.write_tiff(r, 'tmp/r', dtype=np.float32, overwrite=True)
+        dxchange.write_tiff(np.mod(r, 1), 'tmp/shit', dtype=np.float32, overwrite=True)
+
+        theta = np.arctan(r / (s - f))
+        dxchange.write_tiff(theta, 'tmp/theta', dtype=np.float32, overwrite=True)
+        path = np.mod(s / np.cos(theta), grid.lmbda_nm)
+        dxchange.write_tiff(path, 'tmp/path', dtype=np.float32, overwrite=True)
+        phase = path * 2 * np.pi
+        dxchange.write_tiff(phase, 'tmp/phase', dtype=np.float32, overwrite=True)
+        wavefront = np.ones(wave_shape).astype('complex64')
+        wavefront = wavefront + 1j * np.tan(phase)
+        wavefront = wavefront / np.abs(wavefront)
+
     return wavefront
 
 
@@ -110,7 +131,7 @@ def _extract_slice(delta_grid, beta_grid, islice):
     pass
 
 
-def _slice_modify(grid, delta_slice, beta_slice, wavefront, lmda):
+def slice_modify(grid, delta_slice, beta_slice, wavefront):
     """Modify wavefront within a slice.
 
     Parameters:
@@ -127,66 +148,92 @@ def _slice_modify(grid, delta_slice, beta_slice, wavefront, lmda):
         Wavelength in nm.
     """
     delta_nm = grid.voxel_z
-    kz = 2 * np.pi * delta_nm / lmda
+    kz = 2 * np.pi * delta_nm / grid.lmbda_nm
     wavefront = wavefront * np.exp((kz * delta_slice) * 1j) * np.exp(-kz * beta_slice)
 
     return wavefront
 
 
-def _slice_propagate(grid, wavefront, lmda):
-    """Free space propagation.
+def slice_propagate(grid, wavefront):
 
-    Parameters:
-    -----------
-    wavefront : ndarray
-        Wavefront.
-    delta_nm : float
-        Slice thickness in nm.
-    lat_nm : float
-        Lateral pixel length in nm.
-    wvfnt_width : int
-        Pixel width of wavefront.
-    lmda : float
-        Wavelength in nm.
-    """
     delta_nm = grid.voxel_z
+    wavefront = free_propagate(grid, wavefront, delta_nm)
+    return wavefront
+
+
+def free_propagate(grid, wavefront, dist_nm):
+    """Free space propagation using convolutional algorithm.
+    """
+    lmbda_nm = grid.lmbda_nm
     u_max = 1. / (2. * grid.voxel_x)
     v_max = 1. / (2. * grid.voxel_y)
     u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
-    H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2  - lmda ** 2 * v ** 2))
+    # x = grid.xx[0, :, :]
+    # y = grid.yy[0, :, :]
+    # h = np.exp(-1j * np.pi / (lmbda_nm * dist_nm) * (x ** 2 + y ** 2))
+    # H = fftshift(fft2(h))
+    # H = np.exp(-1j * 2 * np.pi * dist_nm / lmbda_nm * np.sqrt(1. - lmbda_nm ** 2 * u ** 2 - lmbda_nm ** 2 * v ** 2))
+    H = np.exp(-1j * np.pi * dist_nm * lmbda_nm * (u ** 2 + v ** 2))
+    # print(1)
+    # x = grid.xx[0, :, :]
+    # y = grid.yy[0, :, :]
+    # print(u)
+    # print(v)
+    # h = np.exp(-1j * np.pi / (lmbda_nm * dist_nm) * (x ** 2 + y ** 2))
+    # H2 = fftshift(fftn(h))
+    # print(2)
+    # plt.figure()
+    # plt.imshow(np.abs(H))
+    # plt.figure()
+    # plt.imshow(np.abs(H2))
+    # plt.show()
+
+    # time.sleep(999)
+
     wavefront = ifftn(ifftshift(fftshift(fftn(wavefront)) * H))
-    # H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
+    # H = np.exp(-1j * 2 * np.pi * delta_nm / lmda_nm * np.sqrt(1. - lmda_nm ** 2 * u ** 2))
     # wavefront = np.fft.ifftn(np.fft.fftn(wavefront) * np.fft.fftshift(H))
     return wavefront
 
 
-def _free_propagate(grid, wavefront, lmda, dist_nm):
-
-    u_max = 1. / (2. * grid.voxel_x)
-    v_max = 1. / (2. * grid.voxel_y)
-    u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
-    H = np.exp(-1j * 2 * np.pi * dist_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2  - lmda ** 2 * v ** 2))
-    wavefront = ifftn(ifftshift(fftshift(fftn(wavefront)) * H))
-    # H = np.exp(-1j * 2 * np.pi * delta_nm / lmda * np.sqrt(1. - lmda ** 2 * u ** 2))
-    # wavefront = np.fft.ifftn(np.fft.fftn(wavefront) * np.fft.fftshift(H))
-    return wavefront
-
-
-def _far_propagate(grid, wavefront, lmda, z):
-    """Free space propagation using double Fourier algorithm.
+def far_propagate(grid, wavefront, dist_nm):
+    """Free space propagation using product Fourier algorithm. Suitable for far field propagation.
     """
     assert isinstance(grid, Grid3d)
-    y0 = grid.yy[0, :, :]
-    x0 = grid.xx[0, :, :]
-    y = y0 * (lmda * z) * (grid.size[1] * grid.voxel_y ** 2)
-    x = x0 * (lmda * z) * (grid.size[2] * grid.voxel_x ** 2)
-    wavefront = fftshift(fftn(wavefront * np.exp(-1j * 2 * np.pi / lmda * np.sqrt(z ** 2 + x0 ** 2 + y0 ** 2))))
-    wavefront = wavefront * np.exp(-1j * 2 * np.pi / lmda * np.sqrt(z ** 2 + x ** 2 + y ** 2))
+    lmbda_nm = grid.lmbda_nm
+    u_max = 1. / (2. * grid.voxel_x)
+    v_max = 1. / (2. * grid.voxel_y)
+    u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
+    x = grid.xx[0, :, :] * grid.voxel_x
+    y = grid.yy[0, :, :] * grid.voxel_y
+    x_max = grid.size[0] * grid.voxel_x
+    y_max = grid.size[1] * grid.voxel_y
+    # h = np.exp(-1j * 2 * np.pi / lmbda_nm * np.sqrt(dist_nm ** 2 + x ** 2 + y ** 2))
+    # wavefront = fftshift(fft2(wavefront * h))
+    # wavefront = wavefront * \
+    #             np.exp(-1j * dist_nm / lmbda_nm * np.sqrt(4 * np.pi ** 2 + lmbda_nm ** 2 * (u ** 2 + v ** 2))) * \
+    #             4 * np.pi / (x_max ** 2 + y_max ** 2) / (lmbda_nm * dist_nm) * 1j
+
+    h = np.exp(-1j * np.pi * (x ** 2 + y ** 2) / (lmbda_nm * dist_nm))
+    wavefront = fftshift(fft2(wavefront * h))
+    wavefront = wavefront * np.exp(-1j * np.pi * lmbda_nm * dist_nm * (u ** 2 + v ** 2))
+    wavefront = wavefront * 1j / (lmbda_nm * dist_nm)
+
+    print(u)
+    print(lmbda_nm, dist_nm)
+    print(u * lmbda_nm * dist_nm)
+
+    # y0 = grid.yy[0, :, :]
+    # x0 = grid.xx[0, :, :]
+    # y = y0 * (lmda * z) * (grid.size[1] * grid.voxel_y) ** 2
+    # x = x0 * (lmda * z) * (grid.size[0] * grid.voxel_x) ** 2
+    # wavefront = fftshift(fftn(wavefront * np.exp(-1j * 2 * np.pi / lmda * np.sqrt(z ** 2 + x0 ** 2 + y0 ** 2))))
+    # wavefront = wavefront * np.exp(-1j * 2 * np.pi / lmda * np.sqrt(z ** 2 + x ** 2 + y ** 2))
     return wavefront
 
 
 def _far_propagate_2(grid, wavefront, lmd, z_um):
-    """Free space propagation using double Fourier algorithm.
+    """Free space propagation using product Fourier algorithm.
     """
     assert isinstance(grid, Grid3d)
 
@@ -228,7 +275,7 @@ def plot_wavefront(wavefront, grid, save_folder='simulation', fname='exiting_wav
     #fig.savefig(save_folder+'/'+fname+'.png', type='png')
 
 
-def multislice_propagate(grid, probe, wavefront, free_prop_dist=None):
+def multislice_propagate(grid, wavefront, free_prop_dist=None):
     """Do multislice propagation for wave with specified properties in the constructed grid.
 
     Parameters:
@@ -249,19 +296,17 @@ def multislice_propagate(grid, probe, wavefront, free_prop_dist=None):
     delta_grid = grid.grid_delta
     beta_grid = grid.grid_beta
 
-    # wavelength in nm
-    lmda = probe.wavelength
-    # I assume Probe class has a wavelength attribute. E.g.:
-    # class Probe:
-    #     def __init__(self, energy):
-    #         self.energy = energy
-    #         self.wavelength = 1.23984/energy
     n_slice = delta_grid.shape[0]
     for i_slice in range(n_slice):
+        print('\rSlice: {:d}'.format(i_slice), end=' ')
+        sys.stdout.flush()
         delta_slice = delta_grid[i_slice, :, :]
         beta_slice = beta_grid[i_slice, :, :]
-        wavefront = _slice_modify(grid, delta_slice, beta_slice, wavefront, lmda)
-        wavefront = _slice_propagate(grid, wavefront, lmda)
+        wavefront = slice_modify(grid, delta_slice, beta_slice, wavefront)
+        wavefront = slice_propagate(grid, wavefront)
+    # print(wavefront)
     if free_prop_dist is not None:
-        wavefront = _free_propagate(grid, wavefront, lmda, free_prop_dist)
+        # wavefront = free_propagate(grid, wavefront, free_prop_dist)
+        wavefront = far_propagate(grid, wavefront, free_prop_dist)
+    # print(wavefront)
     return wavefront
