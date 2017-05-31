@@ -54,7 +54,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from xdesign.acquisition import beamintersect
 from xdesign.material import HyperbolicConcentric, UnitCircle
-from xdesign.geometry import Circle, Point
+from xdesign.geometry import Circle, Point, Line
 
 import scipy.ndimage
 import logging
@@ -62,6 +62,7 @@ import warnings
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
 from scipy import optimize
 from scipy.stats import norm, exponnorm, expon, ttest_ind
@@ -82,7 +83,111 @@ __all__ = ['compute_PCC',
            'compute_neq_d',
            'ImageQuality',
            'compute_quality',
-           'procedure_coverage']
+           'procedure_coverage',
+           'coverage_approx']
+
+
+def coverage_approx(procedure, region, pixel_size, n=1):
+    """Approximate procedure coverage with Riemann sum.
+
+    The intersection between the beam and each pixel is approximated by using a
+    Reimann sum of `n` rectangles: width `beam.size / n` and length `dist`
+    where `dist` is the length of segment of the line `alpha` which passes
+    through the pixel parallel to the beam.
+
+    Parameters
+    ----------
+    procedure : :py:class:`aquisition.Probe` generator
+        A generator which defines a scanning procedure by returning a sequence
+        of :py:class:`aquisition.Probe` objects.
+    region : :py:class:`np.array` [cm]
+        A rectangle in which to map the coverage. Specify the bounds as
+        `[[min_corner], [max_corner]]`.
+    pixel_size : float (default : 0.1) [cm]
+        The edge length of the pixels in the coverage map in centimeters.
+    n : int (default: 1)
+        The number of lines per pixel_size per beam size
+
+    Returns
+    -------
+    coverage_map : :py:class:`numpy.ndarray`
+        A discretized map of the :py:class:`aquisition.Probe` coverage.
+    """
+
+    box = np.array(region)
+
+    # Define the locations of the grid lines (gx, gy)
+    gx = np.arange(box[0, 0], box[1, 0] + pixel_size, pixel_size)
+    gy = np.arange(box[0, 1], box[1, 1] + pixel_size, pixel_size)
+
+    # the number of pixels = number of gridlines - 1
+    sx, sy = gx.size-1, gy.size-1
+
+    coverage_map = np.zeros((sx, sy))
+
+    for probe in procedure:
+
+        # Determine quantity and width of alpha lines
+        num_lines = max(1, int(n * probe.size / pixel_size))
+        line_width = probe.size / num_lines
+
+        # Move the first alpha line to a starting position
+        aline = Line(deepcopy(probe.p1), deepcopy(probe.p2))
+        aline.translate(probe.normal._x * -(line_width + probe.size) / 2)
+
+        for i in range(num_lines):
+
+            aline.translate(probe.normal._x * line_width)
+
+            x0, y0 = aline.p1.x, aline.p1.y
+            x1, y1 = aline.p2.x, aline.p2.y
+
+            # avoid upper-right boundary errors
+            if (x1 - x0) == 0:
+                x0 += 1e-12
+            if (y1 - y0) == 0:
+                y0 += 1e-12
+
+            # vector lengths (ax, ay)
+            ax = (gx - x0) / (x1 - x0)
+            ay = (gy - y0) / (y1 - y0)
+
+            # edges of alpha (a0, a1)
+            ax0 = min(ax[0], ax[-1])
+            ax1 = max(ax[0], ax[-1])
+            ay0 = min(ay[0], ay[-1])
+            ay1 = max(ay[0], ay[-1])
+            a0 = max(max(ax0, ay0), 0)
+            a1 = min(min(ax1, ay1), 1)
+
+            # sorted alpha vector
+            cx = (ax >= a0) & (ax <= a1)
+            cy = (ay >= a0) & (ay <= a1)
+            alpha = np.sort(np.r_[ax[cx], ay[cy]])
+
+            if len(alpha) > 0:
+
+                # lengths
+                xv = x0 + alpha * (x1 - x0)
+                yv = y0 + alpha * (y1 - y0)
+                lx = np.ediff1d(xv)
+                ly = np.ediff1d(yv)
+                dist = np.sqrt(lx**2 + ly**2)
+                dist2 = np.dot(dist, dist)
+                ind = dist != 0
+
+                # indexing
+                mid = alpha[:-1] + np.ediff1d(alpha) / 2.
+                xm = x0 + mid * (x1 - x0)
+                ym = y0 + mid * (y1 - y0)
+                ix = np.floor(np.true_divide(sx * (xm - box[0, 0]),
+                                             sx * pixel_size)).astype('int')
+                iy = np.floor(np.true_divide(sy * (ym - box[0, 1]),
+                                             sy * pixel_size)).astype('int')
+
+                coverage_map[ix, iy] += dist * line_width
+
+    return coverage_map / pixel_size**2
 
 
 def make_grid(box, pixel_size):
