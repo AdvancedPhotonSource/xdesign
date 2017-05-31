@@ -362,7 +362,7 @@ def angleogram(sx, sy, phantom, noise=False):
     return angl, probe
 
 
-def raster_scan(sx, sy):
+def raster_scan(sx, sy, width=None):
     """Provides a beam list for raster-scanning.
 
     The same Probe is returned each time to prevent recomputation of cached
@@ -374,19 +374,24 @@ def raster_scan(sx, sy):
         Number of rotation angles.
     sy : int
         Number of detection pixels (or sample translations).
+    width : int [cm]
+        The width of the Probe
 
     Yields
     ------
-    Probe
+    p : Probe
     """
     # Step size of the probe.
     step = 1. / sy
+
+    if width is None:
+        width = step
 
     # Step size of the rotation angle.
     theta = np.pi / sx
 
     # Fixed probe location.
-    p = Probe(Point([step / 2., -10]), Point([step / 2., 10]), step)
+    p = Probe(Point([step / 2., -10]), Point([step / 2., 10]), width)
 
     for m in range(sx):
         for n in range(sy):
