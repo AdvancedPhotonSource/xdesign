@@ -185,7 +185,11 @@ def coverage_approx(procedure, region, pixel_size, n=1):
                 iy = np.floor(np.true_divide(sy * (ym - box[0, 1]),
                                              sy * pixel_size)).astype('int')
 
-                coverage_map[ix, iy] += dist * line_width
+                try:
+                    coverage_map[ix, iy] += dist * line_width
+                except IndexError as e:
+                    warnings.warn("{}\nix is {}\niy is {}".format(e, ix, iy),
+                                  RuntimeWarning)
 
     return coverage_map / pixel_size**2
 
