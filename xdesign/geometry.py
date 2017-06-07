@@ -709,14 +709,14 @@ class Circle(Curve):
         The sign of the area
     """
 
-    def __init__(self, center, radius):
+    def __init__(self, center, radius, sign=1):
         super(Circle, self).__init__(center)
         self.radius = float(radius)
-        self.sign = 1
+        self.sign = sign
 
     def __repr__(self):
-        return "Circle(center={}, radius={})".format(repr(self.center),
-                                                     repr(self.radius))
+        return "Circle(center={}, radius={}, sign={})".format(
+            repr(self.center), repr(self.radius), repr(self.sign))
 
     def __str__(self):
         """Return the analytical equation."""
@@ -775,7 +775,7 @@ class Circle(Curve):
             x = other
         elif isinstance(other, Mesh):
             for face in other.faces:
-                if not self.contains(face):
+                if not self.contains(face) and face.sign is 1:
                     return False
             return True
         else:
@@ -843,18 +843,19 @@ class Polygon(Entity):
         The sign of the area
     """
 
-    def __init__(self, vertices):
+    def __init__(self, vertices, sign=1):
         for v in vertices:
             if not isinstance(v, Point):
                 raise TypeError("vertices must be of type Point.")
         super(Polygon, self).__init__()
         self.vertices = vertices
         self._dim = vertices[0].dim
-        self.sign = 1
+        self.sign = sign
 
     def __repr__(self):
-        return "{}(vertices={})".format(type(self).__name__,
-                                        repr(self.vertices))
+        return "{}(vertices={}, sign={})".format(type(self).__name__,
+                                                 repr(self.vertices),
+                                                 repr(self.sign))
 
     def __str__(self):
         return "{}({})".format(type(self).__name__, str(self.numpy))
@@ -971,7 +972,7 @@ class Polygon(Entity):
             x = other
         elif isinstance(other, Mesh):
             for face in other.faces:
-                if not self.contains(face):
+                if not self.contains(face) and face.sign is 1:
                     return False
             return True
         else:
@@ -1188,13 +1189,18 @@ class Mesh(Entity):
 
     def append(self, t):
         """Add a triangle to the mesh."""
-        assert(isinstance(t, Polygon))
         self.population += 1
         # self.center = ((self.center * self.area + t.center * t.area) /
         #                (self.area + t.area))
         self.area += t.area
-        for v in t.vertices:
-            self.radius = max(self.radius, self.center.distance(v))
+
+        if isinstance(t, Polygon):
+            for v in t.vertices:
+                self.radius = max(self.radius, self.center.distance(v))
+        else:
+            self.radius = max(self.radius,
+                              self.center.distance(t.center) + t.radius)
+
         self.faces.append(t)
 
     def pop(self, i=-1):
@@ -1212,23 +1218,11 @@ class Mesh(Entity):
         for t in self.faces:
             t.translate(vector)
 
-        if 'half_space' in self.__dict__:
-            self.half_space = self.half_space.translation(vector)
-
     def rotate(self, theta, point=None, axis=None):
         """Rotate entity around an axis which passes through a point by theta
         radians."""
         for t in self.faces:
             t.rotate(theta, point, axis)
-
-        if 'half_space' in self.__dict__:
-            if point is None:
-                d = 0
-            else:
-                d = point._x
-            self.half_space = self.half_space.translation(-d)
-            self.half_space = self.half_space.rotation(0, 1, theta)
-            self.half_space = self.half_space.translation(d)
 
     def scale(self, vector):
         """Scale entity."""
@@ -1240,7 +1234,7 @@ class Mesh(Entity):
 
         FOR ALL `x`,
         THERE EXISTS a face of the Mesh that contains `x`
-        AND ALL cut outs that contain `x`.
+        AND (ALL cut outs that contain `x` or THERE DOES NOT EXIST a cut out).
         """
         if isinstance(other, Point):
             x = other._x
@@ -1257,14 +1251,19 @@ class Mesh(Entity):
         # keep track of whether each point is contained in a face
         x_in_face = np.zeros(x.shape[0], dtype=bool)
         x_in_cut = np.zeros(x.shape[0], dtype=bool)
+        has_cuts = False
 
         for f in self.faces:
             if f.sign < 0:
+                has_cuts = True
                 x_in_cut = np.logical_or(x_in_cut, f.contains(x))
             else:
                 x_in_face = np.logical_or(x_in_face, f.contains(x))
 
-        return np.logical_and(x_in_face, x_in_cut)
+        if has_cuts:
+            return np.logical_and(x_in_face, x_in_cut)
+        else:
+            return x_in_face
 
     @property
     def patch(self):
@@ -1272,13 +1271,6 @@ class Mesh(Entity):
         for f in self.faces:
             patches.append(f.patch)
         return patches
-
-    @cached_property
-    def half_space(self):
-        regions = []
-        for face in self.faces:
-            regions.append(face.half_space)
-        return pt.Region(regions)
 
 
 def calc_standard(A):

@@ -243,14 +243,28 @@ class Phantom(object):
                 boundary = parent.geometry
                 parent = parent.parent
 
-        # TODO: Fix for case when child.geometry is None
-        if boundary is None or boundary.contains(child.geometry):
+        def contains_children(boundary, child):
+            for grandchild in child.children:
+                if (grandchild.geometry is None
+                        and not contains_children(boundary, grandchild)):
+                    return False
+                if not boundary.contains(grandchild.geometry):
+                    return False
+            return True
+
+        if (boundary is None
+                or (child.geometry is None and contains_children(boundary,
+                                                                 child))
+                or boundary.contains(child.geometry)):
+
             child.parent = self
             self.children.append(child)
             self.population += child.population + 1
             return True
 
         else:
+            warnings.warn("{} not appended; it is not a subset.".format(
+                          repr(child)), ValueError)
             return False
 
     def pop(self, i=-1):
@@ -427,15 +441,16 @@ class XDesignDefault(Phantom):
         m0.append(Triangle(deepcopy(b), deepcopy(d), deepcopy(e)))
 
         # define the circles
-        c0 = Circle(Point([0.3, 0.5]), radius=0.1)
-        c1 = Circle(Point([0.3, 0.5]), radius=0.02)
+        m1 = Mesh()
+        m1.append(Circle(Point([0.3, 0.5]), radius=0.1))
+        m1.append(-Circle(Point([0.3, 0.5]), radius=0.02))
 
         # construct Phantoms
-        self.append(Phantom(geometry=t0, material=SimpleMaterial(0.5)))
-        self.append(Phantom(geometry=m0, material=SimpleMaterial(0.5)))
-        self.append(Phantom(geometry=c0, material=SimpleMaterial(1.0),
-                            children=[Phantom(geometry=c1,
-                                              material=SimpleMaterial(-1.0))]))
+        self.append(Phantom(children=[Phantom(geometry=t0,
+                                              material=SimpleMaterial(0.5)),
+                                      Phantom(geometry=m0,
+                                              material=SimpleMaterial(0.5))]))
+        self.append(Phantom(geometry=m1, material=SimpleMaterial(1.0)))
 
 
 class HyperbolicConcentric(Phantom):
@@ -904,18 +919,22 @@ class Softwood(Phantom):
         super(Softwood, self).__init__()
 
         ring_size = 0.5
-        latewood_fraction = 0.2
+        latewood_fraction = 0.35
 
         ray_fraction = 1/8
         ray_height = 0.01
         ray_width = 0.09
+        ray_thickness = 0.002
 
         cell_width, cell_height = 0.03, 0.03
-        cell_thickness = 0.008
+        cell_thickness = 0.004
 
-        frame = np.array([[0.0, 0.0], [1, 1]])
+        frame = np.array([[0.2, 0.2], [0.8, 0.8]])
 
         # -------------------
+        def five_p():
+            return 1 + np.random.normal(scale=0.05)
+
         atol = 1e-16  # for rounding errors
         cellulose = SimpleMaterial(1)
 
@@ -951,7 +970,9 @@ class Softwood(Phantom):
 
                 if is_ray:
                     cell = WoodCell(corner=Point([x, y]), material=cellulose,
-                                    width=ray_width, height=ray_height)
+                                    width=ray_width * five_p(),
+                                    height=ray_height,
+                                    wall_thickness=ray_thickness * five_p())
 
                 else:  # not ray cells
                     if ring_progress < 1 - latewood_fraction:
@@ -960,13 +981,12 @@ class Softwood(Phantom):
                     else:
                         # transition to latewood
                         dw = 0.6
-                        dt = 4.0
+                        dt = 1.5
 
-                    # TODO: Add some randomness to cell widths and heights
                     cell = WoodCell(corner=Point([x, y]), material=cellulose,
-                                    width=cell_width * dw,
+                                    width=cell_width * dw * five_p(),
                                     height=cell_height,
-                                    wall_thickness=cell_thickness * dt)
+                                    wall_thickness=cell_thickness * dt * five_p())
                 self.append(cell)
 
                 x += cell.width
@@ -990,19 +1010,20 @@ class WoodCell(Phantom):
                  wall_thickness=0.0008, material=None):
         super(WoodCell, self).__init__()
 
-        p0 = deepcopy(corner) + Point([width/2, height/2])
         p1 = deepcopy(corner)
         p2 = deepcopy(corner) + Point([width, 0])
         p3 = deepcopy(corner) + Point([width, height])
         p4 = deepcopy(corner) + Point([0, height])
-        outer = Rectangle(p1, p2, p3, p4)
+        cell_wall = Rectangle(p1, p2, p3, p4)
 
-        lumen = Circle(center=p0,
-                       radius=min(width/2, height/2) - wall_thickness)
+        wt = wall_thickness
+        p1 = deepcopy(corner) + Point([wt, wt])
+        p2 = deepcopy(corner) + Point([width - wt, wt])
+        p3 = deepcopy(corner) + Point([width - wt, height - wt])
+        p4 = deepcopy(corner) + Point([wt, height-wt])
+        lumen = -Rectangle(p1, p2, p3, p4)
 
-        center = Phantom(geometry=lumen, material=SimpleMaterial(-1))
-
-        self._geometry = outer
+        self._geometry = Mesh(faces=[cell_wall, lumen])
         self.material = material
         self.height = height
         self.width = width
