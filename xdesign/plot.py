@@ -98,6 +98,7 @@ POLY_EDGE_COLOR = 'black'
 LABEL_COLOR = 'black'
 POLY_LINEWIDTH = 0.1
 CURVE_LINEWIDTH = 0.5
+DEFAULT_ENERGY = 15
 
 # cycle through 126 unique line styles
 PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
@@ -118,39 +119,43 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
         The axis where the phantom should be plotted. `None` creates
         a new axis.
     labels : bool, optional
-        `True` : Each :class:`.Phantom` given a uniqe number.
+        `True` : Each :class:`.Phantom` given a unique number.
     c_props : list of str, optional
         List of :class:`.Phantom` properties to use for colormapping the
-        geometries.
+        geometries. `[]` colors the geometries by type.
     c_map : function, optional
         A function which takes the list of prop(s) for a :class:`.Phantom` as
         input and returns a matplolib color specifier. :cite:`Hunter:07`
     """
-    assert isinstance(phantom, Phantom), ('phantom is a ' +
-                                          '{}'.format(type(phantom)))
-
-    # IDEA: Allow users to provide list or generator for labels.
     if axis is None:
         fig, axis = _make_axis()
-    if not isinstance(c_props, list):
-        raise TypeError('c_props must be list of str')
-    if len(c_props) > 0 and c_map is None:
+    if c_props and c_map is None:
         c_map = DEFAULT_COLOR_MAP
 
     props = list(c_props)
     num_props = range(0, len(c_props))
 
-    # Draw geometry in the phantom.
-    if phantom.geometry is not None:
-        if c_map is not None:
-            # use the colormap to determine the color
-            for j in num_props:
-                props[j] = getattr(phantom, c_props[j])
-            color = c_map(props)[0]
+    if phantom.geometry is None:
+        # can't plot without geometry. plot nothing
+        pass
+    else:
+        if phantom.material is None:
+            # phantom has no properties. it is a container
+            pass
         else:
-            color = None
+            # have material and geometry...
+            if c_map is None:
+                # but no color assignments. plot default colors
+                color = None
+            else:
+                # use the colormap to determine the color
+                # TODO: Add parameter to pass other things besides energy
+                for j in num_props:
+                    props[j] = getattr(phantom.material, c_props[j])(DEFAULT_ENERGY)
+                color = c_map(props)[0]
 
-        plot_geometry(phantom.geometry, axis, c=color)
+            plot_geometry(phantom.geometry, axis, c=color)
+
         if labels is not None:
             axis.annotate(str(i), xy=(phantom.geometry.center.x,
                                       phantom.geometry.center.y),
@@ -289,7 +294,8 @@ def _make_axis():
     return fig, axis
 
 
-def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
+def discrete_phantom(phantom, size, ratio=8, uniform=True,
+                     prop='mass_attenuation'):
     """Returns discrete representation of the property function, prop, in the
     :class:`.Phantom`. The values of overlapping Phantoms are additive.
 
@@ -354,8 +360,8 @@ def _discrete_geometry(phantom, image, px, py, prop):
     of image pixels. Multiply the geometry of each phantom by the value of
     phantom.prop.
     """
-    if hasattr(phantom, prop) and phantom.geometry is not None:
-        value = getattr(phantom, prop)
+    if phantom.geometry is not None and hasattr(phantom.material, prop):
+        value = getattr(phantom.material, prop)(DEFAULT_ENERGY)
 
         size = px.shape  # is equivalent to image.shape?
         pixel_coords = np.vstack([px.flatten(), py.flatten()]).T
@@ -376,7 +382,7 @@ def _discrete_geometry(phantom, image, px, py, prop):
     return image
 
 
-def sidebyside(p, size=100, labels=None, prop='mass_atten'):
+def sidebyside(p, size=100, labels=None, prop='mass_attenuation'):
     '''Displays the geometry and the discrete property function of
     the given :class:`.Phantom` side by side.'''
     fig = plt.figure(figsize=(6, 3), dpi=600)

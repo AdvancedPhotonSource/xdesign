@@ -52,8 +52,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from xdesign.material import HyperbolicConcentric, UnitCircle
-
 import scipy.ndimage
 import logging
 import warnings
@@ -65,7 +63,10 @@ from scipy import optimize
 from scipy.stats import norm, exponnorm, expon, ttest_ind
 from phasepack import phasecongmono as _phasecongmono
 
+from xdesign.phantom import HyperbolicConcentric, UnitCircle
+
 logger = logging.getLogger(__name__)
+
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -110,8 +111,8 @@ def compute_mtf(phantom, image):
         :meth:`compute_mtf_ffst`
         :meth:`compute_mtf_lwkj`
     """
-    DeprecationWarning('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
-                       'compute_mtf_ffst instead')
+    warnings.warn('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
+                  'compute_mtf_ffst instead', DeprecationWarning)
 
     if not isinstance(phantom, HyperbolicConcentric):
         raise TypeError

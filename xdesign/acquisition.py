@@ -92,15 +92,18 @@ class Beam(Line):
     ----------
     p1 : Point
     p2 : Point
-    size : scalar, optional
+    size : scalar, optional, cm
         Size of the beam. i.e. the diameter
+    intensity : float, optional, cd
+        The intensity of the beam in candela.
     """
     # TODO: Determine whether separate Beam object is necessary or if Beam can
     # be merged with Probe.
-    def __init__(self, p1, p2, size=0):
+    def __init__(self, p1, p2, size=0.0, intensity=1.0):
         """Return a new Beam from two given points and optional size."""
         super(Beam, self).__init__(p1, p2)
         self.size = float(size)
+        self.intensity = intensity
         self.count = 0
 
     def __repr__(self):
@@ -257,11 +260,19 @@ class Probe(Beam):
     A Probe provides an interface for measuring the interaction of a Phantom
     and a beam. It contains information for interacting with Materials such as
     energy and brightness.
+
+    Attributes
+    -----------------
+    size : float, cm
+        The size of probe in centimeters.
+    intensity : float, cd
+        The intensity of the beam in candela.
     """
     # TODO: Implement additional attributes for Probe such as beam energy,
     # brightness, wavelength, etc.
-    def __init__(self, p1, p2, size=0):
-        super(Probe, self).__init__(p1, p2, size)
+    def __init__(self, p1, p2, size=0.0, intensity=1.0, energy=15.0):
+        super(Probe, self).__init__(p1, p2, size, intensity)
+        self.energy = energy
         self.history = []
 
     def __repr__(self):
@@ -273,7 +284,7 @@ class Probe(Beam):
         vec = self.normal * dx
         super(Probe, self).translate(vec._x)
 
-    def measure(self, phantom, sigma=0):
+    def measure(self, phantom, sigma=0.0):
         """Return the probe measurement with optional Gaussian noise.
 
         Parameters
@@ -281,26 +292,31 @@ class Probe(Beam):
         sigma : float >= 0
             The standard deviation of the normally distributed noise.
         """
-        newdata = self._measure_helper(phantom)
+        newdata = self.intensity * np.exp(-self._get_attenuation(phantom))
+
         if sigma > 0:
             newdata += newdata * np.random.normal(scale=sigma)
 
         self.record()
         return newdata
 
-    def _measure_helper(self, phantom):
+    def _get_attenuation(self, phantom):
+        """Return the beam intensity attenuation due to the phantom."""
         intersection = beamintersect(self, phantom.geometry)
 
-        if intersection is not None and phantom.mass_atten != 0:
-            newdata = intersection * phantom.mass_atten
+        if intersection is None or phantom.material is None:
+            attenuation = 0.0
         else:
-            newdata = 0
+            # [ ] = [cm^2] / [cm] * [1/cm]
+            attenuation = (intersection / self.size
+                           * phantom.material.linear_attenuation(self.energy))
 
-        if intersection > 0:
+        if phantom.geometry is None or intersection > 0:
+            # check the children for containers and intersecting geometries
             for child in phantom.children:
-                newdata += self._measure_helper(child)
+                attenuation += self._get_attenuation(child)
 
-        return newdata
+        return attenuation
 
     def record(self):
         self.history.append(self.list)

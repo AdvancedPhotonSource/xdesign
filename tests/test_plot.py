@@ -68,17 +68,21 @@ def test_plot_phantom_plain():
 
 
 def test_plot_phantom_color_map():
-    plot_phantom(p, labels=True, c_props=['mass_atten'])
+    plot_phantom(p, labels=True, c_props=['mass_attenuation'])
     # plt.show(block=True)
+
+
+def test_sidebyside():
+    sidebyside(p)
 
 
 def test_discrete_phantom_uniform():
     """The uniform discrete phantom is the same after rotating 90 degrees."""
 
-    d0 = discrete_phantom(p, 100, ratio=10, prop='mass_atten')
+    d0 = discrete_phantom(p, 100, ratio=10, prop='mass_attenuation')
 
     p.rotate(theta=np.pi/2, point=Point([0.5, 0.5]))
-    d1 = np.rot90(discrete_phantom(p, 100, ratio=10, prop='mass_atten'))
+    d1 = np.rot90(discrete_phantom(p, 100, ratio=10, prop='mass_attenuation'))
 
     # plot rotated phantom
     plot_phantom(p)
@@ -93,20 +97,21 @@ def test_discrete_phantom_uniform():
 
 
 if __name__ == '__main__':
-    # test_plot_phantom_plain()
+    test_plot_phantom_plain()
     test_plot_phantom_color_map()
-    # test_discrete_phantom_uniform()
+    test_discrete_phantom_uniform()
+    test_sidebyside()
     plt.show(block=True)
 
 # def test_discrete_phantom_gaussian():
 #     """Tests if the gaussian discrete phantom is the same after rotating the
 #     phantom 90 degrees.
 #     """
-#     d0 = discrete_phantom(p, 100, ratio=10, uniform=False, prop='mass_atten')
+#     d0 = discrete_phantom(p, 100, ratio=10, uniform=False, prop='mass_attenuation')
 #
 #     p.rotate(np.pi/2)
 #     d1 = np.rot90(discrete_phantom(p, 100, ratio=10, uniform=False,
-#                   prop='mass_atten'))
+#                   prop='mass_attenuation'))
 #
 #     # plot the error
 #     plt.figure()
