@@ -223,7 +223,7 @@ def plot_mesh(mesh, axis=None, alpha=None, c=None):
 
     # Plot each face separately
     for f in mesh.faces:
-        plot_polygon(f, axis, alpha, c)
+        plot_geometry(f, axis, alpha, c)
 
 
 def plot_polygon(polygon, axis=None, alpha=None, c=None):
