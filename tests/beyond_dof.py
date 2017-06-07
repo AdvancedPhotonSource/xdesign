@@ -71,6 +71,7 @@ except:
     grid.save_grid()
 
 wavefront = initialize_wavefront(grid, 'point_projection_lens', focal_length=50e5, lens_sample_dist=1e5)
+
 # wavefront = initialize_wavefront(grid, 'plane', focal_length=5, lens_sample_dist=10)
 dxchange.write_tiff(np.angle(wavefront), 'tmp/wavefront0_phase', dtype=np.float32, overwrite=True)
 dxchange.write_tiff(np.abs(wavefront), 'tmp/wavefront0_abs', dtype=np.float32, overwrite=True)
