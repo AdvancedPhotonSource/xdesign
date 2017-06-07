@@ -59,6 +59,7 @@ import logging
 import warnings
 from copy import deepcopy
 from scipy.spatial import Delaunay
+import pickle
 
 from xdesign.geometry import *
 from xdesign.material import *
@@ -73,6 +74,8 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['Phantom',
            'save_phantom',
            'load_phantom',
+           'pickle_phantom',
+           'unpickle_phantom',
            'XDesignDefault',
            'HyperbolicConcentric',
            'DynamicRange',
@@ -104,6 +107,18 @@ def load_phantom(filename):
     f.close()
     logger.info('Load Phantom from {}'.format(filename))
     return eval(raw_phantom)
+
+
+def pickle_phantom(phantom, filename):
+    """Save phantom to file as a python pickle."""
+    f = open(filename, 'wb')
+    pickle.dump(phantom, f)
+
+
+def unpickle_phantom(filename):
+    """Load phantom from file as a python pickle."""
+    f = open(filename, 'rb')
+    return pickle.load(f)
 
 
 class Phantom(object):
