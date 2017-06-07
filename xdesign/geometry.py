@@ -1243,8 +1243,11 @@ class Mesh(Entity):
         elif isinstance(other, Polygon):
             x = _points_to_array(other.vertices)
             return np.all(self.contains(x))
+        elif isinstance(other, Circle):
+            warnings.warn("Didn't check that Mesh contains Circle.")
+            return True
         else:
-            raise TypeError("P must be point or ndarray")
+            raise NotImplementedError("Mesh.contains({})".format(type(other)))
 
         x = np.atleast_2d(x)
 
