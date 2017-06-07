@@ -552,10 +552,16 @@ class Ray(Line):
         return self.p2 - self.p1
 
     def distance(self, other):
-        raise NotImplementedError
+        # REF: http://geomalgorithms.com/a02-_lines.html
+        v = self.p2._x - self.p1._x
+        w = other._x - self.p1._x
 
-        return min(self.p1.distance(other),
-                   super(Ray, self).distance(other))
+        c1 = np.dot(w, v)
+
+        if c1 <= 0:
+            return self.p1.distance(other)
+        else:
+            return super(Ray, self).distance(other)
 
 
 class Segment(Line):
@@ -578,11 +584,19 @@ class Segment(Line):
         return Point.midpoint(self.p1, self.p2)
 
     def distance(self, other):
-        raise NotImplementedError
+        # REF: http://geomalgorithms.com/a02-_lines.html
+        v = self.p2._x - self.p1._x
+        w = other._x - self.p1._x
 
-        return np.min([self.p1.distance(other),
-                       self.p2.distance(other),
-                       super(Segment, self).distance(other)])
+        c1 = np.dot(w, v)
+        c2 = np.dot(v, v)
+
+        if c1 <= 0:
+            return self.p1.distance(other)
+        elif c2 <= c1:
+            return self.p2.distance(other)
+        else:
+            return super(Segment, self).distance(other)
 
 
 class Curve(Entity):
