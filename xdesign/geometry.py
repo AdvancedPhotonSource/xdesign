@@ -853,9 +853,8 @@ class Polygon(Entity):
         self.sign = sign
 
     def __repr__(self):
-        return "{}(vertices={}, sign={})".format(type(self).__name__,
-                                                 repr(self.vertices),
-                                                 repr(self.sign))
+        return "Polygon(vertices={}, sign={})".format(repr(self.vertices),
+                                                      repr(self.sign))
 
     def __str__(self):
         return "{}({})".format(type(self).__name__, str(self.numpy))
@@ -1073,31 +1072,27 @@ class Triangle(Polygon):
 class Rectangle(Polygon):
     """Rectangle in 2D cartesian space.
 
-    It is defined by four distinct points.
+    Defined by a point and a vector to enforce perpendicular sides.
+
+    Attributes
+    ----------
+    side_lengths : array
+        The lengths of the sides
     """
 
-    def __init__(self, p1, p2, p3, p4):
+    def __init__(self, center, side_lengths):
+
+        s = np.array(side_lengths) / 2
+        self.side_lengths = side_lengths
+
+        p1 = Point([center.x + s[0], center.y + s[1]])
+        p2 = Point([center.x - s[0], center.y + s[1]])
+        p3 = Point([center.x - s[0], center.y - s[1]])
+        p4 = Point([center.x + s[0], center.y - s[1]])
+
         super(Rectangle, self).__init__([p1, p2, p3, p4])
 
-    def __repr__(self):
-        return "Rectangle({}, {}, {}, {})".format(self.vertices[0],
-                                                  self.vertices[1],
-                                                  self.vertices[2],
-                                                  self.vertices[3])
-
-    @property
-    def center(self):
-        center = Point([0, 0])
-        for v in self.vertices:
-            center += v
-        return center / 4
-
-    @property
-    def radius(self):
-        """The radius of the bounding circle."""
-        return self.vertices[0].distance(self.center)
-
-    @property
+    @cached_property
     def area(self):
         return self.sign * (self.vertices[0].distance(self.vertices[1]) *
                             self.vertices[1].distance(self.vertices[2]))
@@ -1106,27 +1101,17 @@ class Rectangle(Polygon):
 class Square(Rectangle):
     """Square in 2D cartesian space.
 
-    It is defined by a center and a side length.
+    Defined by a point and a length to enforce perpendicular sides.
     """
 
-    def __init__(self, center, side_length):
-        if not isinstance(center, Point):
-            raise TypeError("center must be of type Point.")
-        if side_length <= 0:
-            raise ValueError("side_length must be greater than zero.")
+    def __init__(self, center, side_length=None, radius=None):
 
-        s = side_length/2
-        p1 = Point([center.x + s, center.y + s])
-        p2 = Point([center.x - s, center.y + s])
-        p3 = Point([center.x - s, center.y - s])
-        p4 = Point([center.x + s, center.y - s])
-        super(Square, self).__init__(p1, p2, p3, p4)
+        if radius is not None:
+            side_length = np.sqrt(2) * radius
 
-    def __repr__(self):
-        warnings.warn("The Square constructor is underdefined. The " +
-                      "Rectangle constructor will be used instead.")
+        side_lengths = [side_length] * 2
 
-        return super(Square, self).__repr__()
+        super(Square, self).__init__(center, side_lengths)
 
 
 class Mesh(Entity):

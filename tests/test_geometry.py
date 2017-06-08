@@ -165,13 +165,13 @@ def test_beamcirc_intersecting_partially_from_bottom_inside_center():
 
 
 def test_beampoly_intersecting_partially_from_top():
-    tri = Rectangle(Point([0, 0]), Point([1, 0]), Point([1, 1]), Point([0, 1]))
+    tri = Square(Point([0.5, 0.5]), side_length=1.0)
     beam = Beam(Point([-2, 1]), Point([2, 1]), 1)
     assert_allclose(beampoly(beam, tri), 1/2, rtol=1e-6)
 
 
 def test_beampoly_intersecting_partially_from_bottom():
-    tri = Rectangle(Point([0, 0]), Point([1, 0]), Point([1, 1]), Point([0, 1]))
+    tri = Square(Point([0.5, 0.5]), side_length=1.0)
     beam = Beam(Point([-2, 0]), Point([2, 0]), 1)
     assert_allclose(beampoly(beam, tri), 1/2, rtol=1e-6)
 
@@ -209,7 +209,7 @@ def test_beamcirc_intersecting_fully():
 
 
 def test_beampoly_intersecting_fully():
-    tri = Rectangle(Point([-1, -1]), Point([1, -1]), Point([1, 1]), Point([-1, 1]))
+    tri = Square(Point([0, 0]), side_length=2.0)
     beam = Beam(Point([-2, 0]), Point([2, 0]), 3)
     assert_allclose(beampoly(beam, tri), 4, rtol=1e-6)
 
@@ -223,7 +223,7 @@ def test_beamcirc_vertical_intersection():
 
 
 def test_beampoly_vertical_intersection():
-    tri = Rectangle(Point([-5, 0]), Point([5, 0]), Point([5, 1]), Point([-5, 1]))
+    tri = Rectangle(Point([0, 0.5]), side_lengths=[10, 1])
     beam = Beam(Point([0, -1]), Point([0, 1]), 1)
     assert_allclose(beampoly(beam, tri), 1, rtol=1e-6)
 
