@@ -858,7 +858,6 @@ class Polygon(Entity):
 
     def __str__(self):
         return "{}({})".format(type(self).__name__, str(self.numpy))
-    # return "Polygon(%s" % ', '.join([str(n) for n in self.vertices]) + ")"
 
     def __neg__(self):
         copE = deepcopy(self)
@@ -883,37 +882,11 @@ class Polygon(Entity):
         return _points_to_array(self.vertices)
 
     @property
-    def area(self):
-        """Returns the area of the Polygon."""
-        raise NotImplementedError
+    def patch(self):
+        """Returns a matplotlib patch."""
+        return plt.Polygon(self.numpy)
 
-    @property
-    def perimeter(self):
-        """Return the perimeter of the Polygon."""
-        perimeter = 0
-        verts = self.vertices
-        points = verts + [verts[0]]
-        for m in range(self.numverts):
-            perimeter += points[m].distance(points[m + 1])
-        return perimeter
-
-    @property
-    def center(self):
-        """The center of the bounding circle."""
-        c = Point(np.zeros(self._dim))
-        for m in range(self.numverts):
-            c = c + self.vertices[m]
-        return c / self.numverts
-
-    @property
-    def radius(self):
-        """The radius of the bounding circle."""
-        r = 0
-        c = self.center
-        for m in range(self.numverts):
-            r = max(r, self.vertices[m].distance(c))
-        return r
-
+    # Cached Properties
     @property
     def bounds(self):
         """Returns a 4-tuple (xmin, ymin, xmax, ymax) representing the
@@ -922,34 +895,6 @@ class Polygon(Entity):
         xs = [p.x for p in self.vertices]
         ys = [p.y for p in self.vertices]
         return (min(xs), min(ys), max(xs), max(ys))
-
-    @property
-    def patch(self):
-        """Returns a matplotlib patch."""
-        return plt.Polygon(self.numpy)
-
-    def translate(self, vector):
-        """Translates the polygon by a vector."""
-        for v in self.vertices:
-            v.translate(vector)
-
-        if 'half_space' in self.__dict__:
-            self.half_space = self.half_space.translation(vector)
-
-    def rotate(self, theta, point=None, axis=None):
-        """Rotates the Polygon around an axis which passes through a point by
-        theta radians."""
-        for v in self.vertices:
-            v.rotate(theta, point, axis)
-
-        if 'half_space' in self.__dict__:
-            if point is None:
-                d = 0
-            else:
-                d = point._x
-            self.half_space = self.half_space.translation(-d)
-            self.half_space = self.half_space.rotation(0, 1, theta)
-            self.half_space = self.half_space.translation(d)
 
     @property
     def edges(self):
@@ -961,6 +906,93 @@ class Polygon(Entity):
                                  self.vertices[(i+1) % self.numverts]))
 
         return edges
+
+    @cached_property
+    def area(self):
+        """Returns the area of the Polygon."""
+        raise NotImplementedError
+
+    @cached_property
+    def perimeter(self):
+        """Return the perimeter of the Polygon."""
+        perimeter = 0
+        verts = self.vertices
+        points = verts + [verts[0]]
+        for m in range(self.numverts):
+            perimeter += points[m].distance(points[m + 1])
+        return perimeter
+
+    @cached_property
+    def center(self):
+        """The center of the bounding circle."""
+        center = Point(np.zeros(self._dim))
+        for v in self.vertices:
+            center += v
+        return center / self.numverts
+
+    @cached_property
+    def radius(self):
+        """The radius of the bounding circle."""
+        r = 0
+        c = self.center
+        for m in range(self.numverts):
+            r = max(r, self.vertices[m].distance(c))
+        return r
+
+    @cached_property
+    def half_space(self):
+        """Returns the half space polytope respresentation of the polygon."""
+        assert(self.dim > 0), self.dim
+        A = np.ndarray((self.numverts, self.dim))
+        B = np.ndarray(self.numverts)
+
+        for i in range(0, self.numverts):
+            edge = Line(self.vertices[i], self.vertices[(i+1) % self.numverts])
+            A[i, :], B[i] = edge.standard
+
+            # test for positive or negative side of line
+            if self.center._x.dot(A[i, :]) > B[i]:
+                A[i, :] = -A[i, :]
+                B[i] = -B[i]
+
+        p = pt.Polytope(A, B)
+        return p
+
+    # Methods
+    def translate(self, vector):
+        """Translates the polygon by a vector."""
+        for v in self.vertices:
+            v.translate(vector)
+
+        if 'center' in self.__dict__:
+            self.center.translate(vector)
+
+        # if 'bounds' in self.__dict__:
+        #     self.bounds.translate(vector)
+
+        if 'half_space' in self.__dict__:
+            self.half_space = self.half_space.translation(vector)
+
+    def rotate(self, theta, point=None, axis=None):
+        """Rotates the Polygon around an axis which passes through a point by
+        theta radians."""
+        for v in self.vertices:
+            v.rotate(theta, point, axis)
+
+        if 'center' in self.__dict__:
+            self.center.rotate(theta, point, axis)
+
+        # if 'bounds' in self.__dict__:
+        #     self.bounds.rotate(theta, point, axis)
+
+        if 'half_space' in self.__dict__:
+            if point is None:
+                d = 0
+            else:
+                d = point._x
+            self.half_space = self.half_space.translation(-d)
+            self.half_space = self.half_space.rotation(0, 1, theta)
+            self.half_space = self.half_space.translation(d)
 
     def contains(self, other):
         """Return whether this Polygon contains the other."""
@@ -1021,25 +1053,6 @@ class Polygon(Entity):
         else:
             return np.logical_not(border.contains_points(np.atleast_2d(x)))
 
-    @cached_property
-    def half_space(self):
-        """Returns the half space polytope respresentation of the polygon."""
-        assert(self.dim > 0), self.dim
-        A = np.ndarray((self.numverts, self.dim))
-        B = np.ndarray(self.numverts)
-
-        for i in range(0, self.numverts):
-            edge = Line(self.vertices[i], self.vertices[(i+1) % self.numverts])
-            A[i, :], B[i] = edge.standard
-
-            # test for positive or negative side of line
-            if self.center._x.dot(A[i, :]) > B[i]:
-                A[i, :] = -A[i, :]
-                B[i] = -B[i]
-
-        p = pt.Polytope(A, B)
-        return p
-
 
 class Triangle(Polygon):
     """Triangle in 2D cartesian space.
@@ -1055,14 +1068,14 @@ class Triangle(Polygon):
                                              self.vertices[1],
                                              self.vertices[2])
 
-    @property
+    @cached_property
     def center(self):
         center = Point([0, 0])
         for v in self.vertices:
             center += v
         return center / 3
 
-    @property
+    @cached_property
     def area(self):
         A = self.vertices[0] - self.vertices[1]
         B = self.vertices[0] - self.vertices[2]
