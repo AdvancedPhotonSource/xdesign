@@ -65,6 +65,7 @@ from xdesign.geometry import *
 from xdesign.geometry import halfspacecirc
 import logging
 import polytope as pt
+from polytope.polytope import _rotate
 from copy import deepcopy
 from cached_property import cached_property
 
@@ -149,23 +150,30 @@ class Beam(Line):
     def half_space(self):
         """Return the half space polytope respresentation of the infinite
         beam."""
-        # add half beam width along the normal direction to each of the points
-        half = self.normal * self.size / 2
-        edges = [Line(self.p1 + half, self.p2 + half),
-                 Line(self.p1 - half, self.p2 - half)]
 
-        A = np.ndarray((len(edges), self.dim))
-        B = np.ndarray(len(edges))
+        # determine the length, position, and shape of the beam
+        s = self.size / 2
+        w = self.p1.distance(self.p2) / 2
+        midpoint = ((self.p2 + self.p1) / 2)._x
 
-        for i in range(0, 2):
-            A[i, :], B[i] = edges[i].standard
+        # make a bounding box around axis 0
+        hi = np.full(self.dim, s)
+        lo = -hi
+        hi[0] = w
+        lo[0] = -w
 
-            # test for positive or negative side of line
-            if np.einsum('i, i', self.p1._x, A[i, :]) > B[i]:
-                A[i, :] = -A[i, :]
-                B[i] = -B[i]
+        # create the polytope
+        p = pt.Polytope.from_box(np.stack([lo, hi], axis=1))
 
-        p = pt.Polytope(A, B)
+        # find the vector which bisects the angle between [1,0,0] and the beam
+        u = Point([1] + [0]*(self.dim - 1))
+        v = self.p2 - self.p1
+        w = u.norm * v._x + v.norm * u._x
+
+        # rotate the polytope and translate to beam
+        _rotate(p, u=u._x, v=w)
+        p = p.translation(midpoint)
+
         return p
 
     @property
