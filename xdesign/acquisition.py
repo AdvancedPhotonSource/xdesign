@@ -197,7 +197,12 @@ def beammesh(beam, mesh):
         logger.info("BEAMMESH skipped because of radius.")
         return 0
 
-    return beam.half_space.intersect(mesh.half_space).volume
+    volume = 0
+
+    for f in mesh.faces:
+        volume += f.sign * beamintersect(beam, f)
+
+    return volume
 
 
 def beampoly(beam, poly):

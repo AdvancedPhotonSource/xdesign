@@ -64,6 +64,7 @@ import polytope as pt
 from cached_property import cached_property
 import copy
 from math import sqrt, asin
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
@@ -308,7 +309,7 @@ class Point(Entity):
 
     def distance(self, other):
         """Returns the closest distance between entities."""
-        if isinstance(other, Line):
+        if isinstance(other, LinearEntity):
             return other.distance(self)
         elif not isinstance(other, Point):
             raise NotImplementedError("Point to point distance only.")
@@ -526,49 +527,76 @@ class Line(LinearEntity):
             return abs(d)
 
 
-# class Ray(LinearEntity):
-#     """Ray in 2-D cartesian space.
-#
-#     It is defined by two distinct points.
-#
-#     Attributes
-#     ----------
-#     p1 : Point (source)
-#     p2 : Point (point direction)
-#     """
-#
-#     def __init__(self, p1, p2):
-#         super(Ray, self).__init__(p1, p2)
-#
-#     @property
-#     def source(self):
-#         """The point from which the ray emanates."""
-#         return self.p1
-#
-#     @property
-#     def direction(self):
-#         """The direction in which the ray emanates."""
-#         return self.p2 - self.p1
+class Ray(Line):
+    """Ray in 2-D cartesian space.
+
+    It is defined by two distinct points.
+
+    Attributes
+    ----------
+    p1 : Point (source)
+    p2 : Point (point direction)
+    """
+
+    def __init__(self, p1, p2):
+        super(Ray, self).__init__(p1, p2)
+
+    @property
+    def source(self):
+        """The point from which the ray emanates."""
+        return self.p1
+
+    @property
+    def direction(self):
+        """The direction in which the ray emanates."""
+        return self.p2 - self.p1
+
+    def distance(self, other):
+        # REF: http://geomalgorithms.com/a02-_lines.html
+        v = self.p2._x - self.p1._x
+        w = other._x - self.p1._x
+
+        c1 = np.dot(w, v)
+
+        if c1 <= 0:
+            return self.p1.distance(other)
+        else:
+            return super(Ray, self).distance(other)
 
 
-# class Segment(LinearEntity):
-#     """Segment in 2-D cartesian space.
-#
-#     It is defined by two distinct points.
-#
-#     Attributes
-#     ----------
-#     p1 : Point (source)
-#     p2 : Point (point direction)
-#     """
-#
-#     def __init__(self, p1, p2):
-#         super(Segment, self).__init__(p1, p2)
-#
-#     @property
-#     def midpoint(self):
-#         """The midpoint of the line segment."""
-#         return Point.midpoint(self.p1, self.p2)
+class Segment(Line):
+    """Segment in 2-D cartesian space.
+
+    It is defined by two distinct points.
+
+    Attributes
+    ----------
+    p1 : Point
+    p2 : Point
+    """
+
+    def __init__(self, p1, p2):
+        super(Segment, self).__init__(p1, p2)
+
+    @property
+    def midpoint(self):
+        """The midpoint of the line segment."""
+        return Point.midpoint(self.p1, self.p2)
+
+    def distance(self, other):
+        # REF: http://geomalgorithms.com/a02-_lines.html
+        v = self.p2._x - self.p1._x
+        w = other._x - self.p1._x
+
+        c1 = np.dot(w, v)
+        c2 = np.dot(v, v)
+
+        if c1 <= 0:
+            return self.p1.distance(other)
+        elif c2 <= c1:
+            return self.p2.distance(other)
+        else:
+            return super(Segment, self).distance(other)
 
 
 class Curve(Entity):
@@ -677,15 +705,18 @@ class Circle(Curve):
         The center point of the circle.
     radius : scalar
         The radius of the circle.
+    sign : int (-1 or 1)
+        The sign of the area
     """
 
-    def __init__(self, center, radius):
+    def __init__(self, center, radius, sign=1):
         super(Circle, self).__init__(center)
         self.radius = float(radius)
+        self.sign = sign
 
     def __repr__(self):
-        return "Circle(center={}, radius={})".format(repr(self.center),
-                                                     repr(self.radius))
+        return "Circle(center={}, radius={}, sign={})".format(
+            repr(self.center), repr(self.radius), repr(self.sign))
 
     def __str__(self):
         """Return the analytical equation."""
@@ -695,6 +726,11 @@ class Circle(Curve):
     def __eq__(self, circle):
         return ((self.x, self.y, self.radius) ==
                 (circle.x, circle.y, circle.radius))
+
+    def __neg__(self):
+        copE = deepcopy(self)
+        copE.sign = -copE.sign
+        return copE
 
     @property
     def list(self):
@@ -714,7 +750,7 @@ class Circle(Curve):
     @property
     def area(self):
         """Return the area."""
-        return np.pi * self.radius**2
+        return self.sign * np.pi * self.radius**2
 
     @property
     def patch(self):
@@ -728,7 +764,7 @@ class Circle(Curve):
     #     self.rad *= val
 
     def contains(self, other):
-        """Return whether the Circle contains the other.
+        """Return whether `other` is a proper subset.
 
         Return one boolean for all geometric entities. Return an array of
         boolean for array input.
@@ -737,22 +773,52 @@ class Circle(Curve):
             x = other._x
         elif isinstance(other, np.ndarray):
             x = other
-        elif isinstance(other, Circle):
-            return (other.center.distance(self.center) + other.radius
-                    <= self.radius)
-        elif isinstance(other, Polygon):
-            x = _points_to_array(other.vertices)
-            return np.all(self.contains(x))
         elif isinstance(other, Mesh):
             for face in other.faces:
-                if not self.contains(face):
+                if not self.contains(face) and face.sign is 1:
                     return False
             return True
         else:
-            raise NotImplementedError("Circle.contains() not implemented for" +
-                                      " {}".format(type(other)))
+            if self.sign is 1:
+                if other.sign is -1:
+                    # Closed shape cannot contain infinite one
+                    return False
+                else:
+                    assert other.sign is 1
+                    # other is within A
+                    if isinstance(other, Circle):
+                        return (other.center.distance(self.center)
+                                + other.radius < self.radius)
+                    elif isinstance(other, Polygon):
+                        x = _points_to_array(other.vertices)
+                        return np.all(self.contains(x))
 
-        return np.sum((x - self.center._x)**2, axis=1) <= self.radius**2
+            elif self.sign is -1:
+                if other.sign is 1:
+                    # other is outside A and not around
+                    if isinstance(other, Circle):
+                        return (other.center.distance(self.center)
+                                - other.radius > self.radius)
+                    elif isinstance(other, Polygon):
+                        x = _points_to_array(other.vertices)
+                        return (np.all(self.contains(x)) and
+                                not other.contains(-self))
+
+                else:
+                    assert other.sign is -1
+                    # other is around A
+                    if isinstance(other, Circle):
+                        return (other.center.distance(self.center)
+                                + self.radius < other.radius)
+                    elif isinstance(other, Polygon):
+                        return (-other).contains(-self)
+
+        x = np.atleast_2d(x)
+
+        if self.sign is 1:
+            return np.sum((x - self.center._x)**2, axis=1) < self.radius**2
+        else:
+            return np.sum((x - self.center._x)**2, axis=1) > self.radius**2
 
 
 def _points_to_array(points):
@@ -773,23 +839,32 @@ class Polygon(Entity):
     Attributes
     ----------
     vertices : List of Points
+    sign : int (-1 or 1)
+        The sign of the area
     """
 
-    def __init__(self, vertices):
+    def __init__(self, vertices, sign=1):
         for v in vertices:
             if not isinstance(v, Point):
                 raise TypeError("vertices must be of type Point.")
         super(Polygon, self).__init__()
         self.vertices = vertices
         self._dim = vertices[0].dim
+        self.sign = sign
 
     def __repr__(self):
-        return "{}(vertices={})".format(type(self).__name__,
-                                        repr(self.vertices))
+        return "{}(vertices={}, sign={})".format(type(self).__name__,
+                                                 repr(self.vertices),
+                                                 repr(self.sign))
 
     def __str__(self):
         return "{}({})".format(type(self).__name__, str(self.numpy))
     # return "Polygon(%s" % ', '.join([str(n) for n in self.vertices]) + ")"
+
+    def __neg__(self):
+        copE = deepcopy(self)
+        copE.sign = -copE.sign
+        return copE
 
     @property
     def numverts(self):
@@ -883,41 +958,69 @@ class Polygon(Entity):
         edges = []
 
         for i in range(self.numverts):
-            edges.append(Line(self.vertices[i],
-                              self.vertices[(i+1) % self.numverts]))
+            edges.append(Segment(self.vertices[i],
+                                 self.vertices[(i+1) % self.numverts]))
 
         return edges
 
     def contains(self, other):
         """Return whether this Polygon contains the other."""
 
-        border = Path(self.numpy)
-
         if isinstance(other, Point):
             x = other._x
         elif isinstance(other, np.ndarray):
             x = other
-        elif isinstance(other, Polygon):
-            x = _points_to_array(other.vertices)
-            return np.all(border.contains_points(x, radius=1e-32))
-        elif isinstance(other, Circle):
-            if self.contains(other.center):
-                for edge in self.edges:
-                    if other.center.distance(edge) < other.radius:
-                        return False
-                return True
-            return False
         elif isinstance(other, Mesh):
             for face in other.faces:
-                if not self.contains(face):
+                if not self.contains(face) and face.sign is 1:
                     return False
             return True
         else:
-            raise NotImplementedError("Polygon.contains() not implemented " +
-                                      "for this class.")
+            if self.sign is 1:
+                if other.sign is -1:
+                    # Closed shape cannot contain infinite one
+                    return False
+                else:
+                    assert other.sign is 1
+                    # other is within A
+                    if isinstance(other, Circle):
+                        if self.contains(other.center):
+                            for edge in self.edges:
+                                if other.center.distance(edge) < other.radius:
+                                    return False
+                            return True
+                        return False
+                    elif isinstance(other, Polygon):
+                        x = _points_to_array(other.vertices)
+                        return np.all(self.contains(x))
+
+            elif self.sign is -1:
+                if other.sign is 1:
+                    # other is outside A and not around
+                    if isinstance(other, Circle):
+                        if self.contains(other.center):
+                            for edge in self.edges:
+                                if other.center.distance(edge) < other.radius:
+                                    return False
+                            return True and not other.contains(-self)
+                        return False
+                    elif isinstance(other, Polygon):
+                        x = _points_to_array(other.vertices)
+                        return (np.all(self.contains(x)) and
+                                not other.contains(-self))
+
+                else:
+                    assert other.sign is -1
+                    # other is around A
+                    if isinstance(other, Circle) or isinstance(other, Polygon):
+                        return (-other).contains(-self)
 
         border = Path(self.numpy)
-        return border.contains_points(np.atleast_2d(x), radius=1e-32)
+
+        if self.sign is 1:
+            return border.contains_points(np.atleast_2d(x))
+        else:
+            return np.logical_not(border.contains_points(np.atleast_2d(x)))
 
     @cached_property
     def half_space(self):
@@ -964,7 +1067,7 @@ class Triangle(Polygon):
     def area(self):
         A = self.vertices[0] - self.vertices[1]
         B = self.vertices[0] - self.vertices[2]
-        return 1/2 * np.abs(np.cross([A.x, A.y], [B.x, B.y]))
+        return self.sign * 1/2 * np.abs(np.cross([A.x, A.y], [B.x, B.y]))
 
 
 class Rectangle(Polygon):
@@ -996,8 +1099,8 @@ class Rectangle(Polygon):
 
     @property
     def area(self):
-        return (self.vertices[0].distance(self.vertices[1]) *
-                self.vertices[1].distance(self.vertices[2]))
+        return self.sign * (self.vertices[0].distance(self.vertices[1]) *
+                            self.vertices[1].distance(self.vertices[2]))
 
 
 class Square(Rectangle):
@@ -1027,7 +1130,20 @@ class Square(Rectangle):
 
 
 class Mesh(Entity):
-    """A mesh object. It is a collection of polygons"""
+    """A collection of Entities
+
+    Attributes
+    ----------
+    faces : :py:obj:`list`
+        A list of the Entities
+    area : float
+        The total area of the Entities
+    population : int
+        The number entities in the Mesh
+    radius : float
+        The radius of a bounding circle
+
+    """
 
     def __init__(self, obj=None, faces=[]):
         self.faces = []
@@ -1073,13 +1189,18 @@ class Mesh(Entity):
 
     def append(self, t):
         """Add a triangle to the mesh."""
-        assert(isinstance(t, Polygon))
         self.population += 1
         # self.center = ((self.center * self.area + t.center * t.area) /
         #                (self.area + t.area))
         self.area += t.area
-        for v in t.vertices:
-            self.radius = max(self.radius, self.center.distance(v))
+
+        if isinstance(t, Polygon):
+            for v in t.vertices:
+                self.radius = max(self.radius, self.center.distance(v))
+        else:
+            self.radius = max(self.radius,
+                              self.center.distance(t.center) + t.radius)
+
         self.faces.append(t)
 
     def pop(self, i=-1):
@@ -1097,23 +1218,11 @@ class Mesh(Entity):
         for t in self.faces:
             t.translate(vector)
 
-        if 'half_space' in self.__dict__:
-            self.half_space = self.half_space.translation(vector)
-
     def rotate(self, theta, point=None, axis=None):
         """Rotate entity around an axis which passes through a point by theta
         radians."""
         for t in self.faces:
             t.rotate(theta, point, axis)
-
-        if 'half_space' in self.__dict__:
-            if point is None:
-                d = 0
-            else:
-                d = point._x
-            self.half_space = self.half_space.translation(-d)
-            self.half_space = self.half_space.rotation(0, 1, theta)
-            self.half_space = self.half_space.translation(d)
 
     def scale(self, vector):
         """Scale entity."""
@@ -1121,6 +1230,12 @@ class Mesh(Entity):
             t.scale(vector)
 
     def contains(self, other):
+        """Return whether this Mesh contains other.
+
+        FOR ALL `x`,
+        THERE EXISTS a face of the Mesh that contains `x`
+        AND (ALL cut outs that contain `x` or THERE DOES NOT EXIST a cut out).
+        """
         if isinstance(other, Point):
             x = other._x
         elif isinstance(other, np.ndarray):
@@ -1128,14 +1243,30 @@ class Mesh(Entity):
         elif isinstance(other, Polygon):
             x = _points_to_array(other.vertices)
             return np.all(self.contains(x))
+        elif isinstance(other, Circle):
+            warnings.warn("Didn't check that Mesh contains Circle.")
+            return True
         else:
-            raise TypeError("P must be point or ndarray")
+            raise NotImplementedError("Mesh.contains({})".format(type(other)))
+
+        x = np.atleast_2d(x)
 
         # keep track of whether each point is contained in a face
-        bools = np.full(x.shape[0], False, dtype=bool)
+        x_in_face = np.zeros(x.shape[0], dtype=bool)
+        x_in_cut = np.zeros(x.shape[0], dtype=bool)
+        has_cuts = False
+
         for f in self.faces:
-            bools = np.logical_or(bools, f.contains(x))
-        return bools
+            if f.sign < 0:
+                has_cuts = True
+                x_in_cut = np.logical_or(x_in_cut, f.contains(x))
+            else:
+                x_in_face = np.logical_or(x_in_face, f.contains(x))
+
+        if has_cuts:
+            return np.logical_and(x_in_face, x_in_cut)
+        else:
+            return x_in_face
 
     @property
     def patch(self):
@@ -1143,13 +1274,6 @@ class Mesh(Entity):
         for f in self.faces:
             patches.append(f.patch)
         return patches
-
-    @cached_property
-    def half_space(self):
-        regions = []
-        for face in self.faces:
-            regions.append(face.half_space)
-        return pt.Region(regions)
 
 
 def calc_standard(A):

@@ -223,7 +223,7 @@ def plot_mesh(mesh, axis=None, alpha=None, c=None):
 
     # Plot each face separately
     for f in mesh.faces:
-        plot_polygon(f, axis, alpha, c)
+        plot_geometry(f, axis, alpha, c)
 
 
 def plot_polygon(polygon, axis=None, alpha=None, c=None):
@@ -287,7 +287,7 @@ def plot_curve(curve, axis=None, alpha=None, c=None):
 def _make_axis():
     """Makes an :class:`matplotlib.axis.Axis` for plotting :mod:`.Phantom` module
     classes."""
-    fig = plt.figure(figsize=(8, 8), facecolor='w')
+    fig = plt.figure(figsize=(8, 8), dpi=100)
     axis = fig.add_subplot(111, aspect='equal')
     plt.grid('on')
     plt.gca().invert_yaxis()
@@ -385,14 +385,25 @@ def _discrete_geometry(phantom, image, px, py, prop):
 def sidebyside(p, size=100, labels=None, prop='mass_attenuation'):
     '''Displays the geometry and the discrete property function of
     the given :class:`.Phantom` side by side.'''
-    fig = plt.figure(figsize=(6, 3), dpi=600)
+    # plt.rcParams.update({'font.size': 6})
+
+    fig = plt.figure(figsize=(6, 3), dpi=100)
+
     axis = fig.add_subplot(121, aspect='equal')
-    plt.grid('on')
-    plt.gca().invert_yaxis()
     plot_phantom(p, axis=axis, labels=labels)
-    plt.subplot(1, 2, 2)
+    plt.grid('on')
+    axis.invert_yaxis()
+    axis.set_xticks(np.linspace(0, 1, 6, True))
+    axis.set_yticks(np.linspace(0, 1, 6, True))
+
+    axis = plt.subplot(122)
     d = discrete_phantom(p, size, prop=prop)
     plt.imshow(d, interpolation='none', cmap=plt.cm.inferno)
+    axis.set_xticks(np.linspace(0, size, 6, True))
+    axis.set_yticks(np.linspace(0, size, 6, True))
+
+    plt.tight_layout()
+
     return d
 
 
