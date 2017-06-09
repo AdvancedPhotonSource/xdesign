@@ -1350,3 +1350,89 @@ def halfspacecirc(d, r):
         f = 0
 
     return f
+
+
+class NOrthotope(pt.Polytope):
+    """A rectangle in higher dimensions.
+
+    Attributes
+    ----------
+    center : :class:`Point`
+        The middle of the Parallelotope
+    side_lengths : NxM array
+        Vectors defining each of the M edges of the N-Parallelotope.
+    """
+    def __init__(self, center, side_lengths):
+
+        self.radii = np.array(side_lengths) / 2
+
+        lo = center._x - self.radii
+        hi = center._x + self.radii
+        intervals = np.stack([lo, hi], axis=1)
+
+        # Use code from Polytope.from_box()
+        if not isinstance(intervals, np.ndarray):
+            try:
+                intervals = np.array(intervals)
+            except:
+                raise TypeError('Polytope.from_box:' +
+                                'intervals must be a numpy ndarray or ' +
+                                'convertible as arg to numpy.array')
+        if intervals.ndim != 2:
+            raise ValueError('Polytope.from_box: ' +
+                             'intervals must be 2 dimensional')
+        n = intervals.shape
+        if n[1] != 2:
+            raise ValueError('Polytope.from_box: ' +
+                             'intervals must have 2 columns')
+        n = n[0]
+        # a <= b for each interval ?
+        if (intervals[:, 0] > intervals[:, 1]).any():
+            msg = 'Polytope.from_box: '
+            msg += 'Invalid interval in from_box method.\n'
+            msg += 'First element of an interval must'
+            msg += ' not be larger than the second.'
+            raise ValueError(msg)
+        A = np.vstack([np.eye(n), -np.eye(n)])
+        b = np.hstack([intervals[:, 1], -intervals[:, 0]])
+
+        super(NOrthotope, self).__init__(A, b, minrep=True)
+
+    @property
+    def radius(self):
+        """The Chebyshev ball radius"""
+        return self.chebR
+
+    # Methods
+    def translate(self, vector):
+        """Translate by a vector."""
+        pt.polytope._translate(self, vector)
+
+    def rotate(self, theta, point=None, axis=None):
+        """Rotate around an axis which passes through a point by
+        theta radians."""
+
+        if point is None:
+            d = 0
+        else:
+            d = point._x
+
+        pt.polytope._translate(self, -d)
+        pt.polytope._rotate(self, i=0, j=1, theta=theta)
+        pt.polytope._translate(self, d)
+
+    def contains(self, other):
+        """Return whether this Parallelotope contains the other."""
+        if isinstance(other, Point):
+            return other._x in self
+        elif isinstance(other, Polytope):
+            return other <= self
+        else:
+            raise NotImplementedError
+
+
+class NCube(NOrthotope):
+    """A cube in higher dimensions."""
+    def __init__(self, center, side_length):
+        side_lengths = [side_length] * center.dim
+        super(NCube, self).__init__(center, side_lengths)

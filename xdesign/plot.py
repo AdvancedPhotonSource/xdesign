@@ -70,6 +70,7 @@ from xdesign.geometry import Curve, Polygon, Mesh
 from matplotlib.axis import Axis
 from itertools import product
 from six import string_types
+import polytope as pt
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +79,7 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['plot_phantom',
-           'plot_mesh',
-           'plot_polygon',
-           'plot_curve',
+           'plot_geometry',
            'discrete_phantom',
            'sidebyside',
            'multiroll',
@@ -198,6 +197,8 @@ def plot_geometry(geometry, axis=None, alpha=None, c=None):
         plot_curve(geometry, axis, alpha, c)
     elif isinstance(geometry, Polygon):
         plot_polygon(geometry, axis, alpha, c)
+    elif isinstance(geometry, pt.Polytope):
+        plot_polytope(geometry, axis, alpha, c)
     else:
         raise NotImplemented('geometry is not Mesh, Curve or Polygon.')
 
@@ -253,6 +254,29 @@ def plot_polygon(polygon, axis=None, alpha=None, c=None):
     p.set_edgecolor(POLY_EDGE_COLOR)
     p.set_linewidth(POLY_LINEWIDTH)
     axis.add_patch(p)
+
+
+def plot_polytope(polytope, axis=None, alpha=None, c=None, z=0.0, t=0.0001):
+    """Project and plot a polytope into the plane"""
+    if c is None:
+        c = POLY_COLOR
+
+    box_zmin = polytope.bounding_box[0][2]
+    box_zmax = polytope.bounding_box[1][2]
+
+    if (box_zmin < z and box_zmax < z
+            or z + t < box_zmin and z + t < box_zmax):
+        return
+
+    lo = [0, 0, z]
+    hi = [1, 1, z + t]
+
+    plane = pt.Polytope.from_box(np.stack([lo, hi], axis=1))
+
+    projection = plane.intersect(polytope).project([1, 2])
+
+    if projection.dim > 0:
+        projection.plot(ax=axis, alpha=alpha, color=c)
 
 
 def plot_curve(curve, axis=None, alpha=None, c=None):

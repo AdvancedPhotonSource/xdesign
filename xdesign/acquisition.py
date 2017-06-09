@@ -222,6 +222,15 @@ def beampoly(beam, poly):
     return beam.half_space.intersect(poly.half_space).volume
 
 
+def beamtope(beam, tope):
+    """Intersection area of an infinite beam with a polytope"""
+    if beam.distance(Point(tope.chebXc)) > tope.chebR:
+        logger.info("BEAMTOPE skipped because of radius.")
+        return 0
+
+    return beam.half_space.intersect(tope).volume
+
+
 def beamcirc(beam, circle):
     """Intersection area of a Beam (line with finite thickness) and a circle.
 
