@@ -79,7 +79,9 @@ __all__ = ['Entity',
            'Triangle',
            'Rectangle',
            'Square',
-           'Mesh']
+           'Mesh',
+           'NOrthotope',
+           'NCube']
 
 
 class Entity(object):
@@ -1096,7 +1098,7 @@ class Rectangle(Polygon):
     def __init__(self, center, side_lengths):
 
         s = np.array(side_lengths) / 2
-        self.side_lengths = side_lengths
+        self.side_lengths = np.array(side_lengths)
 
         p1 = Point([center.x + s[0], center.y + s[1]])
         p2 = Point([center.x - s[0], center.y + s[1]])
@@ -1104,6 +1106,10 @@ class Rectangle(Polygon):
         p4 = Point([center.x + s[0], center.y - s[1]])
 
         super(Rectangle, self).__init__([p1, p2, p3, p4])
+
+    def __repr__(self):
+        return "Rectangle({}, {})".format(repr(self.center),
+                                          repr(self.side_lengths))
 
     @cached_property
     def area(self):
@@ -1120,7 +1126,8 @@ class Square(Rectangle):
     def __init__(self, center, side_length=None, radius=None):
 
         if radius is not None:
-            side_length = np.sqrt(2) * radius
+            # side_length = np.sqrt(2) * radius
+            side_length = 2 * radius
 
         side_lengths = [side_length] * 2
 
@@ -1359,12 +1366,13 @@ class NOrthotope(pt.Polytope):
     ----------
     center : :class:`Point`
         The middle of the Parallelotope
-    side_lengths : NxM array
-        Vectors defining each of the M edges of the N-Parallelotope.
+    side_lengths : N array
+        A vector defining the lengths of the edges of the NOrthotope.
     """
     def __init__(self, center, side_lengths):
 
         self.radii = np.array(side_lengths) / 2
+        self.side_lengths = np.array(side_lengths)
 
         lo = center._x - self.radii
         hi = center._x + self.radii
@@ -1403,6 +1411,11 @@ class NOrthotope(pt.Polytope):
         """The Chebyshev ball radius"""
         return self.chebR
 
+    @property
+    def center(self):
+        """The Chebyshev ball center"""
+        return Point(self.chebXc)
+
     # Methods
     def translate(self, vector):
         """Translate by a vector."""
@@ -1425,7 +1438,7 @@ class NOrthotope(pt.Polytope):
         """Return whether this Parallelotope contains the other."""
         if isinstance(other, Point):
             return other._x in self
-        elif isinstance(other, Polytope):
+        elif isinstance(other, pt.Polytope):
             return other <= self
         else:
             raise NotImplementedError
@@ -1433,6 +1446,10 @@ class NOrthotope(pt.Polytope):
 
 class NCube(NOrthotope):
     """A cube in higher dimensions."""
-    def __init__(self, center, side_length):
+    def __init__(self, center, side_length=None, radius=None):
+
+        if radius is not None:
+            side_length = radius * 2
+
         side_lengths = [side_length] * center.dim
         super(NCube, self).__init__(center, side_lengths)

@@ -107,7 +107,8 @@ PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
                18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
 
 
-def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
+def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=-1,
+                 z=0.0, t=0.0001):
     """Plots a :class:`.Phantom` to the given axis.
 
     Parameters
@@ -138,6 +139,7 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
         # can't plot without geometry. plot nothing
         pass
     else:
+        plotted = False
         if phantom.material is None:
             # phantom has no properties. it is a container
             pass
@@ -153,24 +155,24 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
                     props[j] = getattr(phantom.material, c_props[j])(DEFAULT_ENERGY)
                 color = c_map(props)[0]
 
-            plot_geometry(phantom.geometry, axis, c=color)
+            plotted = plot_geometry(phantom.geometry, axis, c=color, z=z, t=t)
+            i += 1
 
-        if labels is not None:
+        if plotted is not False and labels is not None:
             axis.annotate(str(i), xy=(phantom.geometry.center.x,
                                       phantom.geometry.center.y),
                           ha='center', va='center', color=LABEL_COLOR,
                           path_effects=[PathEffects.withStroke(
                             linewidth=3, foreground=DEFAULT_EDGE_COLOR)])
-            i += 1
 
     for child in phantom.children:
         i = plot_phantom(child, axis=axis, labels=labels, c_props=c_props,
-                         c_map=c_map, i=i)
+                         c_map=c_map, i=i, z=z, t=t)
 
     return i
 
 
-def plot_geometry(geometry, axis=None, alpha=None, c=None):
+def plot_geometry(geometry, axis=None, alpha=None, c=None, z=0.0, t=0.0001):
     """Plots a :class:`.Entity` on the given axis.
 
     Parameters
@@ -190,15 +192,15 @@ def plot_geometry(geometry, axis=None, alpha=None, c=None):
 
     # Plot geometry using correct method
     if geometry is None:
-        return
+        return False
     elif isinstance(geometry, Mesh):
-        plot_mesh(geometry, axis, alpha, c)
+        return plot_mesh(geometry, axis, alpha, c)
     elif isinstance(geometry, Curve):
-        plot_curve(geometry, axis, alpha, c)
+        return plot_curve(geometry, axis, alpha, c)
     elif isinstance(geometry, Polygon):
-        plot_polygon(geometry, axis, alpha, c)
+        return plot_polygon(geometry, axis, alpha, c)
     elif isinstance(geometry, pt.Polytope):
-        plot_polytope(geometry, axis, alpha, c)
+        return plot_polytope(geometry, axis, alpha, c, z, t)
     else:
         raise NotImplemented('geometry is not Mesh, Curve or Polygon.')
 
@@ -266,7 +268,7 @@ def plot_polytope(polytope, axis=None, alpha=None, c=None, z=0.0, t=0.0001):
 
     if (box_zmin < z and box_zmax < z
             or z + t < box_zmin and z + t < box_zmax):
-        return
+        return False
 
     lo = [0, 0, z]
     hi = [1, 1, z + t]
@@ -277,6 +279,9 @@ def plot_polytope(polytope, axis=None, alpha=None, c=None, z=0.0, t=0.0001):
 
     if projection.dim > 0:
         projection.plot(ax=axis, alpha=alpha, color=c)
+        return True
+
+    return False
 
 
 def plot_curve(curve, axis=None, alpha=None, c=None):

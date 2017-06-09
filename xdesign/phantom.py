@@ -289,7 +289,7 @@ class Phantom(object):
         return self.children.pop(i)
 
     def sprinkle(self, counts, radius, gap=0, region=None,
-                 material=None, max_density=1):
+                 material=None, max_density=1, shape=Circle):
         """Sprinkle a number of :class:`.Circle` shaped Phantoms around the
         Phantom. Uses various termination criteria to determine when to stop
         trying to add circles.
@@ -335,7 +335,7 @@ class Phantom(object):
         if radius[0] + gap < 0:  # prevents circles with negative radius
             collision = True
 
-        kTERM_CRIT = 200  # tries to append a new circle before quitting
+        kTERM_CRIT = 500  # tries to append a new circle before quitting
         n_tries = 0  # attempts to append a new circle
         n_added = 0  # circles successfully added
 
@@ -354,12 +354,16 @@ class Phantom(object):
                 n_added += 1
                 continue
 
-            circle = Circle(center, radius[0] + gap)
+            circle = shape(center, radius=radius[0] + gap)
             overlap = _collision(self, circle)
-            if overlap <= radius[0] - radius[1]:
-                self.append(Phantom(geometry=Circle(center,
-                                                    radius[0] - overlap),
-                                    material=material))
+
+            if np.max(overlap) <= radius[0] - radius[1]:
+
+                candidate = shape(center, radius=radius[0] - np.max(overlap))
+                # print(center, radius[0], gap, overlap)
+                # assert np.all(_collision(self, candidate) <= 0), repr(candidate)
+
+                self.append(Phantom(geometry=candidate, material=material))
                 n_added += 1
                 n_tries = 0
 
@@ -373,24 +377,34 @@ class Phantom(object):
         return n_added
 
 
-def _collision(phantom, circle):
-        """Return the max overlap of the circle and a child of this Phantom.
+def _collision(phantom, entity):
+        """Return the max overlap of the entity and a child of this Phantom.
 
         May return overlap < 0; the distance between the two non-overlapping
         circles.
         """
+
         max_overlap = 0
 
         for child in phantom.children:
             if child.geometry is None:
-                overlap = _collision(child, circle)
+                # get overlap from grandchildren
+                overlap = _collision(child, entity)
 
             else:
-                dx = child.center.distance(circle.center)
-                dr = child.radius + circle.radius
-                overlap = dr - dx
+                # calculate overlap with entity
+                if isinstance(entity, Circle):
+                    dx = child.center.distance(entity.center)
+                    dr = child.radius + entity.radius
 
-            max_overlap = max(max_overlap, overlap)
+                else:
+                    dx = np.abs(child.center._x - entity.center._x)
+                    dr = (child.geometry.side_lengths + entity.side_lengths) / 2
+
+            overlap = dr - dx
+
+            if np.all(overlap > 0):
+                max_overlap = np.maximum(max_overlap, overlap)
 
         return max_overlap
 
@@ -409,6 +423,7 @@ def _random_point(geometry, margin=0.0):
         [xmin, ymin, xmax, ymax] = geometry.bounds
         x = np.random.uniform(xmin + margin, xmax - margin)
         y = np.random.uniform(ymin + margin, ymax - margin)
+        random_point = Point([x, y])
 
     elif isinstance(geometry, Circle):
         radius = geometry.radius
@@ -417,13 +432,17 @@ def _random_point(geometry, margin=0.0):
         a = np.random.uniform(0, 2 * np.pi)
         x = r * np.cos(a) + center.x
         y = r * np.sin(a) + center.y
+        random_point = Point([x, y])
 
+    elif isinstance(geometry, NOrthotope):
+        xmin, xmax = geometry.bounding_box
+        x = np.random.uniform(xmin + margin, xmax - margin)
+        random_point = Point(x)
     else:
         raise NotImplementedError("Cannot give point in {}.".format(
-                                  type(geometry)) + " Only Square and " +
-                                  "Circle are available.")
+                                  type(geometry)))
 
-    return Point([x, y])
+    return random_point
 
 
 class XDesignDefault(Phantom):
