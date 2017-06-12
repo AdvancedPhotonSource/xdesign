@@ -713,6 +713,7 @@ class Circle(Curve):
         super(Circle, self).__init__(center)
         self.radius = float(radius)
         self.sign = sign
+        self._dim = 2
 
     def __repr__(self):
         return "Circle(center={}, radius={}, sign={})".format(
@@ -756,6 +757,14 @@ class Circle(Curve):
     def patch(self):
         """Returns a matplotlib patch."""
         return plt.Circle((self.center.x, self.center.y), self.radius)
+
+    @property
+    def bounding_box(self):
+        """Return the axis-aligned bounding box as two numpy vectors."""
+        xmin = np.array(self.center._x - self.radius)
+        xmax = np.array(self.center._x + self.radius)
+
+        return xmin, xmax
 
     # def scale(self, val):
     #     """Scale."""
@@ -920,9 +929,17 @@ class Polygon(Entity):
         """Returns a 4-tuple (xmin, ymin, xmax, ymax) representing the
         bounding rectangle for the Polygon.
         """
+        warnings.warn("Use Polygon.bounding_box instead.", DeprecationWarning)
         xs = [p.x for p in self.vertices]
         ys = [p.y for p in self.vertices]
         return (min(xs), min(ys), max(xs), max(ys))
+
+    @property
+    def bounding_box(self):
+        """Return the axis-aligned bounding box as two numpy vectors."""
+        xs = [p.x for p in self.vertices]
+        ys = [p.y for p in self.vertices]
+        return np.array([min(xs), min(ys)]), np.array([max(xs), max(ys)])
 
     @property
     def patch(self):
@@ -1150,6 +1167,7 @@ class Mesh(Entity):
         self.area = 0
         self.population = 0
         self.radius = 0
+        self._dim = 2
 
         if obj is not None:
             assert not faces
@@ -1186,6 +1204,19 @@ class Mesh(Entity):
                 center += f.center * f.area
             center /= self.area
         return center
+
+    @property
+    def bounding_box(self):
+        """Return the axis-aligned bounding box as two numpy vectors."""
+        xmin = np.full(self.dim, np.nan)
+        xmax = np.full(self.dim, np.nan)
+
+        for f in self.faces:
+            fmin, fmax = f.bounding_box
+            xmin = np.fmin(xmin, fmin)
+            xmax = np.fmax(xmax, fmax)
+
+        return xmin, xmax
 
     def append(self, t):
         """Add a triangle to the mesh."""

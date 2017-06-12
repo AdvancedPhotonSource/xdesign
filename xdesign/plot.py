@@ -78,10 +78,13 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['plot_phantom',
+           'plot_geometry',
            'plot_mesh',
            'plot_polygon',
            'plot_curve',
            'discrete_phantom',
+           'combine_grid',
+           'discrete_geometry',
            'sidebyside',
            'multiroll',
            'plot_metrics',
@@ -294,92 +297,229 @@ def _make_axis():
     return fig, axis
 
 
-def discrete_phantom(phantom, size, ratio=8, uniform=True,
-                     prop='mass_attenuation'):
-    """Returns discrete representation of the property function, prop, in the
-    :class:`.Phantom`. The values of overlapping Phantoms are additive.
+def discrete_phantom(phantom, size, ratio=9, uniform=True,
+                     prop='linear_attenuation'):
+    """Return a discrete map of the `property` in the `phantom`.
+
+    The values of overlapping :class:`phantom.Phantom` are additive.
 
     Parameters
     ----------
-    phantom: :class:`.Phantom`
+    phantom: :class:`phantom.Phantom`
     size : scalar
-        The side length in pixels of the resulting square image.
-    ratio : scalar, optional
+        The side length in pixels of the resulting 1 by 1 cm image.
+    ratio : scalar, optional (default: 9)
         The antialiasing works by supersampling. This parameter controls
         how many pixels in the larger representation are averaged for the
-        final representation. e.g. if ratio = 8, then the final pixel
-        values are the average of 64 pixels.
-    uniform : boolean, optional
+        final representation. e.g. if ratio = 9, then the final pixel
+        values are the average of 81 pixels.
+    uniform : boolean, optional (default: True)
         When set to False, changes the way pixels are averaged from a
         uniform weights to gaussian weigths.
-    prop : str, optional
-        The name of the property function to discretize
+    prop : str, optional (default: linear_attenuation)
+        The name of the property to discretize
 
-    Returns
-    -------
-    image : numpy.ndarray
+    Return
+    ------
+    image : :class:`numpy.ndarray`
         The discrete representation of the :class:`.Phantom` that is size x
-        size.
+        size. 0 if phantom has no geometry or material property.
+
+    Raise
+    -----
+    ValueError
+        If size is less than or equal to 0
     """
     if size <= 0:
         raise ValueError('size must be greater than 0.')
-    if ratio < 1:
-        raise ValueError('ratio must be at least 1.')
-    ndims = 2
 
-    # Make a higher resolution grid to sample the continuous space. Sample at
-    # the center of each pixel.
-    grid_step = 1 / size / ratio
-    _x = np.arange(0, 1, grid_step) + grid_step / 2
-    _y = np.arange(0, 1, grid_step) + grid_step / 2
-    px, py = np.meshgrid(_x, _y)
+    image = 0
 
-    # Draw the shapes at the higher resolution.
-    image = np.zeros((size * ratio, size * ratio), dtype=np.float)
+    if phantom.geometry is not None and phantom.material is not None \
+       and hasattr(phantom.material, prop):
 
-    # Rasterize all geometry in the phantom.
-    image = _discrete_geometry(phantom, image, px, py, prop)
+        psize = 1.0 / size
 
-    # Resample down to the desired size. Roll image so that decimation chooses
-    # from the center of each pixel.
-    if uniform:
-        image = scipy.ndimage.uniform_filter(image, ratio)
-    else:
-        image = scipy.ndimage.gaussian_filter(image, np.sqrt(ratio/2))
-    image = multiroll(image, [-ratio//2]*ndims)
-    image = image[::ratio, ::ratio]
+        # Rasterize all geometry in the phantom.
+        pmin, patch = discrete_geometry(phantom.geometry, psize, ratio)
 
-    assert(image.shape[0] == size and image.shape[1] == size)
-    return image
-
-
-def _discrete_geometry(phantom, image, px, py, prop):
-    """Draw the geometry of the phantom onto the image.
-
-    (px, py) are two arrays the same shape as image which hold the coordinates
-    of image pixels. Multiply the geometry of each phantom by the value of
-    phantom.prop.
-    """
-    if phantom.geometry is not None and hasattr(phantom.material, prop):
+        # Get the property value
         value = getattr(phantom.material, prop)(DEFAULT_ENERGY)
 
-        size = px.shape  # is equivalent to image.shape?
-        pixel_coords = np.vstack([px.flatten(), py.flatten()]).T
+        # Make a grid to put store all of the discrete geometries
+        image = np.zeros([size] * phantom.geometry.dim, dtype=float)
+        imin = [0] * phantom.geometry.dim
 
-        logger.debug("pixel_coords: {}".format(pixel_coords))
-        logger.debug("geometry: {}".format(phantom.geometry))
-
-        new_feature = phantom.geometry.contains(pixel_coords) * value
-        logger.debug("new_feature: {}".format(new_feature))
-
-        new_feature = np.reshape(new_feature, size)
-
-        image += new_feature
+        image = combine_grid(imin, image, pmin // psize, patch)
 
     for child in phantom.children:
-        image = _discrete_geometry(child, image, px, py, prop)
+        image += discrete_phantom(child, size, ratio, uniform, prop)
 
     return image
+
+
+def combine_grid(Amin, A, Bmin, B):
+    """Add grid B to grid A by aligning min corners and clipping B
+
+    Parameters
+    ----------
+    Amin, Bmin : int tuple
+        The coordinates of the minimum corner of A and B
+    A, B : numpy.ndarray
+        The two arrays to add to each other
+
+    Return
+    ------
+    AB : numpy.ndarray
+        The combined grid
+
+    Raise
+    -----
+    ValueError
+        If A and B are do not have the same number of dimensions
+    """
+    if A.ndim != B.ndim:
+        raise ValueError("A and B must have the same number of dimensions.")
+
+    Amin = np.array(Amin, dtype=int)
+    Bmin = np.array(Bmin, dtype=int)
+
+    Amax = np.array(A.shape) + Amin
+    Bmax = np.array(B.shape) + Bmin
+
+    if np.any(Bmax <= Amin) or np.any(Amax <= Bmin):
+        # B doesn't overlap A
+        return A
+
+    # for each dimension, crop and pad B to fit inside A
+
+    forecrop = np.atleast_1d(Amin - Bmin)
+    postcrop = np.atleast_1d(Amax - Bmax)
+
+    pads = np.zeros([A.ndim, 2], dtype=int)
+    for i in range(A.ndim):
+        if forecrop[i] > 0:
+            B = B[forecrop[i]:]
+        if postcrop[i] < 0:
+            B = B[:postcrop[i]]
+
+        pads[0] = 0
+
+        if forecrop[i] < 0:
+            pads[0, 0] = -forecrop[i]
+        if postcrop[i] > 0:
+            pads[0, 1] = postcrop[i]
+
+        B = np.pad(B, pads, 'constant')
+
+        B = np.moveaxis(B, 0, -1)
+
+    assert B.shape == A.shape, ("A:{} is not the same shape as "
+                                "B:{}").format(A.shape, B.shape)
+
+    return A + B
+
+
+def discrete_geometry(geometry, psize, ratio=9):
+    """Draw the geometry onto a patch the size of its bounding box.
+
+    Parameters
+    ----------
+    geometry : :class:`geometry.Entity`
+        A geometric object with `dim`, `bounding_box`, and `contains` methods
+    psize : float [cm]
+        The real size of the pixels in the discrete image
+    ratio : int (default: 9)
+        The supersampling ratio for antialiasing. 1 means no antialiasing
+
+    Return
+    ------
+    corner : 1darray [cm]
+        The min corner of the patch
+    patch : ndarray
+        The discretized geometry in it's bounding box
+
+    Raise
+    -----
+    ValueError
+        If `ratio` is less than 1 or `psize` is less than or equal to 0.
+    """
+    if ratio < 1:
+        raise ValueError('ratio must be at least 1.')
+    if ratio <= 0:
+        raise ValueError('psize must be more than 0.')
+
+    logger.debug("geometry: {}".format(repr(geometry)))
+
+    # Determine the coordinates of the middle of each pixel in the supersampled
+    # bounding box
+    xmin, xmax = geometry.bounding_box
+    imin, imax = xmin // psize, xmax // psize + 1
+
+    buffer = max(1, ratio // 2)  # buffer for rounding errors
+    nsteps = imax - imin + 2 * buffer
+
+    # print(imin, imax, nsteps)
+
+    pixel_coords = [None] * geometry.dim
+    final_shape = np.zeros(geometry.dim, dtype=int)
+    corner = np.zeros(geometry.dim)
+
+    for i in range(geometry.dim):
+        x = psize * ((imin[i] - buffer) + np.arange(nsteps[i] * ratio) / ratio)
+        # TODO: @carterbox Determine whether arange, or linspace works better
+        # at surpressing rotation error. SEE test_discrete_phantom_uniform
+
+        # print(x)
+
+        # Check whether the patch range, x, contains the bounding box
+        assert x[0] <= xmin[i], x[0]
+        assert xmax[i] < x[-1] + psize / ratio, x[-1] + psize / ratio
+        # The length of x should be an integer multiple of the decimation ratio
+        assert x.size % ratio == 0, x.size
+
+        corner[i] = x[0]
+
+        x += psize / (2 * ratio)  # move point to mid-pixel
+
+        pixel_coords[i] = x
+        final_shape[i] = x.size
+
+    # Reshape the pixels_coords into an MxN array
+    pixel_coords = np.stack(np.meshgrid(*pixel_coords, indexing='ij'), axis=-1)
+    pixel_coords = np.reshape(pixel_coords, (np.prod(pixel_coords.shape[0:-1]),
+                                             geometry.dim))
+
+    # Compute whether each pixel is contained within the geometry
+    image = geometry.contains(pixel_coords)
+
+    image.shape = final_shape
+    image = image.astype(float)
+
+    # Resample down to the desired size.
+    if True:
+        image = scipy.ndimage.uniform_filter(image, ratio, mode='constant')
+    else:
+        image = scipy.ndimage.gaussian_filter(image, np.sqrt(ratio/2))
+
+    # Roll image so that decimation chooses
+    # from the exact center of each filter when ratio is odd.
+    patch = multiroll(image, [-ratio//2 + 1]*geometry.dim)
+
+    # Decimate each axis
+    for i in range(geometry.dim):
+        patch = patch[::ratio]
+        patch = np.moveaxis(patch, 0, -1)
+
+    # Check that the resulting image is the expected size
+    assert np.all(patch.shape == final_shape // ratio)
+
+    if geometry.dim > 1:
+        patch = np.swapaxes(patch, 0, 1)
+        corner[0], corner[1] = corner[1], corner[0]
+
+    # Return the image and its min corner
+    return corner, patch
 
 
 def sidebyside(p, size=100, labels=None, prop='mass_attenuation'):
