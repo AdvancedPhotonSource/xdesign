@@ -381,7 +381,7 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
         image = np.zeros([size] * phantom.geometry.dim, dtype=float)
         imin = [0] * phantom.geometry.dim
 
-        image = combine_grid(imin, image, pmin // psize, patch)
+        image = combine_grid(imin, image, pmin // psize, patch * value)
 
     for child in phantom.children:
         image += discrete_phantom(child, size, ratio, uniform, prop)
