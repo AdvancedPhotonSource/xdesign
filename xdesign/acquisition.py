@@ -77,10 +77,9 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Beam',
            'Probe',
+           'calculate_gram'
            'sinogram',
-           'angleogram',
-           'raster_scan',
-           'angle_scan']
+           'raster_scan']
 
 
 class Beam(Line):
@@ -344,48 +343,71 @@ class Probe(Beam):
         self.history.append(self.list)
 
 
-def probe_wrapper(probes, phantom, noise):
+def probe_wrapper(probes, phantom, **kwargs):
     """Wrap probe.measure to make it suitable for multiprocessing.
 
     This method does two things: (1) it puts the Probe.measure method in the
     f(*args) format for the pool workers (2) it passes chunks of work (multiple
     probes) to the workers to reduce overhead.
     """
-
+    measurements = [None] * len(probes)
     for i in range(len(probes)):
-        probes[i] = probes[i].measure(phantom, noise)
+        measurements[i] = probes[i].measure(phantom, **kwargs)
 
-    return probes
+    return measurements
 
 
-def calculate_gram(procedure, measurements, phantom, noise=0.0, pool=None,
-                   chunksize=1):
-    """This part of the code is identical for angleogram and sinogram."""
+def calculate_gram(procedure, niter, phantom, pool=None,
+                   chunksize=1, mkwargs={}):
+    """Measure the `phantom` using the `procedure`.
 
-    if pool is None:
-        sx = measurements.size
+    Parameters
+    ----------
+    procedure : :py:`.iterator`
+        An iterator that yields :class:`.Probe`
+    niter : int
+        The number of measurements to take
+    phantom : :class:`.phantom.Phantom`
+    pool : :py:`.multiprocessing.Pool` (default: None)
+    chunksize : int (default: 1)
+        The number of measurements to send to each worker in the pool.
+    mkwargs : dict
+        keyword arguments to pass to :ref:`.Probe.measure`.
 
-        for m in range(sx):
+    Raise
+    -----
+    ValueError
+        If niter is not a multiple of chunksize
+
+    .. seealso::
+        :class:`.sinogram`, :class:`,angelogram`
+    """
+    measurements = np.zeros(niter)
+
+    if pool is None:  # no multiprocessing
+
+        for m in range(niter):
             probe = next(procedure)
-            measurements[m] = probe.measure(phantom, noise)
+            measurements[m] = probe.measure(phantom, **mkwargs)
 
     else:
-        sx = measurements.size//chunksize
-        sy = chunksize
-        measurements.shape = (sx, sy)
+        nchunks = niter // chunksize
+        measurements.shape = (nchunks, chunksize)
 
-        async_data = [None] * sx
-        for m in range(sx):
+        # assign work to pool
+        async_data = [None] * nchunks
+        for m in range(nchunks):
 
-            probes = [None] * sy
-            for n in range(sy):
+            probes = [None] * chunksize
+            for n in range(chunksize):
 
                 probes[n] = deepcopy(next(procedure))
 
             async_data[m] = pool.apply_async(probe_wrapper,
-                                             (probes, phantom, noise,))
+                                             (probes, phantom), mkwargs)
 
-        for m in range(sx):
+        # combine the work from all the workers
+        for m in range(nchunks):
             measurements[m, :] = async_data[m].get()
 
         probe = probes.pop()
@@ -394,7 +416,7 @@ def calculate_gram(procedure, measurements, phantom, noise=0.0, pool=None,
     return measurements, probe
 
 
-def sinogram(sx, sy, phantom, noise=False, pool=None):
+def sinogram(sx, sy, phantom, pool=None, mkwargs={}):
     """Return a sinogram of phantom and the probe.
 
     Parameters
@@ -413,43 +435,13 @@ def sinogram(sx, sy, phantom, noise=False, pool=None):
         Probe with history.
     """
     scan = raster_scan(sx, sy)
-    sino = np.zeros(sx*sy)
 
-    sino, probe = calculate_gram(scan, sino, phantom, noise, pool,
-                                 chunksize=sy)
+    sino, probe = calculate_gram(scan, sx*sy, phantom,
+                                 pool=pool, chunksize=sy, mkwargs=mkwargs)
 
     sino.shape = (sx, sy)
 
     return sino, probe
-
-
-def angleogram(sx, sy, phantom, noise=False):
-    """Return a angleogram of phantom and the probe.
-
-    Parameters
-    ----------
-    sx : int
-        Number of rotation angles.
-    sy : int
-        Number of detection pixels (or sample translations).
-    phantom : Phantom
-
-    Returns
-    -------
-    angl : ndarray
-        Angleogram.
-    probe : Probe
-        Probe with history.
-    """
-    scan = angle_scan(sx, sy)
-    angl = np.zeros(sx*sy)
-
-    angl, probe = calculate_gram(scan, angl,  phantom, noise, pool,
-                                 chunksize=sy)
-
-    angl.shape = (sx, sy)
-
-    return angl, probe
 
 
 def raster_scan(sx, sy):
@@ -484,43 +476,3 @@ def raster_scan(sx, sy):
             p.translate(step)
         p.translate(-1)
         p.rotate(theta, Point([0.5, 0.5]))
-
-
-def angle_scan(sx, sy):
-    """Provides a beam list for angle-scanning.
-
-    The same Probe is returned each time to prevent recomputation of cached
-    properties.
-
-    Parameters
-    ----------
-    sx : int
-        Number of rotation angles.
-    sy : int
-        Number of detection pixels (or sample translations).
-
-    Yields
-    ------
-    Probe
-    """
-    # Step size of the probe.
-    step = 0.1 / sy
-
-    # Fixed rotation points.
-    p1 = Point([0, 0.5])
-    p2 = Point([0.5, 0.5])
-
-    # Step size of the rotation angle.
-    beta = np.pi / (sx + 1)
-    alpha = np.pi / sy
-
-    # Fixed probe location.
-    p = Probe(Point([step / 2., -10]), Point([step / 2., 10]), step)
-
-    for m in range(sx):
-        for n in range(sy):
-            yield p
-            p.rotate(-alpha, p1)
-        p.rotate(np.pi, p1)
-        p1.rotate(-beta, p2)
-        p.rotate(-beta, p2)
