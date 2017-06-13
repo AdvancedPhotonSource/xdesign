@@ -1469,11 +1469,19 @@ class NOrthotope(pt.Polytope):
         """Return whether this Parallelotope contains the other."""
         if isinstance(other, Point):
             return other._x in self
+
         elif isinstance(other, np.ndarray):
-            contains = np.full(other.shape[0], False, dtype=bool)
-            for i in range(other.shape[0]):
-                contains[i] = other[i] in self
-            return contains
+            if other.ndim == 1:
+                other.shape = (other.size, 1)
+            else:
+                other = other.T
+
+            assert other.shape[0] == self.dim
+
+            test = self.A.dot(other) \
+                - self.b.reshape((self.b.size, 1)) < 1e-7
+
+            return np.all(test, axis=0)
 
         elif isinstance(other, pt.Polytope):
             return other <= self
