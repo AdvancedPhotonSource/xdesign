@@ -497,15 +497,16 @@ def discrete_geometry(geometry, psize, ratio=9):
     corner = np.zeros(geometry.dim)
 
     for i in range(geometry.dim):
-        x = psize * ((imin[i] - margin) + np.arange(nsteps[i] * ratio) / ratio)
+        x = psize * ((imin.flat[i] - margin)
+                     + np.arange(nsteps.flat[i] * ratio) / ratio)
         # TODO: @carterbox Determine whether arange, or linspace works better
         # at surpressing rotation error. SEE test_discrete_phantom_uniform
 
         # print(x)
 
         # Check whether the patch range, x, contains the bounding box
-        assert x[0] <= xmin[i], x[0]
-        assert xmax[i] < x[-1] + psize / ratio, x[-1] + psize / ratio
+        assert x[0] <= xmin.flat[i], x[0]
+        assert xmax.flat[i] < x[-1] + psize / ratio, x[-1] + psize / ratio
         # The length of x should be an integer multiple of the decimation ratio
         assert x.size % ratio == 0, x.size
 
