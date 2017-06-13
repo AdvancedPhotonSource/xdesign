@@ -487,8 +487,8 @@ def discrete_geometry(geometry, psize, ratio=9):
     xmin, xmax = geometry.bounding_box
     imin, imax = xmin // psize, xmax // psize + 1
 
-    buffer = max(1, ratio // 2)  # buffer for rounding errors
-    nsteps = imax - imin + 2 * buffer
+    margin = max(1, ratio // 2)  # buffer for rounding errors
+    nsteps = imax - imin + 2 * margin
 
     # print(imin, imax, nsteps)
 
@@ -497,7 +497,7 @@ def discrete_geometry(geometry, psize, ratio=9):
     corner = np.zeros(geometry.dim)
 
     for i in range(geometry.dim):
-        x = psize * ((imin[i] - buffer) + np.arange(nsteps[i] * ratio) / ratio)
+        x = psize * ((imin[i] - margin) + np.arange(nsteps[i] * ratio) / ratio)
         # TODO: @carterbox Determine whether arange, or linspace works better
         # at surpressing rotation error. SEE test_discrete_phantom_uniform
 
