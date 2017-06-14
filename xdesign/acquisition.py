@@ -55,6 +55,7 @@ includes physical things like Probes, detectors, turntables, and lenses, but
 also non-physical things such as scanning patterns and programs.
 
 .. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
+.. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
 from __future__ import (absolute_import, division, print_function,
@@ -65,7 +66,6 @@ from xdesign.geometry import *
 from xdesign.geometry import halfspacecirc
 import logging
 import polytope as pt
-from polytope.polytope import _rotate
 from copy import deepcopy
 from cached_property import cached_property
 
@@ -75,58 +75,106 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Beam',
-           'Probe',
-           'calculate_gram'
+__all__ = ['Probe',
+           'calculate_gram',
            'sinogram',
            'raster_scan']
 
 
-class Beam(Line):
-    """A thick line in 2-D cartesian space.
+class Probe(Line, pt.Polytope):
+    """An x-ray beam for probing Phantoms.
 
-    A Beam is defined by two distinct points and a size (thickness). It is
-    a subclass of a Probe.
+    A Probe is initialized by two points and a size (diameter).
 
     Attributes
-    ----------
+    -----------------
     p1 : Point
     p2 : Point
-    size : scalar, optional, cm
-        Size of the beam. i.e. the diameter
-    intensity : float, optional, cd
+    size : float, cm (default: 0.0 cm)
+        The size of probe in centimeters.
+    intensity : float, cd (default: 1.0 cd)
         The intensity of the beam in candela.
+    energy : float, eV (defauly: 15 eV)
+        The energy of the probe in eV.
+
+    .. todo:: Implement additional attributes for Probe such as wavelength,
+    etc.
     """
-    # TODO: Determine whether separate Beam object is necessary or if Beam can
-    # be merged with Probe.
-    def __init__(self, p1, p2, size=0.0, intensity=1.0):
-        """Return a new Beam from two given points and optional size."""
-        super(Beam, self).__init__(p1, p2)
-        self.size = float(size)
+    def __init__(self, p1, p2, size=0.0, intensity=1.0, energy=15.0,
+                 circleapprox=32):
+        super(Probe, self).__init__(p1, p2)
+
+        self.size = size
         self.intensity = intensity
-        self.count = 0
+        self.energy = energy
+
+        self.history = list()
+
+        # Construct the Polytope beam
+        # determine the length, position, and shape of the beam
+        radius = self.size / 2
+        half_length = self.p1.distance(self.p2) / 2
+        center = ((self.p2 + self.p1) / 2)._x
+
+        # make a bounding box around axis 0
+        hi = np.full(self.dim, radius)
+        lo = -hi
+        hi[0] = +half_length
+        lo[0] = -half_length
+
+        # create the polytope
+        p = pt.Polytope.from_box(np.stack([lo, hi], axis=1))
+
+        # Rotate the polytope around axis 0 to create a cylinder
+        if self.dim > 2:
+            nrotations = circleapprox
+            angle = np.pi / (2 * (nrotations + 1))
+            for i in range(nrotations):
+                rotated = p.rotation(i=1, j=2, theta=angle)
+                p = pt.intersect(p, rotated)
+
+        # find the vector which bisects the angle between [1,0,0] and the beam
+        u = Point([1] + [0]*(self.dim - 1))
+        v = self.p2 - self.p1
+        w = u.norm * v._x + v.norm * u._x
+
+        # rotate the polytope and translate to beam
+        pt.polytope._rotate(p, u=u._x, v=w)
+        p = p.translation(center)
+
+        pt.Polytope.__init__(self, A=p.A, b=p.b, minrep=True)
 
     def __repr__(self):
-        return "Beam({}, {}, size={})".format(repr(self.p1), repr(self.p2),
-                                              repr(self.size))
+        return "Probe({}, {}, size={}, intensity={}, energy={})".format(
+                repr(self.p1), repr(self.p2), repr(self.size),
+                repr(self.intensity), repr(self.energy))
 
     def __str__(self):
         """Return the string respresentation of the Beam."""
-        return "Beam(" + super(Beam, self).__str__() + ")"
-
-    def distance(self, other):
-        """Return the closest distance between entities."""
-        dx = super(Beam, self).distance(other)
-        return dx - self.size / 2
+        return "Probe(" + super(Probe, self).__str__() + ")"
 
     def translate(self, vector):
         """Translate entity along vector."""
         logger.info("Translating Beam.")
+
+        if not isinstance(vector, np.ndarray):
+            vector = np.array(vector)
+
+        if vector.size < 2:
+            vec = self.normal * np.asscalar(vector)
+            vector = vec._x
+
         self.p1.translate(vector)
         self.p2.translate(vector)
+        pt.polytope._translate(self, vector)
 
-        if 'half_space' in self.__dict__:
-            self.half_space = self.half_space.translation(vector)
+    def record(self):
+        self.history.append(self.list)
+
+    def distance(self, other):
+        """Return the closest distance between entities."""
+        dx = super(Probe, self).distance(other)
+        return dx - self.size / 2
 
     def rotate(self, theta, point=None, axis=None):
         """Rotate entity around an axis which passes through an point by theta
@@ -135,50 +183,48 @@ class Beam(Line):
         self.p1.rotate(theta, point, axis)
         self.p2.rotate(theta, point, axis)
 
-        if 'half_space' in self.__dict__:
-            if point is None:
-                d = 0
-            else:
-                d = point._x
+        if point is None:
+            d = 0
+        else:
+            d = point._x
 
-            self.half_space = self.half_space.translation(-d)
-            self.half_space = self.half_space.rotation(0, 1, theta)
-            self.half_space = self.half_space.translation(d)
+        pt.polytope._translate(self, -d)
+        pt.polytope._rotate(self, i=0, j=1, theta=theta)
+        pt.polytope._translate(self, d)
 
-    @cached_property
-    def half_space(self):
-        """Return the half space polytope respresentation of the infinite
-        beam."""
+    def measure(self, phantom, sigma=0.0, pool=None):
+        """Return the probe measurement with optional Gaussian noise.
 
-        # determine the length, position, and shape of the beam
-        s = self.size / 2
-        w = self.p1.distance(self.p2) / 2
-        midpoint = ((self.p2 + self.p1) / 2)._x
+        Parameters
+        ----------
+        sigma : float >= 0
+            The standard deviation of the normally distributed noise.
+        """
+        newdata = self.intensity * np.exp(-self._get_attenuation(phantom))
 
-        # make a bounding box around axis 0
-        hi = np.full(self.dim, s)
-        lo = -hi
-        hi[0] = w
-        lo[0] = -w
+        if sigma > 0:
+            newdata += newdata * np.random.normal(scale=sigma)
 
-        # create the polytope
-        p = pt.Polytope.from_box(np.stack([lo, hi], axis=1))
+        self.record()
+        return newdata
 
-        # find the vector which bisects the angle between [1,0,0] and the beam
-        u = Point([1] + [0]*(self.dim - 1))
-        v = self.p2 - self.p1
-        w = u.norm * v._x + v.norm * u._x
+    def _get_attenuation(self, phantom):
+        """Return the beam intensity attenuation due to the phantom."""
+        intersection = beamintersect(self, phantom.geometry)
 
-        # rotate the polytope and translate to beam
-        _rotate(p, u=u._x, v=w)
-        p = p.translation(midpoint)
+        if intersection is None or phantom.material is None:
+            attenuation = 0.0
+        else:
+            # [ ] = [cm^2] / [cm] * [1/cm]
+            attenuation = (intersection / self.size
+                           * phantom.material.linear_attenuation(self.energy))
 
-        return p
+        if phantom.geometry is None or intersection > 0:
+            # check the children for containers and intersecting geometries
+            for child in phantom.children:
+                attenuation += self._get_attenuation(child)
 
-    @property
-    def skip(self):
-        self.count += 1
-        return self.count
+        return attenuation
 
 
 def beamintersect(beam, geometry):
@@ -218,7 +264,7 @@ def beampoly(beam, poly):
         logger.info("BEAMPOLY skipped because of radius.")
         return 0
 
-    return beam.half_space.intersect(poly.half_space).volume
+    return beam.intersect(poly.half_space).volume
 
 
 def beamtope(beam, tope):
@@ -227,7 +273,7 @@ def beamtope(beam, tope):
         logger.info("BEAMTOPE skipped because of radius.")
         return 0
 
-    return beam.half_space.intersect(tope).volume
+    return beam.intersect(tope).volume
 
 
 def beamcirc(beam, circle):
@@ -249,7 +295,7 @@ def beamcirc(beam, circle):
     """
     r = circle.radius
     w = beam.size/2
-    p = super(Beam, beam).distance(circle.center)
+    p = super(Probe, beam).distance(circle.center)
     assert(p >= 0)
 
     logger.info("BEAMCIRC r = %f, w = %f, p = %f" % (r, w, p))
@@ -273,74 +319,6 @@ def beamcirc(beam, circle):
     a = np.pi * r**2 * f
     assert(a >= 0), a
     return a
-
-
-class Probe(Beam):
-    """An object for probing Phantoms.
-
-    A Probe provides an interface for measuring the interaction of a Phantom
-    and a beam. It contains information for interacting with Materials such as
-    energy and brightness.
-
-    Attributes
-    -----------------
-    size : float, cm
-        The size of probe in centimeters.
-    intensity : float, cd
-        The intensity of the beam in candela.
-    """
-    # TODO: Implement additional attributes for Probe such as beam energy,
-    # brightness, wavelength, etc.
-    def __init__(self, p1, p2, size=0.0, intensity=1.0, energy=15.0):
-        super(Probe, self).__init__(p1, p2, size, intensity)
-        self.energy = energy
-        self.history = []
-
-    def __repr__(self):
-        return "Probe({}, {}, size={})".format(repr(self.p1), repr(self.p2),
-                                               repr(self.size))
-
-    def translate(self, dx):
-        """Translate beam along its normal direction."""
-        vec = self.normal * dx
-        super(Probe, self).translate(vec._x)
-
-    def measure(self, phantom, sigma=0.0, pool=None):
-        """Return the probe measurement with optional Gaussian noise.
-
-        Parameters
-        ----------
-        sigma : float >= 0
-            The standard deviation of the normally distributed noise.
-        """
-        newdata = self.intensity * np.exp(-self._get_attenuation(phantom))
-
-        if sigma > 0:
-            newdata += newdata * np.random.normal(scale=sigma)
-
-        self.record()
-        return newdata
-
-    def _get_attenuation(self, phantom):
-        """Return the beam intensity attenuation due to the phantom."""
-        intersection = beamintersect(self, phantom.geometry)
-
-        if intersection is None or phantom.material is None:
-            attenuation = 0.0
-        else:
-            # [ ] = [cm^2] / [cm] * [1/cm]
-            attenuation = (intersection / self.size
-                           * phantom.material.linear_attenuation(self.energy))
-
-        if phantom.geometry is None or intersection > 0:
-            # check the children for containers and intersecting geometries
-            for child in phantom.children:
-                attenuation += self._get_attenuation(child)
-
-        return attenuation
-
-    def record(self):
-        self.history.append(self.list)
 
 
 def probe_wrapper(probes, phantom, **kwargs):
@@ -442,6 +420,45 @@ def sinogram(sx, sy, phantom, pool=None, mkwargs={}):
     sino.shape = (sx, sy)
 
     return sino, probe
+
+
+def raster_scan3D(sx, sy, sz):
+    """Provides a beam list for raster-scanning.
+
+    The same Probe is returned each time to prevent recomputation of cached
+    properties.
+
+    Parameters
+    ----------
+    sx : int
+        Number of rotation angles.
+    sy : int
+        Number of detection pixels (or sample translations).
+
+    Yields
+    ------
+    Probe
+    """
+    # Step size of the probe.
+    ystep = 1. / sy
+    zstep = 1. / sz
+
+    # Step size of the rotation angle.
+    theta = np.pi / sx
+
+    # Fixed probe location.
+    p = Probe(Point([-10, ystep / 2., zstep / 2.]),
+              Point([+10, ystep / 2., zstep / 2.]),
+              ystep)
+
+    for o in range(sz):
+        for m in range(sx):
+            for n in range(sy):
+                yield p
+                p.translate(ystep)
+            p.translate(-1)
+            p.rotate(theta, Point([0.5, 0.5]))
+        p.ztranslate(zstep)
 
 
 def raster_scan(sx, sy):

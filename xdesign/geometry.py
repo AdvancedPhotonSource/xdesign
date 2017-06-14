@@ -1383,8 +1383,9 @@ def halfspacecirc(d, r):
 
     # Returns the smaller fraction of the circle, so it can be at most 1/2.
     if f < 0 or 0.5 < f:
-        warnings.warn("halfspacecirc was out of bounds, {}".format(f),
-                      RuntimeWarning)
+        if f < -1e-16:  # f will often be less than 0 due to rounding errors
+            warnings.warn("halfspacecirc was out of bounds, {}".format(f),
+                          RuntimeWarning)
         f = 0
 
     return f
@@ -1411,12 +1412,7 @@ class NOrthotope(pt.Polytope):
 
         # Use code from Polytope.from_box()
         if not isinstance(intervals, np.ndarray):
-            try:
-                intervals = np.array(intervals)
-            except:
-                raise TypeError('Polytope.from_box:' +
-                                'intervals must be a numpy ndarray or ' +
-                                'convertible as arg to numpy.array')
+            intervals = np.array(intervals)
         if intervals.ndim != 2:
             raise ValueError('Polytope.from_box: ' +
                              'intervals must be 2 dimensional')
@@ -1435,7 +1431,7 @@ class NOrthotope(pt.Polytope):
         A = np.vstack([np.eye(n), -np.eye(n)])
         b = np.hstack([intervals[:, 1], -intervals[:, 0]])
 
-        super(NOrthotope, self).__init__(A, b, minrep=True)
+        super(NOrthotope, self).__init__(A, b)
 
     @property
     def radius(self):
