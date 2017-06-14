@@ -78,7 +78,8 @@ __docformat__ = 'restructuredtext en'
 __all__ = ['Probe',
            'calculate_gram',
            'sinogram',
-           'raster_scan']
+           'raster_scan',
+           'raster_scan3D']
 
 
 class Probe(Line, pt.Polytope):
@@ -240,6 +241,8 @@ def beamintersect(beam, geometry):
         return beampoly(beam, geometry)
     elif isinstance(geometry, Circle):
         return beamcirc(beam, geometry)
+    elif isinstance(geometry, pt.Polytope):
+        return beamtope(beam, geometry)
     else:
         raise NotImplementedError
 
@@ -363,14 +366,20 @@ def calculate_gram(procedure, niter, phantom, pool=None,
     measurements = np.zeros(niter)
 
     if pool is None:  # no multiprocessing
-
+        logging.info("calculate_gram: single thread")
         for m in range(niter):
             probe = next(procedure)
             measurements[m] = probe.measure(phantom, **mkwargs)
 
     else:
+        if chunksize == 1:
+            warnings.warn("Default chunksize is 1. This is not optimal.",
+                          RuntimeWarning)
+
         nchunks = niter // chunksize
         measurements.shape = (nchunks, chunksize)
+        logging.info("calculate_gram: dividing work into {} "
+                     "chunks".format(nchunks))
 
         # assign work to pool
         async_data = [None] * nchunks
@@ -383,7 +392,7 @@ def calculate_gram(procedure, niter, phantom, pool=None,
 
             async_data[m] = pool.apply_async(probe_wrapper,
                                              (probes, phantom), mkwargs)
-
+            logging.info('calculate_gram: chunk {} sent to worker'.format(m))
         # combine the work from all the workers
         for m in range(nchunks):
             measurements[m, :] = async_data[m].get()
@@ -440,25 +449,26 @@ def raster_scan3D(sx, sy, sz):
     Probe
     """
     # Step size of the probe.
-    ystep = 1. / sy
-    zstep = 1. / sz
+    ystep = Point([0, 1. / sy, 0])
+    zstep = Point([0, 0, 1. / sz])
 
     # Step size of the rotation angle.
     theta = np.pi / sx
 
     # Fixed probe location.
-    p = Probe(Point([-10, ystep / 2., zstep / 2.]),
-              Point([+10, ystep / 2., zstep / 2.]),
-              ystep)
+    p = Probe(Point([-10, 1. / sy / 2., 1. / sz / 2.]),
+              Point([+10, 1. / sy / 2., 1. / sz / 2.]),
+              1. / sy)
 
     for o in range(sz):
         for m in range(sx):
             for n in range(sy):
                 yield p
-                p.translate(ystep)
-            p.translate(-1)
-            p.rotate(theta, Point([0.5, 0.5]))
-        p.ztranslate(zstep)
+                p.translate(ystep._x)
+            p.translate(-sy * ystep._x)
+            p.rotate(theta, Point([0.5, 0.5, 0]))
+            ystep.rotate(theta)
+        p.translate(zstep._x)
 
 
 def raster_scan(sx, sy):

@@ -277,9 +277,14 @@ class Point(Entity):
 
         # shift rotation center to origin
         self._x -= center
+
         # do rotation
-        R = np.array([[np.cos(theta), -np.sin(theta)],
-                      [np.sin(theta),  np.cos(theta)]])
+        R = np.eye(self.dim)
+        R[0, 0] = np.cos(theta)
+        R[0, 1] = -np.sin(theta)
+        R[1, 0] = np.sin(theta)
+        R[1, 1] = np.cos(theta)
+
         self._x = np.dot(R, self._x)
         # shift rotation center back
         self._x += center
