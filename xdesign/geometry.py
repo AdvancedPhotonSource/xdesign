@@ -1410,6 +1410,7 @@ class NOrthotope(pt.Polytope):
 
         self.radii = np.array(side_lengths) / 2
         self.side_lengths = np.array(side_lengths)
+        self.radius = sqrt(self.radii.dot(self.radii))
 
         lo = center._x - self.radii
         hi = center._x + self.radii
@@ -1436,12 +1437,7 @@ class NOrthotope(pt.Polytope):
         A = np.vstack([np.eye(n), -np.eye(n)])
         b = np.hstack([intervals[:, 1], -intervals[:, 0]])
 
-        super(NOrthotope, self).__init__(A, b)
-
-    @property
-    def radius(self):
-        """The Chebyshev ball radius"""
-        return self.chebR
+        super(NOrthotope, self).__init__(A, b, minrep=True)
 
     @property
     def center(self):

@@ -156,7 +156,7 @@ class Probe(Line, pt.Polytope):
 
     def translate(self, vector):
         """Translate entity along vector."""
-        logger.info("Translating Beam.")
+        logger.debug("Probe.translate: {}".format(vector))
 
         if not isinstance(vector, np.ndarray):
             vector = np.array(vector)
@@ -180,7 +180,7 @@ class Probe(Line, pt.Polytope):
     def rotate(self, theta, point=None, axis=None):
         """Rotate entity around an axis which passes through an point by theta
         radians."""
-        logger.info("Rotating Beam.")
+        logger.debug("Probe.rotate: {}, {}, {}".format(theta, point, axis))
         self.p1.rotate(theta, point, axis)
         self.p2.rotate(theta, point, axis)
 
@@ -207,6 +207,8 @@ class Probe(Line, pt.Polytope):
             newdata += newdata * np.random.normal(scale=sigma)
 
         self.record()
+
+        logger.debug("Probe.measure: {}".format(newdata))
         return newdata
 
     def _get_attenuation(self, phantom):
@@ -217,7 +219,7 @@ class Probe(Line, pt.Polytope):
             attenuation = 0.0
         else:
             # [ ] = [cm^2] / [cm] * [1/cm]
-            attenuation = (intersection / self.size
+            attenuation = (intersection / self.cross_section
                            * phantom.material.linear_attenuation(self.energy))
 
         if phantom.geometry is None or intersection > 0:
@@ -226,6 +228,13 @@ class Probe(Line, pt.Polytope):
                 attenuation += self._get_attenuation(child)
 
         return attenuation
+
+    @cached_property
+    def cross_section(self):
+        if self.dim == 2:
+            return self.size
+        else:
+            return np.pi * self.size**2 / 4
 
 
 def beamintersect(beam, geometry):
@@ -250,7 +259,7 @@ def beamintersect(beam, geometry):
 def beammesh(beam, mesh):
     """Intersection area of infinite beam with polygonal mesh"""
     if beam.distance(mesh.center) > mesh.radius:
-        logger.info("BEAMMESH skipped because of radius.")
+        logger.debug("BEAMMESH: skipped because of radius.")
         return 0
 
     volume = 0
@@ -264,7 +273,7 @@ def beammesh(beam, mesh):
 def beampoly(beam, poly):
     """Intersection area of an infinite beam with a polygon"""
     if beam.distance(poly.center) > poly.radius:
-        logger.info("BEAMPOLY skipped because of radius.")
+        logger.debug("BEAMPOLY: skipped because of radius.")
         return 0
 
     return beam.intersect(poly.half_space).volume
@@ -272,9 +281,9 @@ def beampoly(beam, poly):
 
 def beamtope(beam, tope):
     """Intersection area of an infinite beam with a polytope"""
-    if beam.distance(Point(tope.chebXc)) > tope.chebR:
-        logger.info("BEAMTOPE skipped because of radius.")
-        return 0
+    # if beam.distance(Point(tope.chebXc)) > tope.radius:
+    #     logger.debug("BEAMTOPE: skipped because of radius.")
+    #     return 0
 
     return beam.intersect(tope).volume
 
@@ -301,7 +310,7 @@ def beamcirc(beam, circle):
     p = super(Probe, beam).distance(circle.center)
     assert(p >= 0)
 
-    logger.info("BEAMCIRC r = %f, w = %f, p = %f" % (r, w, p))
+    logger.debug("BEAMCIRC: r = %f, w = %f, p = %f" % (r, w, p))
 
     if w == 0 or r == 0:
         return 0
@@ -366,7 +375,9 @@ def calculate_gram(procedure, niter, phantom, pool=None,
     measurements = np.zeros(niter)
 
     if pool is None:  # no multiprocessing
-        logging.info("calculate_gram: single thread")
+        logging.info("calculate_gram: {}, single "
+                     "thread".format(procedure.__name__))
+
         for m in range(niter):
             probe = next(procedure)
             measurements[m] = probe.measure(phantom, **mkwargs)
@@ -378,8 +389,8 @@ def calculate_gram(procedure, niter, phantom, pool=None,
 
         nchunks = niter // chunksize
         measurements.shape = (nchunks, chunksize)
-        logging.info("calculate_gram: dividing work into {} "
-                     "chunks".format(nchunks))
+        logging.info("calculate_gram: {}, {} "
+                     "chunks".format(procedure.__name__, nchunks))
 
         # assign work to pool
         async_data = [None] * nchunks
@@ -431,43 +442,45 @@ def sinogram(sx, sy, phantom, pool=None, mkwargs={}):
     return sino, probe
 
 
-def raster_scan3D(sx, sy, sz):
-    """Provides a beam list for raster-scanning.
+def raster_scan3D(sz, sa, st):
+    """A Probe iterator for raster-scanning in 3D.
 
-    The same Probe is returned each time to prevent recomputation of cached
-    properties.
+    The size of the probe is 1 / st.
 
     Parameters
     ----------
-    sx : int
-        Number of rotation angles.
-    sy : int
-        Number of detection pixels (or sample translations).
+    sz : int
+        The number of vertical slices.
+    sa : int
+        The number of rotation angles over PI/2
+    st : int
+        The number of detection pixels (or sample translations).
 
     Yields
     ------
-    Probe
+    p : Probe
     """
-    # Step size of the probe.
-    ystep = Point([0, 1. / sy, 0])
+    # Step sizes of the probe.
+    tstep = Point([0, 1. / st, 0])
     zstep = Point([0, 0, 1. / sz])
-
-    # Step size of the rotation angle.
-    theta = np.pi / sx
+    theta = np.pi / sa
 
     # Fixed probe location.
-    p = Probe(Point([-10, 1. / sy / 2., 1. / sz / 2.]),
-              Point([+10, 1. / sy / 2., 1. / sz / 2.]),
-              1. / sy)
+    zstart = 1. / sz / 2.
+    p = Probe(Point([-10, 1. / st / 2., zstart]),
+              Point([10, 1. / st / 2., zstart]),
+              size=1. / st)
 
     for o in range(sz):
-        for m in range(sx):
-            for n in range(sy):
+        for m in range(sa):
+            for n in range(st):
                 yield p
-                p.translate(ystep._x)
-            p.translate(-sy * ystep._x)
+                p.translate(tstep._x)
+            p.translate(-st * tstep._x)
             p.rotate(theta, Point([0.5, 0.5, 0]))
-            ystep.rotate(theta)
+            tstep.rotate(theta)
+        p.rotate(np.pi, Point([0.5, 0.5, 0]))
+        tstep.rotate(np.pi)
         p.translate(zstep._x)
 
 
