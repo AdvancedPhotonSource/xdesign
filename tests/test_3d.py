@@ -17,32 +17,32 @@ import xdesign
 
 def test_beampoly_intersecting_partially_from_top():
     tri = NCube(Point([0.5, 0.5, 0]), 1.0)
-    beam = Probe(Point([-2, 1, 0]), Point([2, 1, 0]), 1)
+    beam = Probe(Point([-2, 1, 0]), Point([2, 1, 0]), size=1, circleapprox=0)
     assert_allclose(beamtope(beam, tri), 1/2, rtol=1e-6)
 
 
 def test_beampoly_intersecting_partially_from_bottom():
     tri = NCube(Point([0.5, 0.5, 0]), 1.0)
-    beam = Probe(Point([-2, 0, 0]), Point([2, 0, 0]), 1)
+    beam = Probe(Point([-2, 0, 0]), Point([2, 0, 0]), size=1, circleapprox=0)
     assert_allclose(beamtope(beam, tri), 1/2, rtol=1e-6)
 
 
 def test_beampoly_intersecting_fully():
     tri = NCube(Point([0, 0, 0]), 2.0)
-    beam = Probe(Point([-2, 0, 0]), Point([2, 0, 0]), 3)
+    beam = Probe(Point([-2, 0, 0]), Point([2, 0, 0]), size=3, circleapprox=0)
     assert_allclose(beamtope(beam, tri), 8, rtol=1e-6)
 
 
 def test_beampoly_vertical_intersection():
     tri = NOrthotope(Point([0, 0.5, 0]), [10, 1, 1])
-    beam = Probe(Point([0, -1, 0]), Point([0, 1, 0]), 1)
+    beam = Probe(Point([0, -1, 0]), Point([0, 1, 0]), size=1, circleapprox=0)
     assert_allclose(beamtope(beam, tri), 1, rtol=1e-6)
 
 
 def test_probe_circular(N=4):
     beam = Probe(Point([0, 0, -1]), Point([0, 0, 1]), 1, circleapprox=N)
     tri = NCube(Point([0, 0, 0]), 1.0)
-    assert_allclose(beamtope(beam, tri), np.pi/4, rtol=1e-6)
+    assert_allclose(beamtope(beam, tri), np.pi/4, atol=0.01)
 
 
 def test_plot_polytope():
@@ -53,7 +53,7 @@ def test_plot_polytope():
     _, axis = xdesign.plot._make_axis()
     plot_geometry(tri, axis)
     plot_geometry(Square(Point([0.3, 0.3]), 0.1), axis)
-    plt.show(block=True)
+    # plt.show(block=True)
 
 
 if __name__ == '__main__':
