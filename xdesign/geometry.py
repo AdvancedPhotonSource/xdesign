@@ -79,7 +79,9 @@ __all__ = ['Entity',
            'Triangle',
            'Rectangle',
            'Square',
-           'Mesh']
+           'Mesh',
+           'NOrthotope',
+           'NCube']
 
 
 class Entity(object):
@@ -275,9 +277,14 @@ class Point(Entity):
 
         # shift rotation center to origin
         self._x -= center
+
         # do rotation
-        R = np.array([[np.cos(theta), -np.sin(theta)],
-                      [np.sin(theta),  np.cos(theta)]])
+        R = np.eye(self.dim)
+        R[0, 0] = np.cos(theta)
+        R[0, 1] = -np.sin(theta)
+        R[1, 0] = np.sin(theta)
+        R[1, 1] = np.cos(theta)
+
         self._x = np.dot(R, self._x)
         # shift rotation center back
         self._x += center
@@ -713,6 +720,7 @@ class Circle(Curve):
         super(Circle, self).__init__(center)
         self.radius = float(radius)
         self.sign = sign
+        self._dim = 2
 
     def __repr__(self):
         return "Circle(center={}, radius={}, sign={})".format(
@@ -756,6 +764,14 @@ class Circle(Curve):
     def patch(self):
         """Returns a matplotlib patch."""
         return plt.Circle((self.center.x, self.center.y), self.radius)
+
+    @property
+    def bounding_box(self):
+        """Return the axis-aligned bounding box as two numpy vectors."""
+        xmin = np.array(self.center._x - self.radius)
+        xmax = np.array(self.center._x + self.radius)
+
+        return xmin, xmax
 
     # def scale(self, val):
     #     """Scale."""
@@ -853,13 +869,11 @@ class Polygon(Entity):
         self.sign = sign
 
     def __repr__(self):
-        return "{}(vertices={}, sign={})".format(type(self).__name__,
-                                                 repr(self.vertices),
-                                                 repr(self.sign))
+        return "Polygon(vertices={}, sign={})".format(repr(self.vertices),
+                                                      repr(self.sign))
 
     def __str__(self):
         return "{}({})".format(type(self).__name__, str(self.numpy))
-    # return "Polygon(%s" % ', '.join([str(n) for n in self.vertices]) + ")"
 
     def __neg__(self):
         copE = deepcopy(self)
@@ -884,73 +898,27 @@ class Polygon(Entity):
         return _points_to_array(self.vertices)
 
     @property
-    def area(self):
-        """Returns the area of the Polygon."""
-        raise NotImplementedError
+    def patch(self):
+        """Returns a matplotlib patch."""
+        return plt.Polygon(self.numpy)
 
-    @property
-    def perimeter(self):
-        """Return the perimeter of the Polygon."""
-        perimeter = 0
-        verts = self.vertices
-        points = verts + [verts[0]]
-        for m in range(self.numverts):
-            perimeter += points[m].distance(points[m + 1])
-        return perimeter
-
-    @property
-    def center(self):
-        """The center of the bounding circle."""
-        c = Point(np.zeros(self._dim))
-        for m in range(self.numverts):
-            c = c + self.vertices[m]
-        return c / self.numverts
-
-    @property
-    def radius(self):
-        """The radius of the bounding circle."""
-        r = 0
-        c = self.center
-        for m in range(self.numverts):
-            r = max(r, self.vertices[m].distance(c))
-        return r
-
+    # Cached Properties
     @property
     def bounds(self):
         """Returns a 4-tuple (xmin, ymin, xmax, ymax) representing the
         bounding rectangle for the Polygon.
         """
+        warnings.warn("Use Polygon.bounding_box instead.", DeprecationWarning)
         xs = [p.x for p in self.vertices]
         ys = [p.y for p in self.vertices]
         return (min(xs), min(ys), max(xs), max(ys))
 
     @property
-    def patch(self):
-        """Returns a matplotlib patch."""
-        return plt.Polygon(self.numpy)
-
-    def translate(self, vector):
-        """Translates the polygon by a vector."""
-        for v in self.vertices:
-            v.translate(vector)
-
-        if 'half_space' in self.__dict__:
-            self.half_space = self.half_space.translation(vector)
-
-    def rotate(self, theta, point=None, axis=None):
-        """Rotates the Polygon around an axis which passes through a point by
-        theta radians."""
-        for v in self.vertices:
-            v.rotate(theta, point, axis)
-
-        if 'half_space' in self.__dict__:
-            if point is None:
-                d = 0
-            else:
-                d = point._x
-            self.half_space = self.half_space.translation(-d)
-            self.half_space = self.half_space.rotation(0, 1, theta)
-            self.half_space = self.half_space.translation(d)
+    def bounding_box(self):
+        """Return the axis-aligned bounding box as two numpy vectors."""
+        xs = [p.x for p in self.vertices]
+        ys = [p.y for p in self.vertices]
+        return np.array([min(xs), min(ys)]), np.array([max(xs), max(ys)])
 
     @property
     def edges(self):
@@ -962,6 +930,93 @@ class Polygon(Entity):
                                  self.vertices[(i+1) % self.numverts]))
 
         return edges
+
+    @cached_property
+    def area(self):
+        """Returns the area of the Polygon."""
+        raise NotImplementedError
+
+    @cached_property
+    def perimeter(self):
+        """Return the perimeter of the Polygon."""
+        perimeter = 0
+        verts = self.vertices
+        points = verts + [verts[0]]
+        for m in range(self.numverts):
+            perimeter += points[m].distance(points[m + 1])
+        return perimeter
+
+    @cached_property
+    def center(self):
+        """The center of the bounding circle."""
+        center = Point(np.zeros(self._dim))
+        for v in self.vertices:
+            center += v
+        return center / self.numverts
+
+    @cached_property
+    def radius(self):
+        """The radius of the bounding circle."""
+        r = 0
+        c = self.center
+        for m in range(self.numverts):
+            r = max(r, self.vertices[m].distance(c))
+        return r
+
+    @cached_property
+    def half_space(self):
+        """Returns the half space polytope respresentation of the polygon."""
+        assert(self.dim > 0), self.dim
+        A = np.ndarray((self.numverts, self.dim))
+        B = np.ndarray(self.numverts)
+
+        for i in range(0, self.numverts):
+            edge = Line(self.vertices[i], self.vertices[(i+1) % self.numverts])
+            A[i, :], B[i] = edge.standard
+
+            # test for positive or negative side of line
+            if self.center._x.dot(A[i, :]) > B[i]:
+                A[i, :] = -A[i, :]
+                B[i] = -B[i]
+
+        p = pt.Polytope(A, B)
+        return p
+
+    # Methods
+    def translate(self, vector):
+        """Translates the polygon by a vector."""
+        for v in self.vertices:
+            v.translate(vector)
+
+        if 'center' in self.__dict__:
+            self.center.translate(vector)
+
+        # if 'bounds' in self.__dict__:
+        #     self.bounds.translate(vector)
+
+        if 'half_space' in self.__dict__:
+            self.half_space = self.half_space.translation(vector)
+
+    def rotate(self, theta, point=None, axis=None):
+        """Rotates the Polygon around an axis which passes through a point by
+        theta radians."""
+        for v in self.vertices:
+            v.rotate(theta, point, axis)
+
+        if 'center' in self.__dict__:
+            self.center.rotate(theta, point, axis)
+
+        # if 'bounds' in self.__dict__:
+        #     self.bounds.rotate(theta, point, axis)
+
+        if 'half_space' in self.__dict__:
+            if point is None:
+                d = 0
+            else:
+                d = point._x
+            self.half_space = self.half_space.translation(-d)
+            self.half_space = self.half_space.rotation(0, 1, theta)
+            self.half_space = self.half_space.translation(d)
 
     def contains(self, other):
         """Return whether this Polygon contains the other."""
@@ -1022,25 +1077,6 @@ class Polygon(Entity):
         else:
             return np.logical_not(border.contains_points(np.atleast_2d(x)))
 
-    @cached_property
-    def half_space(self):
-        """Returns the half space polytope respresentation of the polygon."""
-        assert(self.dim > 0), self.dim
-        A = np.ndarray((self.numverts, self.dim))
-        B = np.ndarray(self.numverts)
-
-        for i in range(0, self.numverts):
-            edge = Line(self.vertices[i], self.vertices[(i+1) % self.numverts])
-            A[i, :], B[i] = edge.standard
-
-            # test for positive or negative side of line
-            if self.center._x.dot(A[i, :]) > B[i]:
-                A[i, :] = -A[i, :]
-                B[i] = -B[i]
-
-        p = pt.Polytope(A, B)
-        return p
-
 
 class Triangle(Polygon):
     """Triangle in 2D cartesian space.
@@ -1056,14 +1092,14 @@ class Triangle(Polygon):
                                              self.vertices[1],
                                              self.vertices[2])
 
-    @property
+    @cached_property
     def center(self):
         center = Point([0, 0])
         for v in self.vertices:
             center += v
         return center / 3
 
-    @property
+    @cached_property
     def area(self):
         A = self.vertices[0] - self.vertices[1]
         B = self.vertices[0] - self.vertices[2]
@@ -1073,31 +1109,31 @@ class Triangle(Polygon):
 class Rectangle(Polygon):
     """Rectangle in 2D cartesian space.
 
-    It is defined by four distinct points.
+    Defined by a point and a vector to enforce perpendicular sides.
+
+    Attributes
+    ----------
+    side_lengths : array
+        The lengths of the sides
     """
 
-    def __init__(self, p1, p2, p3, p4):
+    def __init__(self, center, side_lengths):
+
+        s = np.array(side_lengths) / 2
+        self.side_lengths = np.array(side_lengths)
+
+        p1 = Point([center.x + s[0], center.y + s[1]])
+        p2 = Point([center.x - s[0], center.y + s[1]])
+        p3 = Point([center.x - s[0], center.y - s[1]])
+        p4 = Point([center.x + s[0], center.y - s[1]])
+
         super(Rectangle, self).__init__([p1, p2, p3, p4])
 
     def __repr__(self):
-        return "Rectangle({}, {}, {}, {})".format(self.vertices[0],
-                                                  self.vertices[1],
-                                                  self.vertices[2],
-                                                  self.vertices[3])
+        return "Rectangle({}, {})".format(repr(self.center),
+                                          repr(self.side_lengths))
 
-    @property
-    def center(self):
-        center = Point([0, 0])
-        for v in self.vertices:
-            center += v
-        return center / 4
-
-    @property
-    def radius(self):
-        """The radius of the bounding circle."""
-        return self.vertices[0].distance(self.center)
-
-    @property
+    @cached_property
     def area(self):
         return self.sign * (self.vertices[0].distance(self.vertices[1]) *
                             self.vertices[1].distance(self.vertices[2]))
@@ -1106,27 +1142,18 @@ class Rectangle(Polygon):
 class Square(Rectangle):
     """Square in 2D cartesian space.
 
-    It is defined by a center and a side length.
+    Defined by a point and a length to enforce perpendicular sides.
     """
 
-    def __init__(self, center, side_length):
-        if not isinstance(center, Point):
-            raise TypeError("center must be of type Point.")
-        if side_length <= 0:
-            raise ValueError("side_length must be greater than zero.")
+    def __init__(self, center, side_length=None, radius=None):
 
-        s = side_length/2
-        p1 = Point([center.x + s, center.y + s])
-        p2 = Point([center.x - s, center.y + s])
-        p3 = Point([center.x - s, center.y - s])
-        p4 = Point([center.x + s, center.y - s])
-        super(Square, self).__init__(p1, p2, p3, p4)
+        if radius is not None:
+            # side_length = np.sqrt(2) * radius
+            side_length = 2 * radius
 
-    def __repr__(self):
-        warnings.warn("The Square constructor is underdefined. The " +
-                      "Rectangle constructor will be used instead.")
+        side_lengths = [side_length] * 2
 
-        return super(Square, self).__repr__()
+        super(Square, self).__init__(center, side_lengths)
 
 
 class Mesh(Entity):
@@ -1150,6 +1177,7 @@ class Mesh(Entity):
         self.area = 0
         self.population = 0
         self.radius = 0
+        self._dim = 2
 
         if obj is not None:
             assert not faces
@@ -1186,6 +1214,19 @@ class Mesh(Entity):
                 center += f.center * f.area
             center /= self.area
         return center
+
+    @property
+    def bounding_box(self):
+        """Return the axis-aligned bounding box as two numpy vectors."""
+        xmin = np.full(self.dim, np.nan)
+        xmax = np.full(self.dim, np.nan)
+
+        for f in self.faces:
+            fmin, fmax = f.bounding_box
+            xmin = np.fmin(xmin, fmin)
+            xmax = np.fmax(xmax, fmax)
+
+        return xmin, xmax
 
     def append(self, t):
         """Add a triangle to the mesh."""
@@ -1347,8 +1388,110 @@ def halfspacecirc(d, r):
 
     # Returns the smaller fraction of the circle, so it can be at most 1/2.
     if f < 0 or 0.5 < f:
-        warnings.warn("halfspacecirc was out of bounds, {}".format(f),
-                      RuntimeWarning)
+        if f < -1e-16:  # f will often be less than 0 due to rounding errors
+            warnings.warn("halfspacecirc was out of bounds, {}".format(f),
+                          RuntimeWarning)
         f = 0
 
     return f
+
+
+class NOrthotope(pt.Polytope):
+    """A rectangle in higher dimensions.
+
+    Attributes
+    ----------
+    center : :class:`Point`
+        The middle of the Parallelotope
+    side_lengths : N array
+        A vector defining the lengths of the edges of the NOrthotope.
+    """
+    def __init__(self, center, side_lengths):
+
+        self.radii = np.array(side_lengths) / 2
+        self.side_lengths = np.array(side_lengths)
+        self.radius = sqrt(self.radii.dot(self.radii))
+
+        lo = center._x - self.radii
+        hi = center._x + self.radii
+        intervals = np.stack([lo, hi], axis=1)
+
+        # Use code from Polytope.from_box()
+        if not isinstance(intervals, np.ndarray):
+            intervals = np.array(intervals)
+        if intervals.ndim != 2:
+            raise ValueError('Polytope.from_box: ' +
+                             'intervals must be 2 dimensional')
+        n = intervals.shape
+        if n[1] != 2:
+            raise ValueError('Polytope.from_box: ' +
+                             'intervals must have 2 columns')
+        n = n[0]
+        # a <= b for each interval ?
+        if (intervals[:, 0] > intervals[:, 1]).any():
+            msg = 'Polytope.from_box: '
+            msg += 'Invalid interval in from_box method.\n'
+            msg += 'First element of an interval must'
+            msg += ' not be larger than the second.'
+            raise ValueError(msg)
+        A = np.vstack([np.eye(n), -np.eye(n)])
+        b = np.hstack([intervals[:, 1], -intervals[:, 0]])
+
+        super(NOrthotope, self).__init__(A, b, minrep=True)
+
+    @property
+    def center(self):
+        """The Chebyshev ball center"""
+        return Point(self.chebXc)
+
+    # Methods
+    def translate(self, vector):
+        """Translate by a vector."""
+        pt.polytope._translate(self, vector)
+
+    def rotate(self, theta, point=None, axis=None):
+        """Rotate around an axis which passes through a point by
+        theta radians."""
+
+        if point is None:
+            d = 0
+        else:
+            d = point._x
+
+        pt.polytope._translate(self, -d)
+        pt.polytope._rotate(self, i=0, j=1, theta=theta)
+        pt.polytope._translate(self, d)
+
+    def contains(self, other):
+        """Return whether this Parallelotope contains the other."""
+        if isinstance(other, Point):
+            return other._x in self
+
+        elif isinstance(other, np.ndarray):
+            if other.ndim == 1:
+                other.shape = (other.size, 1)
+            else:
+                other = other.T
+
+            assert other.shape[0] == self.dim
+
+            test = self.A.dot(other) \
+                - self.b.reshape((self.b.size, 1)) < 1e-7
+
+            return np.all(test, axis=0)
+
+        elif isinstance(other, pt.Polytope):
+            return other <= self
+        else:
+            raise NotImplementedError
+
+
+class NCube(NOrthotope):
+    """A cube in higher dimensions."""
+    def __init__(self, center, side_length=None, radius=None):
+
+        if radius is not None:
+            side_length = radius * 2
+
+        side_lengths = [side_length] * center.dim
+        super(NCube, self).__init__(center, side_lengths)

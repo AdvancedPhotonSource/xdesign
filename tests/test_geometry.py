@@ -116,25 +116,25 @@ def test_translate():
 
 def test_beamcirc_nonintersecting_top():
     circ = Circle(Point([0, 3]), 1)
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 0., rtol=1e-6)
 
 
 def test_beamcirc_nonintersecting_bottom():
     circ = Circle(Point([0, -3]), 1)
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 0., rtol=1e-6)
 
 
 def test_beampoly_nonintersecting_top():
     tri = Triangle(Point([0, 1]), Point([1, -1]), Point([-1, -1]))
-    beam = Beam(Point([-2, 2]), Point([2, 2]), 2)
+    beam = Probe(Point([-2, 2]), Point([2, 2]), 2)
     assert_allclose(beampoly(beam, tri), 0., rtol=1e-6)
 
 
 def test_beampoly_nonintersecting_bottom():
     tri = Triangle(Point([0, 1]), Point([1, -1]), Point([-1, -1]))
-    beam = Beam(Point([-2, -2]), Point([2, -2]), 2)
+    beam = Probe(Point([-2, -2]), Point([2, -2]), 2)
     assert_allclose(beampoly(beam, tri), 0., rtol=1e-6)
 
 
@@ -142,37 +142,37 @@ def test_beampoly_nonintersecting_bottom():
 
 def test_beamcirc_intersecting_partially_from_top_outside_center():
     circ = Circle(Point([0, 1.5]), 1)
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 0.614184849304, rtol=1e-6)
 
 
 def test_beamcirc_intersecting_partially_from_bottom_outside_center():
     circ = Circle(Point([0, -1.5]), 1)
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 0.614184849304, rtol=1e-6)
 
 
 def test_beamcirc_intersecting_partially_from_top_inside_center():
     circ = Circle(Point([0, 0.5]), 1)
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 2.52740780429, rtol=1e-6)
 
 
 def test_beamcirc_intersecting_partially_from_bottom_inside_center():
     circ = Circle(Point([0, -0.5]), 1)
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 2.52740780429, rtol=1e-6)
 
 
 def test_beampoly_intersecting_partially_from_top():
-    tri = Rectangle(Point([0, 0]), Point([1, 0]), Point([1, 1]), Point([0, 1]))
-    beam = Beam(Point([-2, 1]), Point([2, 1]), 1)
+    tri = Square(Point([0.5, 0.5]), side_length=1.0)
+    beam = Probe(Point([-2, 1]), Point([2, 1]), 1)
     assert_allclose(beampoly(beam, tri), 1/2, rtol=1e-6)
 
 
 def test_beampoly_intersecting_partially_from_bottom():
-    tri = Rectangle(Point([0, 0]), Point([1, 0]), Point([1, 1]), Point([0, 1]))
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 1)
+    tri = Square(Point([0.5, 0.5]), side_length=1.0)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 1)
     assert_allclose(beampoly(beam, tri), 1/2, rtol=1e-6)
 
 
@@ -180,37 +180,37 @@ def test_beampoly_intersecting_partially_from_bottom():
 
 def test_beamcirc_intersecting_fully_from_top_outside_center():
     circ = Circle(Point([0, 1.5]), 3)
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 10.0257253792, rtol=1e-6)
 
 
 def test_beamcirc_intersecting_fully_from_bottom_outside_center():
     circ = Circle(Point([0, -1.5]), 3)
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 10.0257253792, rtol=1e-6)
 
 
 def test_beamcirc_intersecting_fully_from_top_inside_center():
     circ = Circle(Point([0, 0.5]), 3)
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 11.5955559562, rtol=1e-6)
 
 
 def test_beamcirc_intersecting_fully_from_bottom_inside_center():
     circ = Circle(Point([0, -0.5]), 3)
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 11.5955559562, rtol=1e-6)
 
 
 def test_beamcirc_intersecting_fully():
     circ = Circle(Point([0, 0]), 1)
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 2)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 2)
     assert_allclose(beamcirc(beam, circ), 3.14159265359, rtol=1e-6)
 
 
 def test_beampoly_intersecting_fully():
-    tri = Rectangle(Point([-1, -1]), Point([1, -1]), Point([1, 1]), Point([-1, 1]))
-    beam = Beam(Point([-2, 0]), Point([2, 0]), 3)
+    tri = Square(Point([0, 0]), side_length=2.0)
+    beam = Probe(Point([-2, 0]), Point([2, 0]), 3)
     assert_allclose(beampoly(beam, tri), 4, rtol=1e-6)
 
 
@@ -218,13 +218,13 @@ def test_beampoly_intersecting_fully():
 
 def test_beamcirc_vertical_intersection():
     circ = Circle(Point([0, 0]), 1)
-    beam = Beam(Point([-1, -1]), Point([1, 1]), 1)
+    beam = Probe(Point([-1, -1]), Point([1, 1]), 1)
     assert_allclose(beamcirc(beam, circ), 1.91322295498, rtol=1e-6)
 
 
 def test_beampoly_vertical_intersection():
-    tri = Rectangle(Point([-5, 0]), Point([5, 0]), Point([5, 1]), Point([-5, 1]))
-    beam = Beam(Point([0, -1]), Point([0, 1]), 1)
+    tri = Rectangle(Point([0, 0.5]), side_lengths=[10, 1])
+    beam = Probe(Point([0, -1]), Point([0, 1]), 1)
     assert_allclose(beampoly(beam, tri), 1, rtol=1e-6)
 
 
