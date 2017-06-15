@@ -395,10 +395,9 @@ def calculate_gram(procedure, niter, phantom, pool=None,
         # assign work to pool
         async_data = [None] * nchunks
         for m in range(nchunks):
-
             probes = [None] * chunksize
-            for n in range(chunksize):
 
+            for n in range(chunksize):
                 probes[n] = deepcopy(next(procedure))
 
             async_data[m] = pool.apply_async(probe_wrapper,
@@ -442,7 +441,7 @@ def sinogram(sx, sy, phantom, pool=None, mkwargs={}):
     return sino, probe
 
 
-def raster_scan3D(sz, sa, st):
+def raster_scan3D(sz, sa, st, zstart=None):
     """A Probe iterator for raster-scanning in 3D.
 
     The size of the probe is 1 / st.
@@ -466,7 +465,9 @@ def raster_scan3D(sz, sa, st):
     theta = np.pi / sa
 
     # Fixed probe location.
-    zstart = 1. / sz / 2.
+    if zstart is None:
+        zstart = 1. / sz / 2.
+
     p = Probe(Point([-10, 1. / st / 2., zstart]),
               Point([10, 1. / st / 2., zstart]),
               size=1. / st)
