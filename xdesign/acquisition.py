@@ -393,19 +393,43 @@ def calculate_gram(procedure, niter, phantom, pool=None,
                      "chunks".format(procedure.__name__, nchunks))
 
         # assign work to pool
-        async_data = [None] * nchunks
+        nmaxqueue = pool._processes * 2
+        async_data = queue.Queue(nmaxqueue)
         for m in range(nchunks):
+            while async_data.full():
+                item = async_data.get()
+
+                if item[1].ready():
+                    if item[1].successful():
+                        measurements[item[0], :] = item[1].get()
+                    else:
+                        raise RuntimeError('Process Failed '
+                                           'at chunk {}'.format(item[0]))
+                else:  # not ready
+                    async_data.put(item)
+
             probes = [None] * chunksize
 
             for n in range(chunksize):
                 probes[n] = deepcopy(next(procedure))
 
-            async_data[m] = pool.apply_async(probe_wrapper,
-                                             (probes, phantom), mkwargs)
-            logging.info('calculate_gram: chunk {} sent to worker'.format(m))
-        # combine the work from all the workers
-        for m in range(nchunks):
-            measurements[m, :] = async_data[m].get()
+            async_data.put((m,
+                            pool.apply_async(probe_wrapper,
+                                             (probes, phantom),
+                                             mkwargs))
+                           )
+            logging.info('calculate_gram: chunk {} queued'.format(m))
+
+        while not async_data.empty():
+            item = async_data.get()
+            item[1].wait()
+            if item[1].successful():
+                measurements[item[0], :] = item[1].get()
+            else:
+                raise RuntimeError('Process Failed '
+                                   'at chunk {}'.format(item[0]))
+            else:  # not ready
+                async_data.put(item)
 
         probe = probes.pop()
         measurements = measurements.flatten()
