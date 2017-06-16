@@ -362,43 +362,71 @@ def angleogram(sx, sy, phantom, noise=False):
     return angl, probe
 
 
-def raster_scan(sx, sy, width=None):
-    """Provides a beam list for raster-scanning.
+def raster_scan(sa, st, width_fraction=1, nmeta=1, random=False, plot=False):
+    """A :class:`acquisition.Probe` iterator for raster scanning.
 
-    The same Probe is returned each time to prevent recomputation of cached
-    properties.
+    By default, the Probe position is the center of each translation step and
+    there is no gap between steps. `width_fraction` < 1 creates a gap between
+    Probes; `width_fraction` > 1 causes Probes to overlap. With `nmeta` > 1,
+    the starting Probe position will offset after each rotation. When `nmeta`
+    < 1, then `nmeta` will be auto calculately to completely cover the space.
 
     Parameters
     ----------
-    sx : int
-        Number of rotation angles.
-    sy : int
-        Number of detection pixels (or sample translations).
-    width : int [cm]
-        The width of the Probe
+    sa : int
+        The number of projeciton angles in [0, 2PI).
+    st : int
+        The number of `Probe` steps at each projection angle.
+    width_fraction : float
+        The width of the `Probe` as a fraction of the step size (`1 / st`).
+    nmeta : int >= 0
+        The number of meta steps. Meta steps are the offset from the starting
+        `Probe` position after each rotation.
+    random : bool
+        Whether the meta steps are organized in a random fashion or not.
+    plot : bool
+        Plot a angle vs position plot of the `Probe` positions.
 
     Yields
     ------
-    p : Probe
+    p : :class:`acquisition.Probe`
     """
-    # Step size of the probe.
-    step = 1. / sy
+    step = 1. / st
+    width = step * width_fraction
 
-    if width is None:
-        width = step
+    if nmeta < 1:
+        nmeta = int(np.ceil(step / width))
+    meta_step = np.linspace(0, step, nmeta, endpoint=False)
+    offset = step / nmeta / 2
 
-    # Step size of the rotation angle.
-    theta = np.pi / sx
+    theta = 2 * np.pi / sa
 
-    # Fixed probe location.
-    p = Probe(Point([step / 2., -10]), Point([step / 2., 10]), width)
+    p = Probe(Point([offset, -10]), Point([offset, 10]), width)
 
-    for m in range(sx):
-        for n in range(sy):
+    angles = list()
+    positions = list()
+    for m in range(sa):
+        if random:
+            np.random.shuffle(meta_step)
+        p.translate(meta_step[m % nmeta])
+
+        for n in range(st):
+            angles.append(m * theta / np.pi)
+            positions.append(offset + meta_step[m % nmeta] + n*step)
             yield p
             p.translate(step)
-        p.translate(-1)
+
+        p.translate(-1 - meta_step[m % nmeta])
+
         p.rotate(theta, Point([0.5, 0.5]))
+
+    if plot:
+        plt.scatter(positions, angles)
+        plt.xlabel('position [cm]')
+        plt.ylabel('angle [rad]')
+        plt.title('raster_scan({}, {}, width_fraction={},\nnmeta={},'
+                  ' random={})'.format(sa, st, width_fraction, nmeta, random))
+        plt.show()
 
 
 def angle_scan(sx, sy):
