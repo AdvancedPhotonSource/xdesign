@@ -421,12 +421,12 @@ def raster_scan(sa, st, width_fraction=1, nmeta=1, random=False, plot=False):
         p.rotate(theta, Point([0.5, 0.5]))
 
     if plot:
-        plt.scatter(positions, angles)
+        axis = plt.gca()
+        axis.scatter(positions, angles)
         plt.xlabel('position [cm]')
-        plt.ylabel('angle [rad]')
+        plt.ylabel('angle [pi rad]')
         plt.title('raster_scan({}, {}, width_fraction={},\nnmeta={},'
                   ' random={})'.format(sa, st, width_fraction, nmeta, random))
-        plt.show()
 
 
 def angle_scan(sx, sy):
