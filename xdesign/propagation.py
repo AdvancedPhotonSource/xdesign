@@ -73,9 +73,6 @@ __all__ = ['multislice_propagate',
            'initialize_wavefront']
 
 
-
-
-
 def initialize_wavefront(grid, type, **kwargs):
     """Initialize wavefront.
 
