@@ -87,19 +87,32 @@ __all__ = ['compute_PCC',
            'coverage_approx']
 
 
-def coverage_approx(procedure, region, pixel_size, n=1):
-    """Approximate procedure coverage with Riemann sum.
+def tensor_at_angle(angle, magnitude):
+    """Return 2D tensor(s) with magnitude(s) at the angle [rad]."""
+    R = np.array([[np.cos(angle), -np.sin(angle)],
+                  [np.sin(angle),  np.cos(angle)]])
+    tensor = np.array([[1, 0], [0, 0]])
+    tensor = np.einsum('...,jk->...jk', magnitude, tensor)
+    return np.einsum('ij,...jk,lk->...il', R, tensor, R)
+
+
+def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
+    """Approximate procedure coverage with a Riemann sum.
 
     The intersection between the beam and each pixel is approximated by using a
     Reimann sum of `n` rectangles: width `beam.size / n` and length `dist`
     where `dist` is the length of segment of the line `alpha` which passes
     through the pixel parallel to the beam.
 
+    If `anisotropy` is `True`, then `coverage_map.shape` is `(M, N, 2, 2)`,
+    where the two extra dimensions contain coverage anisotopy information as a
+    second order tensor.
+
     Parameters
     ----------
-    procedure : :py:class:`aquisition.Probe` generator
+    procedure : :py:class:`.Probe` generator
         A generator which defines a scanning procedure by returning a sequence
-        of :py:class:`aquisition.Probe` objects.
+        of Probe objects.
     region : :py:class:`np.array` [cm]
         A rectangle in which to map the coverage. Specify the bounds as
         `[[min_corner], [max_corner]]`.
@@ -107,13 +120,18 @@ def coverage_approx(procedure, region, pixel_size, n=1):
         The edge length of the pixels in the coverage map in centimeters.
     n : int (default: 1)
         The number of lines per pixel_size per beam size
+    anisotropy : bool (default: False)
+        Whether the coverage map includes anisotropy information
 
     Returns
     -------
     coverage_map : :py:class:`numpy.ndarray`
-        A discretized map of the :py:class:`aquisition.Probe` coverage.
-    """
+        A discretized map of the Probe coverage.
 
+    See also
+    --------
+    :py:func:`.plot.plot_coverage_anisotropy`
+    """
     box = np.array(region)
 
     # Define the locations of the grid lines (gx, gy)
@@ -123,9 +141,15 @@ def coverage_approx(procedure, region, pixel_size, n=1):
     # the number of pixels = number of gridlines - 1
     sx, sy = gx.size-1, gy.size-1
 
-    coverage_map = np.zeros((sx, sy))
+    if anisotropy:
+        coverage_map = np.zeros((sx, sy, 2, 2))
+    else:
+        coverage_map = np.zeros((sx, sy))
+
+    probe_count = 0
 
     for probe in procedure:
+        probe_count += 1
 
         # Determine quantity and width of alpha lines
         num_lines = max(1, int(n * probe.size / pixel_size))
@@ -134,6 +158,9 @@ def coverage_approx(procedure, region, pixel_size, n=1):
         # Move the first alpha line to a starting position
         aline = Line(deepcopy(probe.p1), deepcopy(probe.p2))
         aline.translate(probe.normal._x * -(line_width + probe.size) / 2)
+
+        beam = probe.p2._x - probe.p1._x
+        beam_angle = np.arctan2(beam[1], beam[0])
 
         for i in range(num_lines):
 
@@ -186,12 +213,17 @@ def coverage_approx(procedure, region, pixel_size, n=1):
                                              sy * pixel_size)).astype('int')
 
                 try:
-                    coverage_map[ix, iy] += dist * line_width
+                    magnitude = dist * line_width
+                    if anisotropy:
+                        tensor = tensor_at_angle(beam_angle, magnitude)
+                        coverage_map[ix, iy, :, :] += tensor
+                    else:
+                        coverage_map[ix, iy] += magnitude
                 except IndexError as e:
                     warnings.warn("{}\nix is {}\niy is {}".format(e, ix, iy),
                                   RuntimeWarning)
 
-    return coverage_map / pixel_size**2
+    return coverage_map / pixel_size**2 / probe_count
 
 
 def make_grid(box, pixel_size):

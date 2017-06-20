@@ -77,7 +77,8 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['plot_phantom',
+__all__ = ['plot_coverage_anisotropy',
+           'plot_phantom',
            'plot_mesh',
            'plot_polygon',
            'plot_curve',
@@ -105,6 +106,52 @@ PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
                                      '#999999', '#e41a1c', '#dede00']) +
                63 * cycler('linestyle', ['-', '--']) +
                18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
+
+
+class Glyph(patches.Ellipse):
+    """A 2D glyph for visualizing tensors.
+
+    The width and height of the Glyph are the unit normalized eigenvalues of
+    the tensor. The orientaiton of the Glyph is determined by the eigenvectors
+    of the tensor. The default color of the Glyph is determined by the trace of
+    the tensor and the :py:data:`plot.DEFAULT_COLOR_MAP`.
+
+    See Also
+    --------
+    :py:class:`matplotlib.patches.Ellipse`,
+    :py:func:`plot.plot_coverage_anisotropy`
+    """
+    def __init__(self, xy, tensor, edgecolor='black', color=None, **kwargs):
+        values, orientation = np.linalg.eig(tensor)
+        scale = np.sqrt(values.dot(values))
+        shape = values / scale
+        width, height = shape[0], shape[1]
+        degrees = np.arctan2(orientation[1, 0], orientation[1, 1]) \
+            * 180 / np.pi
+        if color is None:
+            color = DEFAULT_COLOR_MAP(tensor.trace())
+        super(Glyph, self).__init__(xy, width, height, angle=degrees,
+                                    edgecolor=edgecolor, color=color, **kwargs)
+
+
+def plot_coverage_anisotropy(coverage_map):
+    """Plot the coveage anisotropy using 2D glyphs.
+
+    See also
+    --------
+    :py:func:`.metrics.coverage_approx`, :py:class:`.Glyph`
+    """
+    x, y = coverage_map.shape[0:2]
+    axis = plt.gca()
+    axis.set_aspect('equal')
+    plt.xlim([-.5, x - 0.5])
+    plt.ylim([-.5, y - 0.5])
+    axis.invert_yaxis()
+
+    for i in range(x):
+        for j in range(y):
+            glyph = Glyph([i, j], coverage_map[i, j, :, :])
+            axis.add_artist(glyph)
 
 
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
@@ -415,7 +462,7 @@ def multiroll(x, shift, axis=None):
 
     See Also
     --------
-    numpy.roll
+    :py:func:`numpy.roll`
 
     Example
     -------
@@ -463,8 +510,7 @@ def multiroll(x, shift, axis=None):
 
     References
     ----------
-    Warren Weckesser
-    http://stackoverflow.com/questions/30639656/numpy-roll-in-several-dimensions
+    `Warren Weckesser <http://stackoverflow.com/questions/30639656/numpy-roll-in-several-dimensions>`_
     """
     x = np.asarray(x)
     if axis is None:
@@ -512,7 +558,7 @@ def plot_metrics(imqual):
 
     References
     ----------
-    Colors taken from this gist <https://gist.github.com/thriveth/8560036>
+    Colors taken from `this gist <https://gist.github.com/thriveth/8560036>`_
     """
     fig_lineplot = plt.figure(0)
     plt.rc('axes', prop_cycle=PLOT_STYLES)

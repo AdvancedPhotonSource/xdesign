@@ -363,7 +363,7 @@ def angleogram(sx, sy, phantom, noise=False):
 
 
 def raster_scan(sa, st, width_fraction=1, nmeta=1, random=False, plot=False):
-    """A :class:`acquisition.Probe` iterator for raster scanning.
+    """A :py:class:`.Probe` iterator for raster scanning.
 
     By default, the Probe position is the center of each translation step and
     there is no gap between steps. `width_fraction` < 1 creates a gap between
@@ -374,22 +374,22 @@ def raster_scan(sa, st, width_fraction=1, nmeta=1, random=False, plot=False):
     Parameters
     ----------
     sa : int
-        The number of projeciton angles in [0, 2PI).
+        The number of projeciton angles in `[0, 2PI)`.
     st : int
-        The number of `Probe` steps at each projection angle.
+        The number of Probe steps at each projection angle.
     width_fraction : float
-        The width of the `Probe` as a fraction of the step size (`1 / st`).
+        The width of the Probe as a fraction of the step size (`1 / st`).
     nmeta : int >= 0
         The number of meta steps. Meta steps are the offset from the starting
-        `Probe` position after each rotation.
+        Probe position after each rotation.
     random : bool
         Whether the meta steps are organized in a random fashion or not.
     plot : bool
-        Plot a angle vs position plot of the `Probe` positions.
+        Plot a angle vs position plot of the Probe positions.
 
     Yields
     ------
-    p : :class:`acquisition.Probe`
+    p : :class:`.Probe`
     """
     step = 1. / st
     width = step * width_fraction
