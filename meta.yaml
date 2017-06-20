@@ -1,6 +1,6 @@
 package:
   name: xdesign
-  version: '0.1.0'
+  version: '0.3.0'
 
 source:
   git_url: https://github.com/tomography/xdesign.git
@@ -15,12 +15,13 @@ requirements:
 
   run:
     - python
-    - numpy    
+    - numpy
     - scipy
     - six
     - matplotlib
     - phasepack
     - cached-property
+    - polytope
 
 test:
   # Python imports

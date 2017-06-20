@@ -6,16 +6,22 @@
    :show-inheritance:
    :undoc-members:
 
+   .. rubric:: **Classes:**
+
+   .. autosummary::
+
+      ImageQuality
+
    .. rubric:: **Functions:**
 
    .. autosummary::
-   
-      ImageQuality
-      probability_mask
-      compute_quality
+
       compute_PCC
       compute_likeness
       compute_background_ttest
       compute_mtf
-      compute_nps
-      compute_neq
+      compute_mtf_ffst
+      compute_mtf_lwkj
+      compute_nps_ffst
+      compute_neq_d
+      compute_quality

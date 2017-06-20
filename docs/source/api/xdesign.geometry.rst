@@ -2,21 +2,20 @@
 =======================
 
 .. automodule:: xdesign.geometry
-   :members:
-   :show-inheritance:
-   :undoc-members:
+    :members:
+    :show-inheritance:
+    :inherited-members:
 
-   .. rubric:: **Functions:**
+    .. rubric:: **Classes:**
 
-   .. autosummary::
-   
+    .. autosummary::
+
+      Entity
       Point
-      Superellipse
-      Ellipse
       Circle
       Line
-      Segment
-      Ray
       Triangle
       Rectangle
       Square
+      Polygon
+      Mesh

@@ -50,7 +50,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from xdesign.geometry import *
-from xdesign.feature import *
 from xdesign.phantom import *
 from xdesign.acquisition import *
 from xdesign.algorithms import *

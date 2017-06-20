@@ -8,6 +8,7 @@ python:
 os:
   - linux
 
+dist: trusty
 sudo: false
 
 before_script:
@@ -29,8 +30,8 @@ before_install:
   - conda install anaconda-client
 
 install:
-  - conda install python=$TRAVIS_PYTHON_VERSION nose six numpy scipy matplotlib python-coveralls pillow cached-property
-  - pip install phasepack
+  - conda install python=$TRAVIS_PYTHON_VERSION nose six numpy scipy matplotlib python-coveralls pillow cached-property setuptools
+  - pip install phasepack polytope
   - conda info -a
   - python setup.py build_ext --inplace
 

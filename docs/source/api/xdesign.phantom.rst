@@ -6,8 +6,8 @@
    :show-inheritance:
    :undoc-members:
 
-   .. rubric:: **Functions:**
+   .. rubric:: **Classes:**
 
    .. autosummary::
-   
+
       Phantom

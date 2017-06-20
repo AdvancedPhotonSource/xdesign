@@ -2,15 +2,22 @@
 ==========================
 
 .. automodule:: xdesign.acquisition
-   :members:
-   :show-inheritance:
-   :undoc-members:
+  :members:
+  :show-inheritance:
+  :undoc-members:
 
-   .. rubric:: **Functions:**
+  .. rubric:: **Classes:**
 
-   .. autosummary::
-   
-      Beam
-      Probe
-      sinogram
-      angleogram
+  .. autosummary::
+
+    Beam
+    Probe
+
+  .. rubric:: **Functions:**
+
+  .. autosummary::
+
+    sinogram
+    angleogram
+    raster_scan
+    angle_scan

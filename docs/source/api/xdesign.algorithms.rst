@@ -9,9 +9,9 @@
    .. rubric:: **Functions:**
 
    .. autosummary::
-   
-      reconstruct
+
       art
       sirt
       mlem
       stream
+      update_progress

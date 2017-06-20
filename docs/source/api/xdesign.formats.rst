@@ -1,7 +1,7 @@
-:mod:`xdesign.feature`
-=======================
+:mod:`xdesign.formats`
+======================
 
-.. automodule:: xdesign.feature
+.. automodule:: xdesign.formats
    :members:
    :show-inheritance:
    :undoc-members:
@@ -9,5 +9,3 @@
    .. rubric:: **Functions:**
 
    .. autosummary::
-   
-      Feature

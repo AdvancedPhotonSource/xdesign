@@ -1,0 +1,697 @@
+{
+	"Cesium": {
+		"symbol": "Cs",
+		"density": 1.873,
+		"z": "55"
+	},
+	"Praseodymium": {
+		"symbol": "Pr",
+		"density": 6.71,
+		"z": "59"
+	},
+	"Yttrium": {
+		"symbol": "Y",
+		"density": 4.469,
+		"z": "39"
+	},
+	"Erbium": {
+		"symbol": "Er",
+		"density": 9.066,
+		"z": "68"
+	},
+	"Concrete, Barite (TYPE BA)": {
+		"symbol": "",
+		"density": 3.35,
+		"z": ""
+	},
+	"Hafnium": {
+		"symbol": "Hf",
+		"density": 13.31,
+		"z": "72"
+	},
+	"Tantalum": {
+		"symbol": "Ta",
+		"density": 16.65,
+		"z": "73"
+	},
+	"Zirconium": {
+		"symbol": "Zr",
+		"density": 6.506,
+		"z": "40"
+	},
+	"Iridium": {
+		"symbol": "Ir",
+		"density": 22.42,
+		"z": "77"
+	},
+	"Osmium": {
+		"symbol": "Os",
+		"density": 22.57,
+		"z": "76"
+	},
+	"Helium": {
+		"symbol": "He",
+		"density": 0.0001663,
+		"z": "2"
+	},
+	"Ytterbium": {
+		"symbol": "Yb",
+		"density": 6.73,
+		"z": "70"
+	},
+	"Magnesium": {
+		"symbol": "Mg",
+		"density": 1.74,
+		"z": "12"
+	},
+	"Niobium": {
+		"symbol": "Nb",
+		"density": 8.57,
+		"z": "41"
+	},
+	"Terbium": {
+		"symbol": "Tb",
+		"density": 8.229,
+		"z": "65"
+	},
+	"Tissue-Equivalent Gas, Methane Based": {
+		"symbol": "",
+		"density": 0.001064,
+		"z": ""
+	},
+	"Sodium": {
+		"symbol": "Na",
+		"density": 0.971,
+		"z": "11"
+	},
+	"Cesium Iodide": {
+		"symbol": "",
+		"density": 4.51,
+		"z": ""
+	},
+	"Astatine": {
+		"symbol": "At",
+		"density": 10.0,
+		"z": "85"
+	},
+	"Neodymium": {
+		"symbol": "Nd",
+		"density": 6.9,
+		"z": "60"
+	},
+	"Concrete, Ordinary": {
+		"symbol": "",
+		"density": 2.3,
+		"z": ""
+	},
+	"Mercury": {
+		"symbol": "Hg",
+		"density": 13.55,
+		"z": "80"
+	},
+	"Beryllium": {
+		"symbol": "Be",
+		"density": 1.848,
+		"z": "4"
+	},
+	"Calcium Fluoride": {
+		"symbol": "",
+		"density": 3.18,
+		"z": ""
+	},
+	"Vanadium": {
+		"symbol": "V",
+		"density": 6.11,
+		"z": "23"
+	},
+	"Silver": {
+		"symbol": "Ag",
+		"density": 10.5,
+		"z": "47"
+	},
+	"Antimony": {
+		"symbol": "Sb",
+		"density": 6.691,
+		"z": "51"
+	},
+	"Platinum": {
+		"symbol": "Pt",
+		"density": 21.45,
+		"z": "78"
+	},
+	"Strontium": {
+		"symbol": "Sr",
+		"density": 2.54,
+		"z": "38"
+	},
+	"Nitrogen": {
+		"symbol": "N",
+		"density": 0.001165,
+		"z": "7"
+	},
+	"Polonium": {
+		"symbol": "Po",
+		"density": 9.32,
+		"z": "84"
+	},
+	"Francium": {
+		"symbol": "Fr",
+		"density": 10.0,
+		"z": "87"
+	},
+	"Promethium": {
+		"symbol": "Pm",
+		"density": 7.22,
+		"z": "61"
+	},
+	"Breast Tissue (ICRU-44)": {
+		"symbol": "",
+		"density": 1.02,
+		"z": ""
+	},
+	"Sulfur": {
+		"symbol": "S",
+		"density": 2.0,
+		"z": "16"
+	},
+	"C-552 Air-equivalent Plastic": {
+		"symbol": "",
+		"density": 1.76,
+		"z": ""
+	},
+	"Calcium": {
+		"symbol": "Ca",
+		"density": 1.55,
+		"z": "20"
+	},
+	"Lung Tissue (ICRU-44)": {
+		"symbol": "",
+		"density": 1.05,
+		"z": ""
+	},
+	"Chromium": {
+		"symbol": "Cr",
+		"density": 7.18,
+		"z": "24"
+	},
+	"Muscle, Skeletal (ICRU-44)": {
+		"symbol": "",
+		"density": 1.05,
+		"z": ""
+	},
+	"Lutetium": {
+		"symbol": "Lu",
+		"density": 9.84,
+		"z": "71"
+	},
+	"Gold": {
+		"symbol": "Au",
+		"density": 19.32,
+		"z": "79"
+	},
+	"Silicon": {
+		"symbol": "Si",
+		"density": 2.33,
+		"z": "14"
+	},
+	"Lead": {
+		"symbol": "Pb",
+		"density": 11.35,
+		"z": "82"
+	},
+	"Gallium Arsenide": {
+		"symbol": "",
+		"density": 5.31,
+		"z": ""
+	},
+	"Radon": {
+		"symbol": "Rn",
+		"density": 0.009066,
+		"z": "86"
+	},
+	"Protactinium": {
+		"symbol": "Pa",
+		"density": 15.37,
+		"z": "91"
+	},
+	"Cadmium": {
+		"symbol": "Cd",
+		"density": 8.65,
+		"z": "48"
+	},
+	"Blood, Whole (ICRU-44)": {
+		"symbol": "",
+		"density": 1.06,
+		"z": ""
+	},
+	"Copper": {
+		"symbol": "Cu",
+		"density": 8.96,
+		"z": "29"
+	},
+	"Gadolinium Oxysulfide": {
+		"symbol": "",
+		"density": 7.44,
+		"z": ""
+	},
+	"Bismuth": {
+		"symbol": "Bi",
+		"density": 9.747,
+		"z": "83"
+	},
+	"Xenon": {
+		"symbol": "Xe",
+		"density": 0.005485,
+		"z": "54"
+	},
+	"Tungsten": {
+		"symbol": "W",
+		"density": 19.3,
+		"z": "74"
+	},
+	"Air, Dry (near sea level)": {
+		"symbol": "",
+		"density": 0.001205,
+		"z": ""
+	},
+	"Cerium": {
+		"symbol": "Ce",
+		"density": 6.657,
+		"z": "58"
+	},
+	"Polystyrene": {
+		"symbol": "",
+		"density": 1.06,
+		"z": ""
+	},
+	"Alanine": {
+		"symbol": "",
+		"density": 1.424,
+		"z": ""
+	},
+	"Gadolinium": {
+		"symbol": "Gd",
+		"density": 7.9,
+		"z": "64"
+	},
+	"Rhodium": {
+		"symbol": "Rh",
+		"density": 12.41,
+		"z": "45"
+	},
+	"Calcium Sulfate": {
+		"symbol": "",
+		"density": 2.96,
+		"z": ""
+	},
+	"Brain, Grey/White Matter (ICRU-44)": {
+		"symbol": "",
+		"density": 1.04,
+		"z": ""
+	},
+	"Ovary (ICRU-44)": {
+		"symbol": "",
+		"density": 1.05,
+		"z": ""
+	},
+	"Germanium": {
+		"symbol": "Ge",
+		"density": 5.323,
+		"z": "32"
+	},
+	"Tissue, Soft (ICRU Four-Component)": {
+		"symbol": "",
+		"density": 1.0,
+		"z": ""
+	},
+	"Indium": {
+		"symbol": "In",
+		"density": 7.31,
+		"z": "49"
+	},
+	"Rubidium": {
+		"symbol": "Rb",
+		"density": 1.532,
+		"z": "37"
+	},
+	"Lanthanum": {
+		"symbol": "La",
+		"density": 6.154,
+		"z": "57"
+	},
+	"Molybdenum": {
+		"symbol": "Mo",
+		"density": 10.22,
+		"z": "42"
+	},
+	"Polyethylene": {
+		"symbol": "",
+		"density": 0.93,
+		"z": ""
+	},
+	"Polyvinyl Chloride": {
+		"symbol": "",
+		"density": 1.406,
+		"z": ""
+	},
+	"Bakelite": {
+		"symbol": "",
+		"density": 1.25,
+		"z": ""
+	},
+	"Argon": {
+		"symbol": "Ar",
+		"density": 0.001662,
+		"z": "18"
+	},
+	"Bone, Cortical (ICRU-44)": {
+		"symbol": "",
+		"density": 1.92,
+		"z": ""
+	},
+	"Eye Lens (ICRU-44)": {
+		"symbol": "",
+		"density": 1.07,
+		"z": ""
+	},
+	"Plastic Scintillator, Vinyltoluene": {
+		"symbol": "",
+		"density": 1.032,
+		"z": ""
+	},
+	"Lithium Fluride": {
+		"symbol": "",
+		"density": 2.635,
+		"z": ""
+	},
+	"Rhenium": {
+		"symbol": "Re",
+		"density": 21.02,
+		"z": "75"
+	},
+	"Palladium": {
+		"symbol": "Pd",
+		"density": 12.02,
+		"z": "46"
+	},
+	"Technetium": {
+		"symbol": "Tc",
+		"density": 11.5,
+		"z": "43"
+	},
+	"Mercuric Iodide": {
+		"symbol": "",
+		"density": 6.36,
+		"z": ""
+	},
+	"Glass, Lead": {
+		"symbol": "",
+		"density": 6.22,
+		"z": ""
+	},
+	"Adipose Tissue (ICRU-44)": {
+		"symbol": "",
+		"density": 0.95,
+		"z": ""
+	},
+	"Thorium": {
+		"symbol": "Th",
+		"density": 11.72,
+		"z": "90"
+	},
+	"Carbon, Graphite": {
+		"symbol": "C",
+		"density": 1.7,
+		"z": "6"
+	},
+	"Oxygen": {
+		"symbol": "O",
+		"density": 0.001332,
+		"z": "8"
+	},
+	"Chlorine": {
+		"symbol": "Cl",
+		"density": 0.002995,
+		"z": "17"
+	},
+	"Fluorine": {
+		"symbol": "F",
+		"density": 0.00158,
+		"z": "9"
+	},
+	"Tellurium": {
+		"symbol": "Te",
+		"density": 6.24,
+		"z": "52"
+	},
+	"Gafchromic Sensor": {
+		"symbol": "",
+		"density": 1.3,
+		"z": ""
+	},
+	"Bromine": {
+		"symbol": "Br",
+		"density": 0.007072,
+		"z": "35"
+	},
+	"Krypton": {
+		"symbol": "Kr",
+		"density": 0.003478,
+		"z": "36"
+	},
+	"B-100 Bone-Equivalent Plastic": {
+		"symbol": "",
+		"density": 1.45,
+		"z": ""
+	},
+	"Titanium": {
+		"symbol": "Ti",
+		"density": 4.54,
+		"z": "22"
+	},
+	"Uranium": {
+		"symbol": "U",
+		"density": 18.95,
+		"z": "92"
+	},
+	"Gallium": {
+		"symbol": "Ga",
+		"density": 5.904,
+		"z": "31"
+	},
+	"Phosphorus": {
+		"symbol": "P",
+		"density": 2.2,
+		"z": "15"
+	},
+	"Photographic Emulsion  (Standard Nuclear)": {
+		"symbol": "",
+		"density": 3.815,
+		"z": ""
+	},
+	"Aluminum": {
+		"symbol": "Al",
+		"density": 2.699,
+		"z": "13"
+	},
+	"Hydrogen": {
+		"symbol": "H",
+		"density": 8.375e-05,
+		"z": "1"
+	},
+	"Boron": {
+		"symbol": "B",
+		"density": 2.37,
+		"z": "5"
+	},
+	"Dysprosium": {
+		"symbol": "Dy",
+		"density": 8.55,
+		"z": "66"
+	},
+	"Iodine": {
+		"symbol": "I",
+		"density": 4.93,
+		"z": "53"
+	},
+	"15 mmol L-1 Ceric Ammonium Sulfate Solution": {
+		"symbol": "",
+		"density": 1.03,
+		"z": ""
+	},
+	"Nickel": {
+		"symbol": "Ni",
+		"density": 8.902,
+		"z": "28"
+	},
+	"Arsenic": {
+		"symbol": "As",
+		"density": 5.73,
+		"z": "33"
+	},
+	"Polytetrafluoroethylene, (Teflon)": {
+		"symbol": "",
+		"density": 2.25,
+		"z": ""
+	},
+	"Holmium": {
+		"symbol": "Ho",
+		"density": 8.795,
+		"z": "67"
+	},
+	"Scandium": {
+		"symbol": "Sc",
+		"density": 2.989,
+		"z": "21"
+	},
+	"Glass, Borosilicate (Pyrex)": {
+		"symbol": "",
+		"density": 2.23,
+		"z": ""
+	},
+	"Barium": {
+		"symbol": "Ba",
+		"density": 3.5,
+		"z": "56"
+	},
+	"Potassium": {
+		"symbol": "K",
+		"density": 0.862,
+		"z": "19"
+	},
+	"Lithium Tetraborate": {
+		"symbol": "",
+		"density": 2.44,
+		"z": ""
+	},
+	"Tissue, Soft (ICRU-44)": {
+		"symbol": "",
+		"density": 1.06,
+		"z": ""
+	},
+	"Europium": {
+		"symbol": "Eu",
+		"density": 5.243,
+		"z": "63"
+	},
+	"Magnesium Tetroborate": {
+		"symbol": "",
+		"density": 2.53,
+		"z": ""
+	},
+	"Polyethylene Terephthalate, (Mylar)": {
+		"symbol": "",
+		"density": 1.38,
+		"z": ""
+	},
+	"Radium": {
+		"symbol": "Ra",
+		"density": 5.0,
+		"z": "88"
+	},
+	"Manganese": {
+		"symbol": "Mn",
+		"density": 7.44,
+		"z": "25"
+	},
+	"Tin": {
+		"symbol": "Sn",
+		"density": 7.31,
+		"z": "50"
+	},
+	"Zinc": {
+		"symbol": "Zn",
+		"density": 7.133,
+		"z": "30"
+	},
+	"Samarium": {
+		"symbol": "Sm",
+		"density": 7.46,
+		"z": "62"
+	},
+	"Water, Liquid": {
+		"symbol": "",
+		"density": 1.0,
+		"z": ""
+	},
+	"Lithium": {
+		"symbol": "Li",
+		"density": 0.534,
+		"z": "3"
+	},
+	"Radiochromic Dye Film, Nylon Base": {
+		"symbol": "",
+		"density": 1.08,
+		"z": ""
+	},
+	"Cobalt": {
+		"symbol": "Co",
+		"density": 8.9,
+		"z": "27"
+	},
+	"Thulium": {
+		"symbol": "Tm",
+		"density": 9.321,
+		"z": "69"
+	},
+	"Photographic Emulsion (Kodak Type AA)": {
+		"symbol": "",
+		"density": 2.2,
+		"z": ""
+	},
+	"Polymethyl Methacrylate": {
+		"symbol": "",
+		"density": 1.19,
+		"z": ""
+	},
+	"Ferrous Sulfate, Standard Fricke": {
+		"symbol": "",
+		"density": 1.024,
+		"z": ""
+	},
+	"Actinium": {
+		"symbol": "Ac",
+		"density": 10.07,
+		"z": "89"
+	},
+	"Thallium": {
+		"symbol": "Tl",
+		"density": 11.72,
+		"z": "81"
+	},
+	"Neon": {
+		"symbol": "Ne",
+		"density": 0.0008385,
+		"z": "10"
+	},
+	"Selenium": {
+		"symbol": "Se",
+		"density": 4.5,
+		"z": "34"
+	},
+	"Cadmium Telluride": {
+		"symbol": "",
+		"density": 6.2,
+		"z": ""
+	},
+	"Iron": {
+		"symbol": "Fe",
+		"density": 7.874,
+		"z": "26"
+	},
+	"Tissue-Equivalent Gas, Propane Based": {
+		"symbol": "",
+		"density": 0.001826,
+		"z": ""
+	},
+	"Ruthenium": {
+		"symbol": "Ru",
+		"density": 12.41,
+		"z": "44"
+	},
+	"Testis (ICRU-44)": {
+		"symbol": "",
+		"density": 1.04,
+		"z": ""
+	}
+}

@@ -47,18 +47,16 @@
 # #########################################################################
 
 import setuptools
-from version_hashtag import append_dev_info
+from version_hashtag import retrieve_version_from_git
 
-version_info = (0, 1, 0)
-version = '.'.join([str(x) for x in version_info])
-version = append_dev_info(version)
+version = retrieve_version_from_git()
 with open('VERSION', 'w') as f:
     f.write(version)
 
 setuptools.setup(
     name='xdesign',
     version=version,
-    author='Doga Gursoy',
+    author='Daniel Ching, Doga Gursoy',
     description='Benchmarking and optimization tools for tomography.',
     packages=setuptools.find_packages(exclude=['docs']),
     include_package_data=True,

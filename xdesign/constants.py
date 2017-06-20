@@ -46,9 +46,10 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-"""
-Constants in cgs units.
+"""Constants in cgs units.
 
+Attributes
+----------
 AVOGADRO_NUMBER : float
     Avagadro constant [1/mol]
 BOLTZMANN_CONSTANT : float
@@ -75,7 +76,6 @@ PI : float
     Ratio of a circle's circumference to its diameter
 """
 
-# Constants in cgs units.
 AVOGADRO_NUMBER = 6.02214129e+23
 BOLTZMANN_CONSTANT = 1.3806488e-16
 CLASSICAL_ELECTRON_RADIUS = 2.8179402894e-13
@@ -88,3 +88,8 @@ PROTON_MASS = 1.67261777e-24
 SPEED_OF_LIGHT = 299792458e+2
 THOMPSON_CROSS_SECTION = 6.652458734e-25
 PI = 3.14159265359
+
+
+def wavelength(energy):
+    """Return wavelength [cm] of light given energy [keV]."""
+    return 2 * PI * PLANCK_CONSTANT * SPEED_OF_LIGHT / energy

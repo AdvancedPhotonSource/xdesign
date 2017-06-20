@@ -45,12 +45,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
+"""Objects and methods for computing the quality of reconstructions.
 
+.. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
+"""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-
-from xdesign.material import HyperbolicConcentric
-from xdesign.material import UnitCircle
 
 import scipy.ndimage
 import logging
@@ -59,34 +59,33 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 
+from scipy import optimize
 from scipy.stats import norm, exponnorm, expon, ttest_ind
 #from phasepack import phasecongmono as _phasecongmono
 
+from xdesign.phantom import HyperbolicConcentric, UnitCircle
+
 logger = logging.getLogger(__name__)
+
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['ImageQuality',
-           'probability_mask',
-           'compute_quality',
-           'compute_PCC',
+__all__ = ['compute_PCC',
            'compute_likeness',
            'compute_background_ttest',
            'compute_mtf',
-           'compute_nps',
-           'compute_neq']
+           'compute_mtf_ffst',
+           'compute_mtf_lwkj',
+           'compute_nps_ffst',
+           'compute_neq_d',
+           'ImageQuality']
 
 
-def compute_mtf2(phantom, image):
-    """Approximates the modulation tranfer function using the
-    HyperbolicCocentric phantom. Calculates the MTF from the modulation depth
+def compute_mtf(phantom, image):
+    """Approximate the modulation tranfer function using the
+    HyperbolicCocentric phantom. Calculate the MTF from the modulation depth
     at each edge on the line from (0.5,0.5) to (0.5,1). MTF = (hi-lo)/(hi+lo)
-
-    This method rapidly becomes inaccurate at small wavelenths because the
-    measurement gets out of phase with the waves due to rounding error. It
-    should be replaced with a method that fits a decaying damped cylindrical
-    sine function.
 
     Parameters
     ---------------
@@ -101,7 +100,19 @@ def compute_mtf2(phantom, image):
         wavelenth in the scale of the original phantom
     MTF : list
         MTF values
+
+    .. deprecated:: 0.3
+        This method rapidly becomes inaccurate at small wavelenths because the
+        measurement gets out of phase with the waves due to rounding error. Use
+        another one of the MTF functions instead.
+
+    .. seealso::
+        :meth:`compute_mtf_ffst`
+        :meth:`compute_mtf_lwkj`
     """
+    warnings.warn('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
+                  'compute_mtf_ffst instead', DeprecationWarning)
+
     if not isinstance(phantom, HyperbolicConcentric):
         raise TypeError
 
@@ -138,8 +149,8 @@ def compute_mtf2(phantom, image):
     return wavelength, MTF
 
 
-def compute_mtf(phantom, image, Ntheta=4):
-    '''Uses method described in Friedman et al to calculate the MTF.
+def compute_mtf_ffst(phantom, image, Ntheta=4):
+    '''Calculate the MTF using the method described in :cite:`Friedman:13`.
 
     Parameters
     ---------------
@@ -156,18 +167,15 @@ def compute_mtf(phantom, image, Ntheta=4):
         wavelenth in the scale of the original phantom
     MTF : ndarray
         MTF values
+    bin_centers : ndarray
+        the center of the bins if Ntheta >= 1
 
-    References
-    ---------------
-    S. N. Friedman, G. S. K. Fung, J. H. Siewerdsen, and B. M. W. Tsui.  "A
-    simple approach to measure computed tomography (CT) modulation transfer
-    function (MTF) and noise-power spectrum (NPS) using the American College
-    of Radiology (ACR) accreditation phantom," Med. Phys. 40, 051907-1 -
-    051907-9 (2013). http://dx.doi.org/10.1118/1.4800795
+    .. seealso::
+        :meth:`compute_mtf_lwkj`
     '''
     if not isinstance(phantom, UnitCircle):
         raise TypeError('MTF requires unit circle phantom.')
-    if phantom.feature[0].radius >= 0.5:
+    if phantom.geometry.radius >= 0.5:
         raise ValueError('Radius of the phantom should be less than 0.5.')
     if Ntheta <= 0:
         raise ValueError('Must calculate MTF in at least one direction.')
@@ -183,8 +191,8 @@ def compute_mtf(phantom, image, Ntheta=4):
     # print(x)
 
     # Normalize the data to [0,1)
-    x_circle = np.mean(image[R < phantom.feature[0].radius - 0.01])
-    x_air = np.mean(image[R > phantom.feature[0].radius + 0.01])
+    x_circle = np.mean(image[R < phantom.geometry.radius - 0.01])
+    x_air = np.mean(image[R > phantom.geometry.radius + 0.01])
     # print(x_air)
     # print(x_circle)
     image = (image - x_air) / (x_circle - x_air)
@@ -237,7 +245,7 @@ def compute_mtf(phantom, image, Ntheta=4):
     LSF = -np.diff(ESF, axis=1)
 
     # trim the LSF so that the edge is in the center of the data
-    edge_center = int(phantom.feature[0].radius / R_bin_width)
+    edge_center = int(phantom.geometry.radius / R_bin_width)
     # print(edge_center)
     pad = int(LSF.shape[1] / 5)
     LSF = LSF[:, edge_center - pad:edge_center + pad + 1]
@@ -257,34 +265,181 @@ def compute_mtf(phantom, image, Ntheta=4):
     nyquist = 0.5*image.shape[0]
 
     MTF = np.abs(T)
-    # Plot the MTF
-    plt.figure()
-    m = itertools.cycle(('+', ',', 'o', '.', '*'))
-    for i in range(0, MTF.shape[0]):
-        plt.plot(faxis, MTF[i, :], marker=next(m))
-    plt.axvline(nyquist)
-    plt.xlabel('spatial frequency [cycles/length]')
-    plt.ylabel('Radial MTF')
-    plt.axis([0, nyquist, 0, 1])
-    a = (Th_bins + Th_bin_width/2)/np.pi
-    plt.legend([str(n) + '$\pi$' for n in a])
-    plt.title("Modulation Tansfer Function for various angles")
-    # plt.show(block=True)
-    return faxis, MTF
+    bin_centers = Th_bins + Th_bin_width/2
+
+    return faxis, MTF, bin_centers
 
 
-def compute_nps(phantom, A, B=None, plot_type='frequency'):
-    '''Calculates the noise power spectrum from a unit circle image. The peak
-    at low spatial frequency is probably due to aliasing. Invesigation into
-    supressing this peak is necessary.
+def compute_mtf_lwkj(phantom, image):
+    """Calculate the MTF using the modulated Siemens Star method in
+    :cite:`loebich2007digital`.
 
-    References
-    ---------------
-    S. N. Friedman, G. S. K. Fung, J. H. Siewerdsen, and B. M. W. Tsui.  "A
-    simple approach to measure computed tomography (CT) modulation transfer
-    function (MTF) and noise-power spectrum (NPS) using the American College
-    of Radiology (ACR) accreditation phantom," Med. Phys. 40, 051907-1 -
-    051907-9 (2013). http://dx.doi.org/10.1118/1.4800795
+    parameters
+    ----------
+    phantom : SiemensStar
+    image : ndarray
+        The reconstruciton of the SiemensStar
+
+    returns
+    -------
+    frequency : array
+        The spatial frequency in cycles per unit length
+    M : array
+        The MTF values for each frequency
+
+    .. seealso::
+        :meth:`compute_mtf_ffst`
+    """
+    # Determine which radii to sample. Do not sample linearly because the
+    # spatial frequency changes as 1/r
+    Nradii = 100
+    Nangles = 256
+    pradii = 1/1.05**np.arange(1, Nradii)  # proportional radii of the star
+
+    line, theta = get_line_at_radius(image, pradii, Nangles)
+    M = fit_sinusoid(line, theta, phantom.n_sectors/2)
+
+    # convert from contrast as a function of radius to contrast as a function
+    # of spatial frequency
+    frequency = phantom.ratio/pradii
+
+    return frequency, M
+
+
+def get_line_at_radius(image, fradius, N):
+    """Return an Nx1 array of the values of the image at a radius.
+
+    parameters
+    ----------
+    image: ndarray
+        A centered image of the seimens star.
+    fradius: float, Mx1 ndarray
+        The radius(i) fractions of the image at which to extract the line.
+        Given as a float in the range (0, 1)
+    N: integer > 0
+        the number of points to sample around the circumference of the circle
+
+    Returns
+    -------
+    line : NxM ndarray
+        the values from image at the radius
+    theta : Nx1 ndarray
+        the angles that were sampled in radians
+    """
+    if image.shape[0] != image.shape[1]:
+        raise ValueError('image must be square.')
+    if np.any(0 >= fradius) or np.any(fradius >= 1):
+        raise ValueError('fradius must be in the range (0, 1)')
+    if N < 1:
+        raise ValueError('Sampling less than 1 point is not useful.')
+
+    # add singleton dimension to enable matrix multiplication
+    fradius = np.expand_dims(np.array(fradius), 0)
+    M = fradius.size
+
+    # calculate the angles to sample
+    theta = np.expand_dims((np.arange(0, N)/N) * 2 * np.pi, 1)
+
+    # convert the angles to xy coordinates
+    x = fradius*np.cos(theta)
+    y = fradius*np.sin(theta)
+
+    # round to nearest integer location and shift to center
+    image_half = image.shape[0]/2
+    x = np.round((x + 1) * image_half)
+    y = np.round((y + 1) * image_half)
+
+    # extract from image
+    line = image[x.astype(int), y.astype(int)]
+
+    assert(line.shape == (N, M)), line.shape
+    assert(theta.shape == (N, 1)), theta.shape
+    return line, theta
+
+
+def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
+    """Fit a periodic function of known frequency, f, to the value and angle
+    data. value = Func(angle, f). NOTE: Because the fiting function is
+    sinusoidal instead of square, contrast values larger than unity are clipped
+    back to unity.
+
+    parameters
+    ----------
+    value : NxM ndarray
+        The value of the function at N angles and M radii
+    angle : Nx1 ndarray
+        The N angles at which the function was sampled
+    f : scalar
+        The expected angular frequency; the number of black/white pairs in
+        the siemens star. i.e. half the number of spokes
+    p0 : list, optional
+        The initial guesses for the parameters.
+
+    returns:
+    --------
+    MTFR: 1xM ndarray
+        The modulation part of the MTF at each of the M radii
+    """
+    M = value.shape[1]
+
+    # Distance to the target function
+    def errorfunc(p, x, y): return periodic_function(p, x) - y
+
+    time = np.linspace(0, 2*np.pi, 100)
+
+    MTFR = np.ndarray((1, M))
+    x = (f*angle).squeeze()
+    for radius in range(0, M):
+        p1, success = optimize.leastsq(errorfunc, p0[:],
+                                       args=(x, value[:, radius]))
+
+        # print(success)
+        # plt.figure()
+        # plt.plot(angle, value[:, radius], "ro",
+        #          time, periodic_function(p1, f*time), "r-")
+
+        MTFR[:, radius] = np.sqrt(p1[1]**2 + p1[2]**2)/p1[0]
+
+    # cap the MTF at unity
+    MTFR[MTFR > 1.] = 1.
+    assert(not np.any(MTFR < 0)), MTFR
+    assert(MTFR.shape == (1, M)), MTFR.shape
+    return MTFR
+
+
+def periodic_function(p, x):
+    """A periodic function for fitting to the spokes of the Siemens Star.
+
+    parameters
+    ----------
+    p[0] : scalar
+        the mean of the function
+    p[1], p[2] : scalar
+        the amplitudes of the function
+    x : Nx1 ndarray
+        the angular frequency multiplied by the angles for the function.
+        w * theta
+    w : scalar
+        the angular frequency; the number of black/white pairs in the siemens
+        star. i.e. half the number of spokes
+    theta : Nx1 ndarray
+        input angles for the function
+
+    returns
+    -------
+    value : Nx1 array
+        the values of the function at phi; cannot return NaNs.
+    """
+    # x = w * theta
+    value = p[0] + p[1] * np.sin(x) + p[2] * np.cos(x)
+    assert(value.shape == x.shape), (value.shape, theta.shape)
+    assert(not np.any(np.isnan(value)))
+    return value
+
+
+def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
+    '''Calculate the noise power spectrum from a unit circle image using the
+    method from :cite:`Friedman:13`.
 
     Parameters
     ----------
@@ -335,7 +490,7 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
     # cut out uniform region (square circumscribed by unit circle)
     i_half = int(image.shape[0] / 2)  # half image
     # half of the square inside the circle
-    s_half = int(image.shape[0] * phantom.feature[0].radius / np.sqrt(2))
+    s_half = int(image.shape[0] * phantom.geometry.radius / np.sqrt(2))
     unif_region = image[i_half - s_half:i_half +
                         s_half, i_half - s_half:i_half + s_half]
 
@@ -372,28 +527,14 @@ def compute_nps(phantom, A, B=None, plot_type='frequency'):
             if 0 < np.sum(mask):  # some bins may be empty
                 counts[i] = np.mean(NPS[mask])
 
-        plt.figure()
-        plt.bar(bins, counts, width=bin_width)
-        plt.xlabel('spatial frequency [cycles/length]')
-        plt.ylabel('value^2')
-        plt.title('Noise Power Spectrum')
-        # plt.show(block=False)
         return bins, counts
 
     elif plot_type == 'frequency':
-        plt.figure()
-        plt.contourf(X, Y, NPS, cmap='inferno')
-        plt.xlabel('spatial frequency [cycles/length]')
-        plt.ylabel('spatial frequency [cycles/length]')
-        plt.axis('equal')
-        plt.colorbar()
-        plt.title('Noise Power Spectrum')
-        # plt.show(block=False)
         return X, Y, NPS
 
 
-def compute_neq(phantom, A, B):
-    '''Calculates the NEQ according to recommendations by JT Dobbins.
+def compute_neq_d(phantom, A, B):
+    '''Calculate the NEQ according to recommendations by :cite:`Dobbins:95`.
 
     Parameters
     ----------
@@ -413,8 +554,8 @@ def compute_neq(phantom, A, B):
     NEQ :
         the Noise Equivalent Quanta
     '''
-    mu_a, NPS = compute_nps(phantom, A, B, plot_type='histogram')
-    mu_b, MTF = compute_mtf(phantom, A, Ntheta=1)
+    mu_a, NPS = compute_nps_ffst(phantom, A, B, plot_type='histogram')
+    mu_b, MTF, bins = compute_mtf_ffst(phantom, A, Ntheta=1)
 
     # remove negative MT
     MTF = MTF[:, mu_b > 0]
@@ -432,85 +573,11 @@ def compute_neq(phantom, A, B):
 
     NEQ = MTF/np.sqrt(NPS_binned)  # or something similiar
 
-    plt.figure()
-    plt.plot(mu_b.flatten(), NEQ.flatten())
-    plt.xlabel('spatial frequency [cycles/length]')
-    plt.ylabel('value')
-    plt.xlim([0, A.shape[0]/2])
-    plt.title('Noise Equivalent Quanta')
-
     return mu_b, NEQ
 
 
-def probability_mask(phantom, size, ratio=8, uniform=True):
-    """Returns the probability mask for each phase in the phantom.
-
-    Parameters
-    ------------
-    size : scalar
-        The side length in pixels of the resulting square image.
-    ratio : scalar, optional
-        The discretization works by drawing the shapes in a larger space
-        then averaging and downsampling. This parameter controls how many
-        pixels in the larger representation are averaged for the final
-        representation. e.g. if ratio = 8, then the final pixel values
-        are the average of 64 pixels.
-    uniform : boolean, optional
-        When set to False, changes the way pixels are averaged from a
-        uniform weights to gaussian weights.
-
-    Returns
-    ------------
-    image : list of numpy.ndarray
-        A list of float masks for each phase in the phantom.
-    """
-
-    # Make a higher resolution grid to sample the continuous space
-    _x = np.arange(0, 1, 1 / size / ratio)
-    _y = np.arange(0, 1, 1 / size / ratio)
-    px, py = np.meshgrid(_x, _y)
-
-    phases = {0}  # tracks what values exist in this phantom
-
-    # Draw the shapes to the higher resolution grid
-    image = np.zeros((size * ratio, size * ratio), dtype=np.float)
-    for m in range(phantom.population):
-        x = phantom.feature[m].center.x
-        y = phantom.feature[m].center.y
-        rad = phantom.feature[m].radius
-        val = phantom.feature[m].mass_atten
-        # image *= ((px - x)**2 + (py - y)**2 >= rad**2) # partial overlap
-        # support
-        image += ((px - x)**2 + (py - y)**2 < rad**2) * val
-
-        # collect a list of the unique values in the phantom
-        phases = phases | {val}
-
-    # generate a separate mask for each phase
-    masks = []
-    phases = list(phases)
-    phases.sort()
-    for m in range(0, len(phases)):
-        masks.append(0)
-
-        # First make a boolean array for each value,
-        val = phases[m]
-        masks[m] = (image == val).astype(float)
-
-        # then use a uniform filter to calculate the local percentage for each
-        # phase.
-        if uniform:
-            masks[m] = scipy.ndimage.uniform_filter(masks[m], ratio)
-        else:
-            masks[m] = scipy.ndimage.gaussian_filter(masks[m], ratio / 4.)
-        # Resample
-        masks[m] = masks[m][::ratio, ::ratio]
-
-    return masks
-
-
 def compute_PCC(A, B, masks=None):
-    """ Computes the Pearson product-moment correlation coefficients (PCC) for
+    """Computes the Pearson product-moment correlation coefficients (PCC) for
     the two images.
 
     Parameters
@@ -541,7 +608,7 @@ def compute_PCC(A, B, masks=None):
 
 
 def compute_likeness(A, B, masks):
-    """ Predicts the likelihood that each pixel in B belongs to a phase based
+    """Predict the likelihood that each pixel in B belongs to a phase based
     on the histogram of A.
 
     Parameters
@@ -569,7 +636,7 @@ def compute_likeness(A, B, masks):
 
 
 def compute_background_ttest(image, masks):
-    """Determines whether the background has significantly different luminance
+    """Determine whether the background has significantly different luminance
     than the other phases.
 
     Parameters
@@ -602,196 +669,179 @@ def compute_background_ttest(image, masks):
 
 
 class ImageQuality(object):
-    """Stores information about image quality.
+    """Store information about image quality.
 
     Attributes
-    ----------------
-    orig : numpy.ndarray
-    recon : numpy.ndarray
-    qualities : list of scalars
-    maps : list of numpy.ndarray
-    scales : list of scalars
+    ----------
+    img0 : array
+    img1 : array
+        Stacks of reference and deformed images.
+    metrics : dict
+        A dictionary with image quality information organized by scale.
+        ``metric[scale] = (mean_quality, quality_map)``
+    method : string
+        The metric used to calculate the quality
     """
 
-    def __init__(self, original, reconstruction, method=''):
-        self.orig = original.astype(np.float)
-        self.recon = reconstruction.astype(np.float)
+    def __init__(self, original, reconstruction):
+        self.img0 = original.astype(np.float)
+        self.img1 = reconstruction.astype(np.float)
 
-        if self.orig.shape != self.recon.shape:
-            raise ValueError("original and reconstruction should be the " +
-                             "same shape")
-        if self.orig.ndim != 2:
-            raise ValueError("This function only support 2D images.")
+        self.scales = None
+        self.mets = None
+        self.maps = None
+        self.method = ''
 
-        self.qualities = []
-        self.maps = []
-        self.scales = []
+    def compute_quality(self, method="MSSSIM", L=1):
+        """Compute the full-reference image quality of each image pair.
+
+        Available methods include SSIM :cite:`wang:02`, MSSSIM :cite:`wang:03`,
+        VIFp :cite:`Sheikh:15`, and FSIM :cite:`zhang:11`.
+
+        Parameters
+        ----------
+        method : string, optional, (default: MSSSIM)
+            The quality metric desired for this comparison.
+            Options include: SSIM, MSSSIM, VIFp, FSIM
+        L : scalar, (default, 1.0)
+            The dynamic range of the data. This value is 1 for float
+            representations and 2^bitdepth for integer representations.
+        """
+        if L < 1:
+            raise ValueError("Dynamic range must be >= 1.")
+
+        dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim,
+                      "VIFp": _compute_vifp, "FSIM": _compute_fsim}
+        try:
+            method_func = dictionary[method]
+        except KeyError:
+            ValueError("That method is not implemented.")
+
         self.method = method
 
-    def __str__(self):
-        return ("QUALITY: " + str(self.qualities) +
-                "\nSCALES: " + str(self.scales))
+        if self.img0.ndim > 2:
+            self.mets = list()
+            self.maps = list()
 
-    def __add__(self, other):
-        if not isinstance(other, ImageQuality):
-            raise TypeError("Can only add ImageQuality to ImageQuality")
+            for i in range(self.img0.shape[2]):
 
-        self.qualities += other.qualities
-        self.maps += other.maps
-        self.scales += other.scales
-        return self
+                scales, mets, maps = method_func(self.img0[:, :, i],
+                                                 self.img1[:, :, i], L=L)
 
-    def add_quality(self, quality, scale, maps=None):
-        '''
-        Parameters
-        -----------
-        quality : scalar, list
-            The average quality for the image
-        map : array, list of arrays, optional
-            the local quality rating across the image
-        scale : scalar, list
-            the size scale at which the quality was calculated
-        '''
-        if (isinstance(quality, list) and isinstance(scale, list) and
-           (maps is None or isinstance(maps, list))):
-            self.qualities += quality
-            self.scales += scale
-            if maps is None:
-                maps = [None] * len(quality)
-            self.maps += maps
-        elif (isinstance(quality, float) and isinstance(scale, float) and
-              (maps is None or isinstance(maps, np.ndarray))):
-            self.qualities.append(quality)
-            self.scales.append(scale)
-            self.maps.append(maps)
+                self.scales = scales
+                self.mets.append(mets)
+                self.maps.append(maps)
+
+            self.mets = np.stack(self.mets, axis=1)
+
+            newmaps = []
+            for level in range(len(self.maps[0])):
+                this_level = []
+                for m in self.maps:
+                    this_level.append(m[level])
+
+                this_level = np.stack(this_level, axis=2)
+                newmaps.append(this_level)
+
+            self.maps = newmaps
+
         else:
-            raise TypeError
-
-    def sort(self):
-        """Sorts the qualities by scale"""
-        raise NotImplementedError
+            self.scales, self.mets, self.maps = method_func(self.img0,
+                                                            self.img1, L=L)
 
 
-def compute_quality(reference, reconstructions, method="MSSSIM", L=1):
-    """
-    Computes image quality metrics for each of the reconstructions.
+def _join_metrics(A, B):
+    """Join two image metric dictionaries."""
 
-    Parameters
-    ---------
-    reference : array
-        the discrete reference image. In a future release, we will
-        determine the best way to compare a continuous domain to a discrete
-        reconstruction.
-    reconstructions : list of arrays
-        A list of discrete reconstructions
-    method : string, optional
-        The quality metric desired for this comparison.
-        Options include: SSIM, MSSSIM
-    L : scalar
-        The dynamic range of the data. This value is 1 for float
-        representations and 2^bitdepth for integer representations.
+    for key in list(B.keys()):
+        if key in A:
+            A[key][0] = np.concatenate((A[key][0], B[key][0]))
 
-    Returns
-    ---------
-    metrics : list of ImageQuality
-    """
-    if L < 1:
-        raise ValueError("Dynamic range must be >= 1.")
-    if not isinstance(reconstructions, list):
-        reconstructions = [reconstructions]
+            A[key][1] = np.concatenate((np.atleast_3d(A[key][1]),
+                                        np.atleast_3d(B[key][1])), axis=2)
 
-    dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim,
-                  "VIFp": _compute_vifp, "FSIM": _compute_fsim}
-    try:
-        method_func = dictionary[method]
-    except KeyError:
-        ValueError("That method is not implemented.")
+        else:
+            A[key] = B[key]
 
-    metrics = []
-    for image in reconstructions:
-        IQ = ImageQuality(reference, image, method)
-        IQ = method_func(IQ, L=L)
-        metrics.append(IQ)
-
-    return metrics
+    return A
 
 
-def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
-    """Calculates the Visual Information Fidelity (VIFp) between two images in
+def _compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
+    """Calculate the Visual Information Fidelity (VIFp) between two images in
     in a multiscale pixel domain with scalar.
 
------------COPYRIGHT NOTICE STARTS WITH THIS LINE------------
-Copyright (c) 2005 The University of Texas at Austin
-All rights reserved.
-
-Permission is hereby granted, without written agreement and without license or
-royalty fees, to use, copy, modify, and distribute this code (the source files)
-and its documentation for any purpose, provided that the copyright notice in
-its entirety appear in all copies of this code, and the original source of this
-code, Laboratory for Image and Video Engineering
-(LIVE, http://live.ece.utexas.edu) at the University of Texas at Austin
-(UT Austin, http://www.utexas.edu), is acknowledged in any publication that
-reports research using this code. The research is to be cited in the
-bibliography as:
-
-H. R. Sheikh and A. C. Bovik, "Image Information and Visual Quality", IEEE
-Transactions on Image Processing, (to appear).
-
-IN NO EVENT SHALL THE UNIVERSITY OF TEXAS AT AUSTIN BE LIABLE TO ANY PARTY FOR
-DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF
-THE USE OF THIS DATABASE AND ITS DOCUMENTATION, EVEN IF THE UNIVERSITY OF TEXAS
-AT AUSTIN HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-THE UNIVERSITY OF TEXAS AT AUSTIN SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE. THE DATABASE PROVIDED HEREUNDER IS ON AN "AS
-IS" BASIS, AND THE UNIVERSITY OF TEXAS AT AUSTIN HAS NO OBLIGATION TO PROVIDE
-MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
------------COPYRIGHT NOTICE ENDS WITH THIS LINE------------
-
     Parameters
-    -----------
-    imQual : ImageQuality
-        A struct used to organize image quality information.
+    ----------
+    img0 : array
+    img1 : array
+        Two images for comparison.
     nlevels : scalar
         The number of levels to measure quality.
     sigma : scalar
         The size of the quality filter at the smallest scale.
 
     Returns
-    -----------
-    imQual : ImageQuality
-        A struct used to organize image quality information. NOTE: the valid
-        range for VIFp is (0, 1].
-    """
-    _full_reference_input_check(imQual, sigma, nlevels, L)
+    -------
+    metrics : dict
+        A dictionary with image quality information organized by scale.
+        ``metric[scale] = (mean_quality, quality_map)``
+        The valid range for VIFp is (0, 1].
 
-    ref = imQual.orig
-    dist = imQual.recon
+
+    .. centered:: COPYRIGHT NOTICE
+    Copyright (c) 2005 The University of Texas at Austin
+    All rights reserved.
+
+    Permission is hereby granted, without written agreement and without license
+    or royalty fees, to use, copy, modify, and distribute this code (the source
+    files) and its documentation for any purpose, provided that the copyright
+    notice in its entirety appear in all copies of this code, and the original
+    source of this code, Laboratory for Image and Video Engineering (LIVE,
+    http://live.ece.utexas.edu) at the University of Texas at Austin (UT
+    Austin, http://www.utexas.edu), is acknowledged in any publication that
+    reports research using this code. The research is to be cited in the
+    bibliography as: H. R. Sheikh and A. C. Bovik, "Image Information and
+    Visual Quality", IEEE Transactions on Image Processing, (to appear). IN NO
+    EVENT SHALL THE UNIVERSITY OF TEXAS AT AUSTIN BE LIABLE TO ANY PARTY FOR
+    DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT
+    OF THE USE OF THIS DATABASE AND ITS DOCUMENTATION, EVEN IF THE UNIVERSITY
+    OF TEXAS AT AUSTIN HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. THE
+    UNIVERSITY OF TEXAS AT AUSTIN SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+    INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+    AND FITNESS FOR A PARTICULAR PURPOSE. THE DATABASE PROVIDED HEREUNDER IS ON
+    AN "AS IS" BASIS, AND THE UNIVERSITY OF TEXAS AT AUSTIN HAS NO OBLIGATION
+    TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+    .. centered:: END COPYRIGHT NOTICE
+    """
+    _full_reference_input_check(img0, img1, sigma, nlevels, L)
 
     sigmaN_sq = 2  # used to tune response
     eps = 1e-10
 
+    scales = np.zeros(nlevels)
+    mets = np.zeros(nlevels)
+    maps = [None] * nlevels
+
     for level in range(0, nlevels):
         # Downsample (using ndimage.zoom to prevent sampling bias)
         if (level > 0):
-            ref = scipy.ndimage.zoom(ref, 1/2)
-            dist = scipy.ndimage.zoom(dist, 1/2)
+            img0 = scipy.ndimage.zoom(img0, 1/2)
+            img1 = scipy.ndimage.zoom(img1, 1/2)
 
-        mu1 = scipy.ndimage.gaussian_filter(ref, sigma)
-        mu2 = scipy.ndimage.gaussian_filter(dist, sigma)
+        mu0 = scipy.ndimage.gaussian_filter(img0, sigma)
+        mu1 = scipy.ndimage.gaussian_filter(img1, sigma)
 
-        sigma1_sq = scipy.ndimage.gaussian_filter((ref - mu1)**2, sigma)
-        sigma2_sq = scipy.ndimage.gaussian_filter((dist - mu2)**2, sigma)
-        sigma12 = scipy.ndimage.gaussian_filter((ref - mu1) * (dist - mu2),
+        sigma0_sq = scipy.ndimage.gaussian_filter((img0 - mu0)**2, sigma)
+        sigma1_sq = scipy.ndimage.gaussian_filter((img1 - mu1)**2, sigma)
+        sigma01 = scipy.ndimage.gaussian_filter((img0 - mu0) * (img1 - mu1),
                                                 sigma)
 
-        g = sigma12 / (sigma1_sq + eps)
-        sigmav_sq = sigma2_sq - g * sigma12
+        g = sigma01 / (sigma0_sq + eps)
+        sigmav_sq = sigma1_sq - g * sigma01
 
         # Calculate VIF
-        numator = np.log2(1 + g**2 * sigma1_sq / (sigmav_sq + sigmaN_sq))
-        denator = np.sum(np.log2(1 + sigma1_sq / sigmaN_sq))
+        numator = np.log2(1 + g**2 * sigma0_sq / (sigmav_sq + sigmaN_sq))
+        denator = np.sum(np.log2(1 + sigma0_sq / sigmaN_sq))
 
         vifmap = numator / denator
         vifp = np.sum(vifmap)
@@ -799,14 +849,41 @@ MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
         vifmap *= vifmap.size
 
         scale = sigma * 2**level
-        imQual.add_quality(vifp, scale, maps=vifmap)
 
-    return imQual
+        scales[level] = scale
+        mets[level] = vifp
+        maps[level] = vifmap
+
+    return scales, mets, maps
 
 
-def _compute_fsim(imQual, nlevels=5, nwavelets=16, L=None):
-    """
-    FSIM Index with automatic downsampling, Version 1.0
+def _compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
+    """FSIM Index with automatic downsampling, Version 1.0
+
+    An implementation of the algorithm for calculating the Feature SIMilarity
+    (FSIM) index was ported to Python. This implementation only considers the
+    luminance component of images. For multichannel images, convert to
+    grayscale first. Dynamic range should be 0-255.
+
+    Parameters
+    ----------
+    img0 : array
+    img1 : array
+        Two images for comparison.
+    nlevels : scalar
+        The number of levels to measure quality.
+    nwavelets : scalar
+        The number of wavelets to use in the phase congruency calculation.
+
+    Returns
+    -------
+    metrics : dict
+        A dictionary with image quality information organized by scale.
+        ``metric[scale] = (mean_quality, quality_map)``
+        The valid range for FSIM is (0, 1].
+
+
+    .. centered:: COPYRIGHT NOTICE
     Copyright(c) 2010 Lin ZHANG, Lei Zhang, Xuanqin Mou and David Zhang
     All Rights Reserved.
     ----------------------------------------------------------------------
@@ -823,39 +900,23 @@ def _compute_fsim(imQual, nlevels=5, nwavelets=16, L=None):
     Lin Zhang, Lei Zhang, Xuanqin Mou, and David Zhang,"FSIM: a feature
     similarity index for image qualtiy assessment", IEEE Transactions on Image
     Processing, vol. 20, no. 8, pp. 2378-2386, 2011.
-
-    ----------------------------------------------------------------------
-    An implementation of the algorithm for calculating the Feature SIMilarity
-    (FSIM) index was ported to Python. This implementation only considers the
-    luminance component of images. For multichannel images, convert to
-    grayscale first. Dynamic range should be 0-255.
-
-    Parameters
-    --------------------------
-    imQual : ImageQuality
-        A struct used to organize image quality information.
-    nlevels : scalar
-        The number of levels to measure quality.
-    nwavelets : scalar
-        The number of wavelets to use in the phase congruency calculation.
-
-    Returns
-    ------------------
-    imQual : ImageQuality
-        A struct used to organize image quality information. NOTE: the valid
-        range for FSIM is (0, 1].
+    .. centered:: END COPYRIGHT NOTICE
     """
-    _full_reference_input_check(imQual, 1.2, nlevels, L)
+    _full_reference_input_check(img0, img1, 1.2, nlevels, L)
     if nwavelets < 1:
         raise ValueError('There must be at least one wavelet level.')
 
-    Y1 = imQual.orig
-    Y2 = imQual.recon
+    Y1 = img0
+    Y2 = img1
 
-    for scale in range(0, nlevels):
+    scales = np.zeros(nlevels)
+    mets = np.zeros(nlevels)
+    maps = [None] * nlevels
+
+    for level in range(0, nlevels):
         # sigma = 1.2 is approximately correct because the width of the scharr
         # and min wavelet filter (phase congruency filter) is 3.
-        sigma = 1.2 * 2**scale
+        sigma = 1.2 * 2**level
 
         F = 2  # Downsample (using ndimage.zoom to prevent sampling bias)
         Y1 = scipy.ndimage.zoom(Y1, 1/F)
@@ -890,25 +951,22 @@ def _compute_fsim(imQual, nlevels=5, nwavelets=16, L=None):
         PCm = np.maximum(PC1, PC2)
         FSIMmap = gradientSimMatrix * PCSimMatrix
         FSIM = np.sum(FSIMmap * PCm) / np.sum(PCm)
-        imQual.add_quality(FSIM, sigma, maps=FSIMmap)
 
-    return imQual
+        scales[level] = sigma
+        mets[level] = FSIM
+        maps[level] = FSIMmap
+
+    return scales, mets, maps
 
 
-def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
-    '''
-    An implementation of the Multi-Scale Structural SIMilarity index (MS-SSIM).
-
-    References
-    -------------
-    Multi-scale Structural Similarity Index (MS-SSIM)
-    Z. Wang, E. P. Simoncelli and A. C. Bovik, "Multi-scale structural
-    similarity for image quality assessment," Invited Paper, IEEE Asilomar
-    Conference on Signals, Systems and Computers, Nov. 2003
+def _compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
+    """Multi-Scale Structural SIMilarity index (MS-SSIM).
 
     Parameters
-    -------------
-    imQual : ImageQuality
+    ----------
+    img0 : array
+    img1 : array
+        Two images for comparison.
     nlevels : int
         The max number of levels to analyze
     sigma : float
@@ -922,37 +980,73 @@ def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
 
     Returns
     -------
-    imQual : ImageQuality
-        A struct used to organize image quality information. NOTE: the valid
-        range for SSIM is [-1, 1].
-    '''
-    _full_reference_input_check(imQual, sigma, nlevels, L)
+    metrics : dict
+        A dictionary with image quality information organized by scale.
+        ``metric[scale] = (mean_quality, quality_map)``
+        The valid range for SSIM is [-1, 1].
 
-    img1 = imQual.orig
-    img2 = imQual.recon
+
+    References
+    ----------
+    Multi-scale Structural Similarity Index (MS-SSIM)
+    Z. Wang, E. P. Simoncelli and A. C. Bovik, "Multi-scale structural
+    similarity for image quality assessment," Invited Paper, IEEE Asilomar
+    Conference on Signals, Systems and Computers, Nov. 2003
+    """
+    _full_reference_input_check(img0, img1, sigma, nlevels, L)
 
     # The relative imporance of each level as determined by human experiment
     # weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
-    for l in range(0, nlevels):
-        imQual += _compute_ssim(ImageQuality(img1, img2), sigma=sigma, L=L,
-                                K=K, scale=sigma * 2**l)
-        if l == nlevels - 1:
+    scales = np.zeros(nlevels)
+    mets = np.zeros(nlevels)
+    maps = [None] * nlevels
+
+    for level in range(0, nlevels):
+
+        scale, SIM, SIMmap = _compute_ssim(img0, img1, sigma=sigma, L=L,
+                                           K=K, scale=sigma * 2**level)
+
+        scales[level] = scale
+        mets[level] = SIM
+        maps[level] = SIMmap
+
+        if level == nlevels - 1:
             break
 
         # Downsample (using ndimage.zoom to prevent sampling bias)
-        img1 = scipy.ndimage.zoom(img1, 1/2)
-        img2 = scipy.ndimage.zoom(img2, 1/2)
+        img0 = scipy.ndimage.zoom(img0, 0.5)
+        img1 = scipy.ndimage.zoom(img1, 0.5)
 
-    return imQual
+    return scales, mets, maps
 
 
-def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
-    """
+def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
+    """Return the Structural SIMilarity index (SSIM).
+
     A modified version of the Structural SIMilarity index (SSIM) based on an
     implementation by Helder C. R. de Oliveira, based on the implementation by
     Antoine Vacavant, ISIT lab, antoine.vacavant@iut.u-clermont1.fr
     http://isit.u-clermont1.fr/~anvacava
+
+    Attributes
+    ----------
+    img1 : array
+    img2 : array
+        Two images for comparison.
+    L : scalar
+        The dynamic range of the data. This value is 1 for float
+        representations and 2^bitdepth for integer representations.
+    sigma : list, optional
+        The standard deviation of the gaussian filter.
+
+    Returns
+    -------
+    metrics : dict
+        A dictionary with image quality information organized by scale.
+        ``metric[scale] = (mean_quality, quality_map)``
+        The valid range for SSIM is [-1, 1].
+
 
     References
     ----------
@@ -963,23 +1057,8 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     Z. Wang and A. C. Bovik. Mean squared error: Love it or leave it? - A new
     look at signal fidelity measures. IEEE Signal Processing Magazine,
     26(1):98--117, 2009.
-
-    Attributes
-    ----------
-    imQual : ImageQuality
-    L : scalar
-        The dynamic range of the data. This value is 1 for float
-        representations and 2^bitdepth for integer representations.
-    sigma : list, optional
-        The standard deviation of the gaussian filter.
-
-    Returns
-    -------
-    imQual : ImageQuality
-        A struct used to organize image quality information. NOTE: the valid
-        range for SSIM is [-1, 1].
     """
-    _full_reference_input_check(imQual, sigma, 1, L)
+    _full_reference_input_check(img1, img2, sigma, 1, L)
     if scale is not None and scale <= 0:
         raise ValueError("Scale cannot be negative or zero.")
 
@@ -990,8 +1069,6 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     c_2 = (K[1] * L)**2
 
     # Convert image matrices to double precision (like in the Matlab version)
-    img1 = imQual.orig
-    img2 = imQual.recon
 
     # Means obtained by Gaussian filtering of inputs
     mu_1 = scipy.ndimage.filters.gaussian_filter(img1, sigma)
@@ -1041,20 +1118,23 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
 
     # return SSIM
     index = np.mean(ssim_map)
-    imQual.add_quality(index, scale, maps=ssim_map)
-    return imQual
+
+    return scale, index, ssim_map
 
 
-def _full_reference_input_check(imQual, sigma, nlevels, L):
+def _full_reference_input_check(img0, img1, sigma, nlevels, L):
     """Checks full reference quality measures for valid inputs."""
-    if not isinstance(imQual, ImageQuality):
-        raise TypeError
     if nlevels <= 0:
         raise ValueError('nlevels must be >= 1.')
     if sigma < 1.2:
         raise ValueError('sigma < 1.2 is effective meaningless.')
-    if np.min(imQual.orig.shape) / (2**(nlevels - 1)) < sigma * 2:
+    if np.min(img0.shape) / (2**(nlevels - 1)) < sigma * 2:
         raise ValueError("The image becomes smaller than the filter size! " +
                          "Decrease the number of levels.")
     if L is not None and L < 1:
         raise ValueError("Dynamic range must be >= 1.")
+    if img0.shape != img1.shape:
+        raise ValueError("original and reconstruction should be the " +
+                         "same shape")
+    if img0.ndim != 2:
+        raise ValueError("This function only support 2D images.")
