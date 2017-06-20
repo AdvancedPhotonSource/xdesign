@@ -70,6 +70,7 @@ from xdesign.geometry import Curve, Polygon, Mesh
 from matplotlib.axis import Axis
 from itertools import product
 from six import string_types
+import polytope as pt
 
 logger = logging.getLogger(__name__)
 
@@ -78,10 +79,13 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['plot_phantom',
+           'plot_geometry',
            'plot_mesh',
            'plot_polygon',
            'plot_curve',
            'discrete_phantom',
+           'combine_grid',
+           'discrete_geometry',
            'sidebyside',
            'multiroll',
            'plot_metrics',
@@ -98,6 +102,7 @@ POLY_EDGE_COLOR = 'black'
 LABEL_COLOR = 'black'
 POLY_LINEWIDTH = 0.1
 CURVE_LINEWIDTH = 0.5
+DEFAULT_ENERGY = 15
 
 # cycle through 126 unique line styles
 PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
@@ -107,7 +112,8 @@ PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
                18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
 
 
-def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
+def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=-1,
+                 z=0.0, t=0.0001):
     """Plots a :class:`.Phantom` to the given axis.
 
     Parameters
@@ -118,55 +124,60 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
         The axis where the phantom should be plotted. `None` creates
         a new axis.
     labels : bool, optional
-        `True` : Each :class:`.Phantom` given a uniqe number.
+        `True` : Each :class:`.Phantom` given a unique number.
     c_props : list of str, optional
         List of :class:`.Phantom` properties to use for colormapping the
-        geometries.
+        geometries. `[]` colors the geometries by type.
     c_map : function, optional
         A function which takes the list of prop(s) for a :class:`.Phantom` as
         input and returns a matplolib color specifier. :cite:`Hunter:07`
     """
-    assert isinstance(phantom, Phantom), ('phantom is a ' +
-                                          '{}'.format(type(phantom)))
-
-    # IDEA: Allow users to provide list or generator for labels.
     if axis is None:
         fig, axis = _make_axis()
-    if not isinstance(c_props, list):
-        raise TypeError('c_props must be list of str')
-    if len(c_props) > 0 and c_map is None:
+    if c_props and c_map is None:
         c_map = DEFAULT_COLOR_MAP
 
     props = list(c_props)
     num_props = range(0, len(c_props))
 
-    # Draw geometry in the phantom.
-    if phantom.geometry is not None:
-        if c_map is not None:
-            # use the colormap to determine the color
-            for j in num_props:
-                props[j] = getattr(phantom, c_props[j])
-            color = c_map(props)[0]
+    if phantom.geometry is None:
+        # can't plot without geometry. plot nothing
+        pass
+    else:
+        plotted = False
+        if phantom.material is None:
+            # phantom has no properties. it is a container
+            pass
         else:
-            color = None
+            # have material and geometry...
+            if c_map is None:
+                # but no color assignments. plot default colors
+                color = None
+            else:
+                # use the colormap to determine the color
+                # TODO: Add parameter to pass other things besides energy
+                for j in num_props:
+                    props[j] = getattr(phantom.material, c_props[j])(DEFAULT_ENERGY)
+                color = c_map(props)[0]
 
-        plot_geometry(phantom.geometry, axis, c=color)
-        if labels is not None:
+            plotted = plot_geometry(phantom.geometry, axis, c=color, z=z, t=t)
+            i += 1
+
+        if plotted is not False and labels is not None:
             axis.annotate(str(i), xy=(phantom.geometry.center.x,
                                       phantom.geometry.center.y),
                           ha='center', va='center', color=LABEL_COLOR,
                           path_effects=[PathEffects.withStroke(
                             linewidth=3, foreground=DEFAULT_EDGE_COLOR)])
-            i += 1
 
     for child in phantom.children:
         i = plot_phantom(child, axis=axis, labels=labels, c_props=c_props,
-                         c_map=c_map, i=i)
+                         c_map=c_map, i=i, z=z, t=t)
 
     return i
 
 
-def plot_geometry(geometry, axis=None, alpha=None, c=None):
+def plot_geometry(geometry, axis=None, alpha=None, c=None, z=0.0, t=0.0001):
     """Plots a :class:`.Entity` on the given axis.
 
     Parameters
@@ -186,13 +197,15 @@ def plot_geometry(geometry, axis=None, alpha=None, c=None):
 
     # Plot geometry using correct method
     if geometry is None:
-        return
+        return False
     elif isinstance(geometry, Mesh):
-        plot_mesh(geometry, axis, alpha, c)
+        return plot_mesh(geometry, axis, alpha, c)
     elif isinstance(geometry, Curve):
-        plot_curve(geometry, axis, alpha, c)
+        return plot_curve(geometry, axis, alpha, c)
     elif isinstance(geometry, Polygon):
-        plot_polygon(geometry, axis, alpha, c)
+        return plot_polygon(geometry, axis, alpha, c)
+    elif isinstance(geometry, pt.Polytope):
+        return plot_polytope(geometry, axis, alpha, c, z, t)
     else:
         raise NotImplemented('geometry is not Mesh, Curve or Polygon.')
 
@@ -218,7 +231,7 @@ def plot_mesh(mesh, axis=None, alpha=None, c=None):
 
     # Plot each face separately
     for f in mesh.faces:
-        plot_polygon(f, axis, alpha, c)
+        plot_geometry(f, axis, alpha, c)
 
 
 def plot_polygon(polygon, axis=None, alpha=None, c=None):
@@ -248,6 +261,32 @@ def plot_polygon(polygon, axis=None, alpha=None, c=None):
     p.set_edgecolor(POLY_EDGE_COLOR)
     p.set_linewidth(POLY_LINEWIDTH)
     axis.add_patch(p)
+
+
+def plot_polytope(polytope, axis=None, alpha=None, c=None, z=0.0, t=0.0001):
+    """Project and plot a polytope into the plane"""
+    if c is None:
+        c = POLY_COLOR
+
+    box_zmin = polytope.bounding_box[0][2]
+    box_zmax = polytope.bounding_box[1][2]
+
+    if (box_zmin < z and box_zmax < z
+            or z + t < box_zmin and z + t < box_zmax):
+        return False
+
+    lo = [0, 0, z]
+    hi = [1, 1, z + t]
+
+    plane = pt.Polytope.from_box(np.stack([lo, hi], axis=1))
+
+    projection = plane.intersect(polytope).project([1, 2])
+
+    if projection.dim > 0:
+        projection.plot(ax=axis, alpha=alpha, color=c)
+        return True
+
+    return False
 
 
 def plot_curve(curve, axis=None, alpha=None, c=None):
@@ -282,111 +321,261 @@ def plot_curve(curve, axis=None, alpha=None, c=None):
 def _make_axis():
     """Makes an :class:`matplotlib.axis.Axis` for plotting :mod:`.Phantom` module
     classes."""
-    fig = plt.figure(figsize=(8, 8), facecolor='w')
+    fig = plt.figure(figsize=(8, 8), dpi=100)
     axis = fig.add_subplot(111, aspect='equal')
     plt.grid('on')
     plt.gca().invert_yaxis()
     return fig, axis
 
 
-def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
-    """Returns discrete representation of the property function, prop, in the
-    :class:`.Phantom`. The values of overlapping Phantoms are additive.
+def discrete_phantom(phantom, size, ratio=9, uniform=True,
+                     prop='linear_attenuation'):
+    """Return a discrete map of the `property` in the `phantom`.
+
+    The values of overlapping :class:`phantom.Phantom` are additive.
 
     Parameters
     ----------
-    phantom: :class:`.Phantom`
+    phantom: :class:`phantom.Phantom`
     size : scalar
-        The side length in pixels of the resulting square image.
-    ratio : scalar, optional
+        The side length in pixels of the resulting 1 by 1 cm image.
+    ratio : scalar, optional (default: 9)
         The antialiasing works by supersampling. This parameter controls
         how many pixels in the larger representation are averaged for the
-        final representation. e.g. if ratio = 8, then the final pixel
-        values are the average of 64 pixels.
-    uniform : boolean, optional
+        final representation. e.g. if ratio = 9, then the final pixel
+        values are the average of 81 pixels.
+    uniform : boolean, optional (default: True)
         When set to False, changes the way pixels are averaged from a
         uniform weights to gaussian weigths.
-    prop : str, optional
-        The name of the property function to discretize
+    prop : str, optional (default: linear_attenuation)
+        The name of the property to discretize
 
-    Returns
-    -------
-    image : numpy.ndarray
+    Return
+    ------
+    image : :class:`numpy.ndarray`
         The discrete representation of the :class:`.Phantom` that is size x
-        size.
+        size. 0 if phantom has no geometry or material property.
+
+    Raise
+    -----
+    ValueError
+        If size is less than or equal to 0
     """
     if size <= 0:
         raise ValueError('size must be greater than 0.')
-    if ratio < 1:
-        raise ValueError('ratio must be at least 1.')
-    ndims = 2
 
-    # Make a higher resolution grid to sample the continuous space. Sample at
-    # the center of each pixel.
-    grid_step = 1 / size / ratio
-    _x = np.arange(0, 1, grid_step) + grid_step / 2
-    _y = np.arange(0, 1, grid_step) + grid_step / 2
-    px, py = np.meshgrid(_x, _y)
+    image = 0
 
-    # Draw the shapes at the higher resolution.
-    image = np.zeros((size * ratio, size * ratio), dtype=np.float)
+    if phantom.geometry is not None and phantom.material is not None \
+       and hasattr(phantom.material, prop):
 
-    # Rasterize all geometry in the phantom.
-    image = _discrete_geometry(phantom, image, px, py, prop)
+        psize = 1.0 / size
 
-    # Resample down to the desired size. Roll image so that decimation chooses
-    # from the center of each pixel.
-    if uniform:
-        image = scipy.ndimage.uniform_filter(image, ratio)
-    else:
-        image = scipy.ndimage.gaussian_filter(image, np.sqrt(ratio/2))
-    image = multiroll(image, [-ratio//2]*ndims)
-    image = image[::ratio, ::ratio]
+        # Rasterize all geometry in the phantom.
+        pmin, patch = discrete_geometry(phantom.geometry, psize, ratio)
 
-    assert(image.shape[0] == size and image.shape[1] == size)
-    return image
+        # Get the property value
+        value = getattr(phantom.material, prop)(DEFAULT_ENERGY)
 
+        # Make a grid to put store all of the discrete geometries
+        image = np.zeros([size] * phantom.geometry.dim, dtype=float)
+        imin = [0] * phantom.geometry.dim
 
-def _discrete_geometry(phantom, image, px, py, prop):
-    """Draw the geometry of the phantom onto the image.
-
-    (px, py) are two arrays the same shape as image which hold the coordinates
-    of image pixels. Multiply the geometry of each phantom by the value of
-    phantom.prop.
-    """
-    if hasattr(phantom, prop) and phantom.geometry is not None:
-        value = getattr(phantom, prop)
-
-        size = px.shape  # is equivalent to image.shape?
-        pixel_coords = np.vstack([px.flatten(), py.flatten()]).T
-
-        logger.debug("pixel_coords: {}".format(pixel_coords))
-        logger.debug("geometry: {}".format(phantom.geometry))
-
-        new_feature = phantom.geometry.contains(pixel_coords) * value
-        logger.debug("new_feature: {}".format(new_feature))
-
-        new_feature = np.reshape(new_feature, size)
-
-        image += new_feature
+        image = combine_grid(imin, image, pmin // psize, patch * value)
 
     for child in phantom.children:
-        image = _discrete_geometry(child, image, px, py, prop)
+        image += discrete_phantom(child, size, ratio, uniform, prop)
 
     return image
 
 
-def sidebyside(p, size=100, labels=None, prop='mass_atten'):
+def combine_grid(Amin, A, Bmin, B):
+    """Add grid B to grid A by aligning min corners and clipping B
+
+    Parameters
+    ----------
+    Amin, Bmin : int tuple
+        The coordinates of the minimum corner of A and B
+    A, B : numpy.ndarray
+        The two arrays to add to each other
+
+    Return
+    ------
+    AB : numpy.ndarray
+        The combined grid
+
+    Raise
+    -----
+    ValueError
+        If A and B are do not have the same number of dimensions
+    """
+    if A.ndim != B.ndim:
+        raise ValueError("A and B must have the same number of dimensions.")
+
+    Amin = np.array(Amin, dtype=int)
+    Bmin = np.array(Bmin, dtype=int)
+
+    Amax = np.array(A.shape) + Amin
+    Bmax = np.array(B.shape) + Bmin
+
+    if np.any(Bmax <= Amin) or np.any(Amax <= Bmin):
+        # B doesn't overlap A
+        return A
+
+    # for each dimension, crop and pad B to fit inside A
+
+    forecrop = np.atleast_1d(Amin - Bmin)
+    postcrop = np.atleast_1d(Amax - Bmax)
+
+    pads = np.zeros([A.ndim, 2], dtype=int)
+    for i in range(A.ndim):
+        if forecrop[i] > 0:
+            B = B[forecrop[i]:]
+        if postcrop[i] < 0:
+            B = B[:postcrop[i]]
+
+        pads[0] = 0
+
+        if forecrop[i] < 0:
+            pads[0, 0] = -forecrop[i]
+        if postcrop[i] > 0:
+            pads[0, 1] = postcrop[i]
+
+        B = np.pad(B, pads, 'constant')
+
+        B = np.moveaxis(B, 0, -1)
+
+    assert B.shape == A.shape, ("A:{} is not the same shape as "
+                                "B:{}").format(A.shape, B.shape)
+
+    return A + B
+
+
+def discrete_geometry(geometry, psize, ratio=9):
+    """Draw the geometry onto a patch the size of its bounding box.
+
+    Parameters
+    ----------
+    geometry : :class:`geometry.Entity`
+        A geometric object with `dim`, `bounding_box`, and `contains` methods
+    psize : float [cm]
+        The real size of the pixels in the discrete image
+    ratio : int (default: 9)
+        The supersampling ratio for antialiasing. 1 means no antialiasing
+
+    Return
+    ------
+    corner : 1darray [cm]
+        The min corner of the patch
+    patch : ndarray
+        The discretized geometry in it's bounding box
+
+    Raise
+    -----
+    ValueError
+        If `ratio` is less than 1 or `psize` is less than or equal to 0.
+    """
+    if ratio < 1:
+        raise ValueError('ratio must be at least 1.')
+    if ratio <= 0:
+        raise ValueError('psize must be more than 0.')
+
+    logger.debug("geometry: {}".format(repr(geometry)))
+
+    # Determine the coordinates of the middle of each pixel in the supersampled
+    # bounding box
+    xmin, xmax = geometry.bounding_box
+    imin, imax = xmin // psize, xmax // psize + 1
+
+    margin = max(1, ratio // 2)  # buffer for rounding errors
+    nsteps = imax - imin + 2 * margin
+
+    # print(imin, imax, nsteps)
+
+    pixel_coords = [None] * geometry.dim
+    final_shape = np.zeros(geometry.dim, dtype=int)
+    corner = np.zeros(geometry.dim)
+
+    for i in range(geometry.dim):
+        x = psize * ((imin.flat[i] - margin)
+                     + np.arange(nsteps.flat[i] * ratio) / ratio)
+        # TODO: @carterbox Determine whether arange, or linspace works better
+        # at surpressing rotation error. SEE test_discrete_phantom_uniform
+
+        # print(x)
+
+        # Check whether the patch range, x, contains the bounding box
+        assert x[0] <= xmin.flat[i], x[0]
+        assert xmax.flat[i] < x[-1] + psize / ratio, x[-1] + psize / ratio
+        # The length of x should be an integer multiple of the decimation ratio
+        assert x.size % ratio == 0, x.size
+
+        corner[i] = x[0]
+
+        x += psize / (2 * ratio)  # move point to mid-pixel
+
+        pixel_coords[i] = x
+        final_shape[i] = x.size
+
+    # Reshape the pixels_coords into an MxN array
+    pixel_coords = np.stack(np.meshgrid(*pixel_coords, indexing='ij'), axis=-1)
+    pixel_coords = np.reshape(pixel_coords, (np.prod(pixel_coords.shape[0:-1]),
+                                             geometry.dim))
+
+    # Compute whether each pixel is contained within the geometry
+    image = geometry.contains(pixel_coords)
+
+    image.shape = final_shape
+    image = image.astype(float)
+
+    # Resample down to the desired size.
+    if True:
+        image = scipy.ndimage.uniform_filter(image, ratio, mode='constant')
+    else:
+        image = scipy.ndimage.gaussian_filter(image, np.sqrt(ratio/2))
+
+    # Roll image so that decimation chooses
+    # from the exact center of each filter when ratio is odd.
+    patch = multiroll(image, [-ratio//2 + 1]*geometry.dim)
+
+    # Decimate each axis
+    for i in range(geometry.dim):
+        patch = patch[::ratio]
+        patch = np.moveaxis(patch, 0, -1)
+
+    # Check that the resulting image is the expected size
+    assert np.all(patch.shape == final_shape // ratio)
+
+    if geometry.dim > 1:
+        patch = np.swapaxes(patch, 0, 1)
+        corner[0], corner[1] = corner[1], corner[0]
+
+    # Return the image and its min corner
+    return corner, patch
+
+
+def sidebyside(p, size=100, labels=None, prop='mass_attenuation'):
     '''Displays the geometry and the discrete property function of
     the given :class:`.Phantom` side by side.'''
-    fig = plt.figure(figsize=(6, 3), dpi=600)
+    # plt.rcParams.update({'font.size': 6})
+
+    fig = plt.figure(figsize=(6, 3), dpi=100)
+
     axis = fig.add_subplot(121, aspect='equal')
-    plt.grid('on')
-    plt.gca().invert_yaxis()
     plot_phantom(p, axis=axis, labels=labels)
-    plt.subplot(1, 2, 2)
+    plt.grid('on')
+    axis.invert_yaxis()
+    axis.set_xticks(np.linspace(0, 1, 6, True))
+    axis.set_yticks(np.linspace(0, 1, 6, True))
+
+    axis = plt.subplot(122)
     d = discrete_phantom(p, size, prop=prop)
     plt.imshow(d, interpolation='none', cmap=plt.cm.inferno)
+    axis.set_xticks(np.linspace(0, size, 6, True))
+    axis.set_yticks(np.linspace(0, size, 6, True))
+
+    plt.tight_layout()
+
     return d
 
 
@@ -503,7 +692,7 @@ def multiroll(x, shift, axis=None):
 
 
 def plot_metrics(imqual):
-    """Plots full reference metrics of ImageQuality data.
+    """Plot local quality maps from ImageQuality data.
 
     Parameters
     ----------
@@ -514,63 +703,48 @@ def plot_metrics(imqual):
     ----------
     Colors taken from this gist <https://gist.github.com/thriveth/8560036>
     """
-    fig_lineplot = plt.figure(0)
-    plt.rc('axes', prop_cycle=PLOT_STYLES)
 
-    for i in range(0, len(imqual)):
-        # Draw a plot of the mean quality vs scale using different colors for
-        # each reconstruction.
-        plt.figure(fig_lineplot.number)
-        plt.plot(imqual[i].scales, imqual[i].qualities)
+    # Plot the reconstruction
+    f = plt.figure()
+    N = len(imqual.maps) + 1
+    p = _pyramid(N)
+    plt.subplot2grid((p[0][0], p[0][0]), p[0][1], colspan=p[0][2],
+                     rowspan=p[0][2])
+    plt.imshow(imqual.img1, cmap=plt.cm.inferno,
+               interpolation="none", aspect='equal')
+    # plt.colorbar()
+    plt.axis('off')
+    # plt.title("Reconstruction")
 
-        # Plot the reconstruction
-        f = plt.figure(i + 1)
-        N = len(imqual[i].maps) + 1
-        p = _pyramid(N)
-        plt.subplot2grid((p[0][0], p[0][0]), p[0][1], colspan=p[0][2],
-                         rowspan=p[0][2])
-        plt.imshow(imqual[i].recon, cmap=plt.cm.inferno,
-                   interpolation="none", aspect='equal')
+    lo = 1.  # Determine the min local quality for all the scales
+    for m in imqual.maps:
+        lo = min(lo, np.min(m))
+
+    # Draw a plot of the local quality at each scale.
+    for j in range(1, N):
+        plt.subplot2grid((p[j][0], p[j][0]), p[j][1], colspan=p[j][2],
+                         rowspan=p[j][2])
+        im = plt.imshow(imqual.maps[j - 1], cmap=plt.cm.viridis,
+                        vmin=lo, vmax=1, interpolation="none",
+                        aspect='equal')
         # plt.colorbar()
         plt.axis('off')
-        # plt.title("Reconstruction")
+        plt.annotate(r'$\sigma$ =' + str(imqual.scales[j - 1]),
+                     xy=(0.05, 0.05), xycoords='axes fraction',
+                     weight='heavy')
 
-        lo = 1.  # Determine the min local quality for all the scales
-        for m in imqual[i].maps:
-            lo = min(lo, np.min(m))
+    # plot one colorbar to the right of these images.
+    f.subplots_adjust(right=0.8)
+    cbar_ax = f.add_axes([0.85, 0.15, 0.05, 0.7])
+    f.colorbar(im, cax=cbar_ax)
+    plt.title(imqual.method)
 
-        # Draw a plot of the local quality at each scale.
-        for j in range(1, N):
-            plt.subplot2grid((p[j][0], p[j][0]), p[j][1], colspan=p[j][2],
-                             rowspan=p[j][2])
-            im = plt.imshow(imqual[i].maps[j - 1], cmap=plt.cm.viridis,
-                            vmin=lo, vmax=1, interpolation="none",
-                            aspect='equal')
-            # plt.colorbar()
-            plt.axis('off')
-            plt.annotate(r'$\sigma$ =' + str(imqual[i].scales[j - 1]),
-                         xy=(0.05, 0.05), xycoords='axes fraction',
-                         weight='heavy')
-
-        # plot one colorbar to the right of these images.
-        f.subplots_adjust(right=0.8)
-        cbar_ax = f.add_axes([0.85, 0.15, 0.05, 0.7])
-        f.colorbar(im, cax=cbar_ax)
-        plt.title(imqual[i].method)
-
-        '''
-        plt.subplot(121)
-        plt.imshow(imqual[i].orig, cmap=plt.cm.viridis, vmin=0, vmax=1,
-                   interpolation="none", aspect='equal')
-        plt.title("Ideal")
-        '''
-    plt.figure(fig_lineplot.number)
-    plt.ylabel('Quality')
-    plt.xlabel('Scale')
-    plt.ylim([0, 1])
-    plt.grid(True)
-    plt.legend([str(x) for x in range(1, len(imqual) + 1)])
-    plt.title("Comparison of Reconstruction Methods")
+    '''
+    plt.subplot(121)
+    plt.imshow(imqual.orig, cmap=plt.cm.viridis, vmin=0, vmax=1,
+               interpolation="none", aspect='equal')
+    plt.title("Ideal")
+    '''
 
 
 def _pyramid(N):

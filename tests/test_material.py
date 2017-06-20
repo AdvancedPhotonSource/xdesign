@@ -46,15 +46,15 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-from xdesign.phantom import *
-from xdesign.material import *
-from xdesign.plot import *
-from numpy.testing import assert_allclose, assert_raises, assert_equal
 import numpy as np
-import scipy
+from numpy.testing import assert_allclose, assert_raises, assert_equal
 import matplotlib.pyplot as plt
 import warnings
 import os.path
+
+from xdesign.phantom import *
+from xdesign.material import *
+from xdesign.plot import *
 
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -70,7 +70,7 @@ def _plot_both(ref, target):
     plt.subplot(1, 2, 2)
     plt.imshow(target, cmap='viridis')
     plt.colorbar()
-    plt.show(block=False)
+    # plt.show(block=False)
 
 
 def _save_and_load(phantom_class, args=[]):
