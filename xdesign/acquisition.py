@@ -421,6 +421,7 @@ def raster_scan(sa, st, width_fraction=1, nmeta=1, random=False, plot=False):
         p.rotate(theta, Point([0.5, 0.5]))
 
     if plot:
+        import matplotlib.pyplot as plt
         axis = plt.gca()
         axis.scatter(positions, angles)
         plt.xlabel('position [cm]')

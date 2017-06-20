@@ -70,6 +70,7 @@ from xdesign.geometry import Curve, Polygon, Mesh
 from matplotlib.axis import Axis
 from itertools import product
 from six import string_types
+from random import shuffle
 
 logger = logging.getLogger(__name__)
 
@@ -121,21 +122,35 @@ class Glyph(patches.Ellipse):
     :py:class:`matplotlib.patches.Ellipse`,
     :py:func:`plot.plot_coverage_anisotropy`
     """
-    def __init__(self, xy, tensor, edgecolor='black', color=None, **kwargs):
+    def __init__(self, xy, tensor, color='coverage', **kwargs):
         values, orientation = np.linalg.eig(tensor)
         scale = np.sqrt(values.dot(values))
-        shape = values / scale
-        width, height = shape[0], shape[1]
+        if scale == 0:
+            logger.info("GLYPH: zero tensor at {}".format(xy))
+            width, height = 0.1, 0.1
+        else:
+            shape = values / scale
+            width, height = shape[0], shape[1]
         degrees = np.arctan2(orientation[1, 0], orientation[1, 1]) \
             * 180 / np.pi
-        if color is None:
+        if color is 'coverage':
             color = DEFAULT_COLOR_MAP(tensor.trace())
+        else:
+            color = plt.cm.inferno(min(width, height) / max(width, height))
         super(Glyph, self).__init__(xy, width, height, angle=degrees,
-                                    edgecolor=edgecolor, color=color, **kwargs)
+                                    color=color,
+                                    **kwargs)
 
 
-def plot_coverage_anisotropy(coverage_map):
+def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
     """Plot the coveage anisotropy using 2D glyphs.
+
+    Parameters
+    ----------
+    glyph_density : float (default: 1.0)
+        The fraction of total glyphs to plot in the range `[0, 1]`.
+    kwargs
+        Keyword arguments for the Glyphs.
 
     See also
     --------
@@ -148,10 +163,18 @@ def plot_coverage_anisotropy(coverage_map):
     plt.ylim([-.5, y - 0.5])
     axis.invert_yaxis()
 
-    for i in range(x):
-        for j in range(y):
-            glyph = Glyph([i, j], coverage_map[i, j, :, :])
-            axis.add_artist(glyph)
+    irange, jrange = np.meshgrid(range(x), range(y))
+    sample = list(range(x*y))
+    shuffle(sample)
+    sample = sample[0:int(glyph_density*len(sample))]
+    irange = irange.flatten()[sample]
+    jrange = jrange.flatten()[sample]
+
+    ijrange = np.stack([irange, jrange], axis=1)
+
+    for ij in ijrange:
+        glyph = Glyph(ij, coverage_map[ij[0], ij[1], :, :], **kwargs)
+        axis.add_artist(glyph)
 
 
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
