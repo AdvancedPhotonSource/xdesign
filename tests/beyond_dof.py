@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import dxchange
 
 from xdesign.grid import Grid3d
-from xdesign.material import Material
+from xdesign.material import XraylibMaterial, CustomMaterial
 from xdesign.geometry import *
 from xdesign.feature import Feature
 from xdesign.phantom import Phantom
@@ -19,24 +19,21 @@ bottom_thickness = 30.
 length = 400.
 bottom_z = top_z + length
 
-silicon = Material('Si', 2.33)
-titania = Material('TiO2', 4.23)
-air = Material(delta=0, beta=0)
+silicon = XraylibMaterial('Si', 2.33)
+titania = XraylibMaterial('TiO2', 4.23)
+air = CustomMaterial(delta=0, beta=0)
 
-phantom = Phantom()
-tube0 = TruncatedCone_3d(top_center=Point(0, 0, top_z),
+tube0 = TruncatedCone_3d(top_center=Point([0, 0, top_z]),
                          length=length,
                          top_radius=top_radius,
                          bottom_radius=bottom_radius)
-tube0 = Feature(tube0, material=silicon)
-phantom.append(tube0)
+tube0 = Phantom(geometry=tube0, material=silicon)
 
-tube1 = TruncatedCone_3d(top_center=Point(0, 0, top_z),
+tube1 = TruncatedCone_3d(top_center=Point([0, 0, top_z]),
                          length=length,
                          top_radius=top_radius-top_thickness,
                          bottom_radius=bottom_radius-bottom_thickness)
-tube1 = Feature(tube1, material=air)
-phantom.append(tube1)
+tube1 = Phantom(geometry=tube1, material=air)
 
 rand_z = np.random.choice(np.arange(top_z, bottom_z), n_particles)
 for i, iz in enumerate(rand_z):
@@ -49,10 +46,10 @@ for part_z in rand_z:
     part_x = np.cos(theta) * r
     part_y = np.sin(theta) * r
     rad = int(np.random.rand() * 6) + 4
-    sphere = Sphere_3d(center=Point(part_x, part_y, part_z),
+    sphere = Sphere_3d(center=Point([part_x, part_y, part_z]),
                        radius=rad)
-    sphere = Feature(sphere, material=titania)
-    phantom.append(sphere)
+    sphere = Phantom(geometry=sphere, material=titania)
+    # phantom.append(sphere)
 
 grid = Grid3d(phantom)
 try:

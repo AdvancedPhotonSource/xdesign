@@ -161,6 +161,31 @@ class XraylibMaterial(Material):
         return 1 - xl.Refractive_Index_Re(self.compound, energy, self.density)
 
 
+class CustomMaterial(Material):
+    """Materials with uncertain formula yet certain complex refractive indices.
+    
+    Attributes
+    ----------
+    delta : float
+        Delta value in complex refractive index.
+    beta : float
+        Beta value in complex refractive index.
+    energy : float
+        Energy in keV at which the refractive indices are measured.
+    """
+
+    def __init__(self, delta, beta, energy=None):
+        self.delta = delta
+        self.beta = beta
+        self.energy = energy
+
+    def beta(self):
+        return self.beta
+
+    def delta(self):
+        return self.delta
+
+
 class NISTMaterial(Material):
     """Materials which use NIST data to automatically calculate material
     properties based on beam energy in KeV.
