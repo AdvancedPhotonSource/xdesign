@@ -6,7 +6,13 @@
    :show-inheritance:
    :undoc-members:
 
-   .. rubric:: **Functions:**
+   .. rubric:: **Classes:**
+
+   .. autosummary::
+
+      Glyph
+
+   .. rubric:: **Phantom Plotting Functions:**
 
    .. autosummary::
 
@@ -16,6 +22,12 @@
       plot_mesh
       plot_polygon
       plot_curve
+
+   .. rubric:: **Metrics Plotting Functions:**
+
+   .. autosummary::
+
+      plot_coverage_anisotropy
       plot_metrics
       plot_mtf
       plot_nps

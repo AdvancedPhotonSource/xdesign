@@ -49,6 +49,27 @@
 """Contains functions for visualizing :class:`.Phantom` and
 :class:`.ImageQuality` metrics.
 
+DEFAULT_COLOR_MAP : :py:class:`matplotlib.colors.Colormap`
+    The color map used to choose property colors.
+DEFAULT_COLOR : :py:mod:`matplotlib.colors`
+    The face color of geometry.
+POLY_COLOR : :py:mod:`matplotlib.colors`
+    The face color of polygons.
+DEFAULT_EDGE_COLOR : :py:mod:`matplotlib.colors`
+    The color of geometry edges.
+POLY_EDGE_COLOR : :py:mod:`matplotlib.colors`
+    The color of polygon edges.
+LABEL_COLOR : :py:mod:`matplotlib.colors`
+    The color of number labels on phantom plots.
+POLY_LINEWIDTH : :py:class:`float`
+    The edge width for polygons. See
+    :py:meth:`matplotlib.patches.Patch.set_linewidth`.
+CURVE_LINEWIDTH : :py:class:`float`
+    The edge width for curves. See
+    :py:meth:`matplotlib.patches.Patch.set_linewidth`.
+PLOT_STYLES :
+    A list of 126 unique line styles.
+
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
@@ -78,19 +99,20 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['plot_coverage_anisotropy',
+__all__ = ['Glyph',
+           'plot_coverage_anisotropy',
+           'discrete_phantom',
+           'sidebyside',
            'plot_phantom',
            'plot_mesh',
            'plot_polygon',
            'plot_curve',
-           'discrete_phantom',
-           'sidebyside',
            'multiroll',
            'plot_metrics',
            'plot_mtf',
            'plot_nps',
            'plot_neq',
-           'plot_histograms']
+           ]
 
 DEFAULT_COLOR_MAP = plt.cm.viridis
 DEFAULT_COLOR = DEFAULT_COLOR_MAP(0.25)
@@ -120,7 +142,7 @@ class Glyph(patches.Ellipse):
     See Also
     --------
     :py:class:`matplotlib.patches.Ellipse`,
-    :py:func:`plot.plot_coverage_anisotropy`
+    :py:func:`.plot_coverage_anisotropy`
     """
     def __init__(self, xy, tensor, color='coverage', **kwargs):
         values, orientation = np.linalg.eig(tensor)
@@ -143,11 +165,11 @@ class Glyph(patches.Ellipse):
 
 
 def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
-    """Plot the coveage anisotropy using 2D glyphs.
+    """Plot the coverage anisotropy using 2D glyphs.
 
     Parameters
     ----------
-    glyph_density : float (default: 1.0)
+    glyph_density : :py:class:`float`
         The fraction of total glyphs to plot in the range `[0, 1]`.
     kwargs
         Keyword arguments for the Glyphs.
@@ -178,7 +200,7 @@ def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
 
 
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
-    """Plots a :class:`.Phantom` to the given axis.
+    """Plot a :class:`.Phantom` to the given axis.
 
     Parameters
     ----------
@@ -237,7 +259,7 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=0):
 
 
 def plot_geometry(geometry, axis=None, alpha=None, c=None):
-    """Plots a :class:`.Entity` on the given axis.
+    """Plot a :class:`.Entity` on the given axis.
 
     Parameters
     ----------
@@ -248,7 +270,7 @@ def plot_geometry(geometry, axis=None, alpha=None, c=None):
         a new axis.
     alpha : :class:`.float`, optional
         The plot opaqueness. 0 is transparent. 1 is opaque.
-    c : :mod:`matplotlib.color`, optional
+    c : :mod:`matplotlib.colors`, optional
         The color of the plotted geometry.
     """
     if axis is None:
@@ -268,7 +290,7 @@ def plot_geometry(geometry, axis=None, alpha=None, c=None):
 
 
 def plot_mesh(mesh, axis=None, alpha=None, c=None):
-    """Plots a :class:`.Mesh` to the given axis.
+    """Plot a :class:`.Mesh` to the given axis.
 
     Parameters
     ----------
@@ -279,7 +301,7 @@ def plot_mesh(mesh, axis=None, alpha=None, c=None):
         a new axis.
     alpha : :class:`.float`, optional
         The plot opaqueness. 0 is transparent. 1 is opaque.
-    c : :mod:`matplotlib.color`, optional
+    c : :mod:`matplotlib.colors`, optional
         The color of the plotted Mesh.
     """
     assert(isinstance(mesh, Mesh))
@@ -292,7 +314,7 @@ def plot_mesh(mesh, axis=None, alpha=None, c=None):
 
 
 def plot_polygon(polygon, axis=None, alpha=None, c=None):
-    """Plots a :class:`.Polygon` to the given axis.
+    """Plot a :class:`.Polygon` to the given axis.
 
     Parameters
     ----------
@@ -303,7 +325,7 @@ def plot_polygon(polygon, axis=None, alpha=None, c=None):
         a new axis.
     alpha : :class:`.float`, optional
         The plot opaqueness. 0 is transparent. 1 is opaque.
-    c : :mod:`matplotlib.color`, optional
+    c : :mod:`matplotlib.colors`, optional
         The color of the plotted Polygon.
     """
     assert(isinstance(polygon, Polygon))
@@ -321,7 +343,7 @@ def plot_polygon(polygon, axis=None, alpha=None, c=None):
 
 
 def plot_curve(curve, axis=None, alpha=None, c=None):
-    """Plots a :class:`.Curve` to the given axis.
+    """Plot a :class:`.Curve` to the given axis.
 
     Parameters
     ----------
@@ -332,7 +354,7 @@ def plot_curve(curve, axis=None, alpha=None, c=None):
         a new axis.
     alpha : :class:`.float`, optional
         The plot opaqueness. 0 is transparent. 1 is opaque.
-    c : :mod:`matplotlib.color`, optional
+    c : :mod:`matplotlib.colors`, optional
         The color of the plotted curve.
     """
     assert(isinstance(curve, Curve))
@@ -350,7 +372,7 @@ def plot_curve(curve, axis=None, alpha=None, c=None):
 
 
 def _make_axis():
-    """Makes an :class:`matplotlib.axis.Axis` for plotting :mod:`.Phantom` module
+    """Make an :class:`matplotlib.axis.Axis` for plotting :mod:`.Phantom` module
     classes."""
     fig = plt.figure(figsize=(8, 8), facecolor='w')
     axis = fig.add_subplot(111, aspect='equal')
@@ -360,7 +382,7 @@ def _make_axis():
 
 
 def discrete_phantom(phantom, size, ratio=8, uniform=True, prop='mass_atten'):
-    """Returns discrete representation of the property function, prop, in the
+    """Return a discrete representation of the property function, prop, in the
     :class:`.Phantom`. The values of overlapping Phantoms are additive.
 
     Parameters
@@ -447,7 +469,7 @@ def _discrete_geometry(phantom, image, px, py, prop):
 
 
 def sidebyside(p, size=100, labels=None, prop='mass_atten'):
-    '''Displays the geometry and the discrete property function of
+    '''Display the geometry and the discrete property function of
     the given :class:`.Phantom` side by side.'''
     fig = plt.figure(figsize=(6, 3), dpi=600)
     axis = fig.add_subplot(121, aspect='equal')
@@ -572,7 +594,7 @@ def multiroll(x, shift, axis=None):
 
 
 def plot_metrics(imqual):
-    """Plots full reference metrics of ImageQuality data.
+    """Plot full reference metrics of ImageQuality data.
 
     Parameters
     ----------
@@ -643,7 +665,7 @@ def plot_metrics(imqual):
 
 
 def _pyramid(N):
-    """Generates the corner positions, grid size, and column/row spans for
+    """Generate the corner positions, grid size, and column/row spans for
     a pyramid image.
 
     Parameters
@@ -684,7 +706,7 @@ def _pyramid(N):
 
 
 def plot_mtf(faxis, MTF, labels=None):
-    """Plots the MTF. Returns the figure reference."""
+    """Plot the MTF. Return the figure reference."""
     fig_lineplot = plt.figure()
     plt.rc('axes', prop_cycle=PLOT_STYLES)
 
@@ -703,8 +725,7 @@ def plot_mtf(faxis, MTF, labels=None):
 
 
 def plot_nps(X, Y, NPS):
-    """Plots the 2D frequency plot for the NPS.
-    Returns the figure reference."""
+    """Plot the 2D frequency plot for the NPS. Return the figure reference."""
     fig_nps = plt.figure()
     plt.contourf(X, Y, NPS, cmap='inferno')
     plt.xlabel('spatial frequency [cycles/length]')
@@ -717,7 +738,7 @@ def plot_nps(X, Y, NPS):
 
 
 def plot_neq(freq, NEQ):
-    """Plots the NEQ. Returns the figure reference."""
+    """Plot the NEQ. Return the figure reference."""
     fig_neq = plt.figure()
     plt.plot(freq.flatten(), NEQ.flatten())
     plt.xlabel('spatial frequency [cycles/length]')
@@ -726,7 +747,7 @@ def plot_neq(freq, NEQ):
 
 
 def plot_histograms(images, masks=None, thresh=0.025):
-    """Plots the normalized histograms for the pixel intensity under each
+    """Plot the normalized histograms for the pixel intensity under each
     mask.
 
     Parameters
