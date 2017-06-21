@@ -150,12 +150,12 @@ class XraylibMaterial(Material):
         return "XraylibMaterial({0}, {1})".format(repr(self.compound),
                                                   repr(self.density))
 
-    @memodict
+    # @memodict
     def beta(self, energy):
         """Absorption coefficient."""
         return xl.Refractive_Index_Im(self.compound, energy, self.density)
 
-    @memodict
+    # @memodict
     def delta(self, energy):
         """Decrement of refractive index."""
         return 1 - xl.Refractive_Index_Re(self.compound, energy, self.density)

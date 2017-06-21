@@ -1174,14 +1174,35 @@ class Cuboid_3d(Entity):
         super(Cuboid_3d, self).__init__()
         self.x1 = x1
         self.x2 = x2
+        self._dim = 3
 
-    def generate(self, grid, material):
-        judge = (grid.zz >= self.x1.z) * (grid.zz <= self.x2.z) * \
-                (grid.yy >= self.x1.y) * (grid.yy <= self.x2.y) * \
-                (grid.xx >= self.x1.x) * (grid.xx <= self.x2.x)
-        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy_kev)
-        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy_kev)
-        print('Cuboid added.')
+    def __repr__(self):
+        return 'Cuboid({}, {})'.format([repr(n) for n in self.x1._x], [repr(n) for n in self.x2._x])
+
+    @property
+    def bounding_box(self):
+        xmin = self.x1._x
+        xmax = self.x2._x
+
+        return xmin, xmax
+
+    def contains(self, other):
+        """
+        Return whether the cuboid contains the other. 
+        """
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        else:
+            raise NotImplementedError()
+
+        x = np.atleast_2d(x)
+        # np.set_printoptions(threshold=np.inf)
+
+        ret = np.alltrue(self.x1._x <= x, axis=-1) * \
+                np.alltrue(x <= self.x2._x, axis=-1)
+        return ret
 
 
 class Sphere_3d(Entity):

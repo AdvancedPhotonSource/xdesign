@@ -329,7 +329,8 @@ def _make_axis():
 
 
 def discrete_phantom(phantom, size, ratio=9, uniform=True,
-                     prop='linear_attenuation'):
+                     prop='linear_attenuation', energy=DEFAULT_ENERGY,
+                     fix_psize=False):
     """Return a discrete map of the `property` in the `phantom`.
 
     The values of overlapping :class:`phantom.Phantom` are additive.
@@ -347,7 +348,7 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
     uniform : boolean, optional (default: True)
         When set to False, changes the way pixels are averaged from a
         uniform weights to gaussian weigths.
-    prop : str, optional (default: linear_attenuation)
+    prop : str or list of str, optional (default: linear_attenuation)
         The name of the property to discretize
 
     Return
@@ -367,26 +368,37 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
     image = 0
 
     if phantom.geometry is not None and phantom.material is not None \
-       and hasattr(phantom.material, prop):
+       and np.alltrue([hasattr(phantom.material, temp) for temp in prop]):
 
-        psize = 1.0 / size
+        # select whether use a fixed pixel size (at 1) or fixed object size (1cm)
+        if fix_psize:
+            psize = 1
+        else:
+            psize = 1.0 / size
 
         # Rasterize all geometry in the phantom.
         pmin, patch = discrete_geometry(phantom.geometry, psize, ratio)
 
         # Get the property value
-        value = getattr(phantom.material, prop)(DEFAULT_ENERGY)
+        prop = np.atleast_1d(prop)
+        n_prop = prop.size
+        ret = [None] * n_prop
+        for i, i_prop in enumerate(prop):
+            value = getattr(phantom.material, i_prop)(energy)
 
-        # Make a grid to put store all of the discrete geometries
-        image = np.zeros([size] * phantom.geometry.dim, dtype=float)
-        imin = [0] * phantom.geometry.dim
+            # Make a grid to put store all of the discrete geometries
+            image = np.zeros([size] * phantom.geometry.dim, dtype=float)
+            imin = [0] * phantom.geometry.dim
 
-        image = combine_grid(imin, image, pmin // psize, patch * value)
+            image = combine_grid(imin, image, pmin // psize, patch * value)
+            ret[i] = image
 
     for child in phantom.children:
-        image += discrete_phantom(child, size, ratio, uniform, prop)
+        temp = discrete_phantom(child, size, ratio, uniform, prop, energy, fix_psize)
+        for i in len(ret):
+            ret[i] += temp[i]
 
-    return image
+    return np.squeeze(ret)
 
 
 def combine_grid(Amin, A, Bmin, B):
