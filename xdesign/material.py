@@ -179,6 +179,10 @@ class CustomMaterial(Material):
         self.beta = beta
         self.energy = energy
 
+    def __repr__(self):
+        return "CustomMaterial(delta={0}, beta={1})".format(repr(self.delta),
+                                                 repr(self.beta))
+
     def beta(self):
         return self.beta
 

@@ -330,7 +330,7 @@ def _make_axis():
 
 def discrete_phantom(phantom, size, ratio=9, uniform=True,
                      prop='linear_attenuation', energy=DEFAULT_ENERGY,
-                     fix_psize=False):
+                     fix_psize=False, overlay_mode='add', return_patch=False):
     """Return a discrete map of the `property` in the `phantom`.
 
     The values of overlapping :class:`phantom.Phantom` are additive.
@@ -350,6 +350,15 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
         uniform weights to gaussian weigths.
     prop : str or list of str, optional (default: linear_attenuation)
         The name of the property to discretize
+    fix_psize : bool
+        Select whether use a fixed pixel size (at 1) or fixed object size 
+        (1cm)
+    overlay_mode : 'add' or 'replace'
+        Select the mode to overlay child phantom values to the existing grid.
+        'add': values will be added
+        'replace': parent values will be replaced by child values
+    return_patch : bool
+        Whether to return image patch of the current phantom. 
 
     Return
     ------
@@ -384,7 +393,10 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
         n_prop = prop.size
         ret = [None] * n_prop
         for i, i_prop in enumerate(prop):
-            value = getattr(phantom.material, i_prop)(energy)
+            try:
+                value = getattr(phantom.material, i_prop)(energy)
+            except:
+                value = getattr(phantom.material, i_prop)
 
             # Make a grid to put store all of the discrete geometries
             image = np.zeros([size] * phantom.geometry.dim, dtype=float)
@@ -393,12 +405,26 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
             image = combine_grid(imin, image, pmin // psize, patch * value)
             ret[i] = image
 
-    for child in phantom.children:
-        temp = discrete_phantom(child, size, ratio, uniform, prop, energy, fix_psize)
-        for i in len(ret):
-            ret[i] += temp[i]
+        patch = patch.astype('bool')
+        imin = [0] * phantom.geometry.dim
+        patch = combine_grid(imin, np.zeros_like(image).astype('bool'), pmin // psize, patch)
 
-    return np.squeeze(ret)
+    for child in phantom.children:
+        temp, temp_patch = discrete_phantom(child, size, ratio, uniform, prop, energy, fix_psize, return_patch=True,
+                                            overlay_mode=overlay_mode)
+        for i in range(len(ret)):
+            if overlay_mode == 'add':
+                ret[i] += temp[i]
+            elif overlay_mode == 'replace':
+                ret[i][temp_patch] = temp[i][temp_patch]
+    if return_patch:
+        try:
+            patch += temp_patch
+        except:
+            pass
+        return np.squeeze(ret), patch
+    else:
+        return np.squeeze(ret)
 
 
 def combine_grid(Amin, A, Bmin, B):
@@ -513,8 +539,6 @@ def discrete_geometry(geometry, psize, ratio=9):
                      + np.arange(nsteps.flat[i] * ratio) / ratio)
         # TODO: @carterbox Determine whether arange, or linspace works better
         # at surpressing rotation error. SEE test_discrete_phantom_uniform
-
-        # print(x)
 
         # Check whether the patch range, x, contains the bounding box
         assert x[0] <= xmin.flat[i], x[0]

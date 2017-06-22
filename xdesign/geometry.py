@@ -1198,8 +1198,6 @@ class Cuboid_3d(Entity):
             raise NotImplementedError()
 
         x = np.atleast_2d(x)
-        # np.set_printoptions(threshold=np.inf)
-
         ret = np.alltrue(self.x1._x <= x, axis=-1) * \
                 np.alltrue(x <= self.x2._x, axis=-1)
         return ret
@@ -1215,14 +1213,32 @@ class Sphere_3d(Entity):
         super(Sphere_3d, self).__init__()
         self.center = center
         self.radius = radius
+        self._dim = 3
 
-    def generate(self, grid, material):
-        judge = (grid.zz - self.center.z) ** 2 + \
-                (grid.yy - self.center.y) ** 2 + \
-                (grid.xx - self.center.x) ** 2 <= self.radius ** 2
-        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy_kev)
-        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy_kev)
-        print('Sphere added.')
+    def __repr__(self):
+        return 'Sphere(center={}, radius={})'.format(repr(self.center), repr(self.radius))
+
+    @property
+    def bounding_box(self):
+        xmin = self.center._x - np.array([self.radius] * self.center._dim)
+        xmax = self.center._x + np.array([self.radius] * self.center._dim)
+
+        return xmin, xmax
+
+    def contains(self, other):
+        """
+        Return whether the cuboid contains the other. 
+        """
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        else:
+            raise NotImplementedError()
+
+        x = np.atleast_2d(x)
+        ret = np.sum((x - self.center._x) ** 2 , axis=-1) <= self.radius ** 2
+        return ret
 
 
 class Rod_3d(Entity):
@@ -1236,24 +1252,43 @@ class Rod_3d(Entity):
         self.x1 = x1
         self.x2 = x2
         self.radius = radius
+        self._dim = 3
 
-    def generate(self, grid, material):
-        """Refer to http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html"""
-        x0 = np.empty(np.append(grid.xx.shape, 3))
-        x0[:, :, :, 0] = grid.xx
-        x0[:, :, :, 1] = grid.yy
-        x0[:, :, :, 2] = grid.zz
-        judge = np.cross((self.x2 - self.x1).list(), (np.array(self.x1.list()) - x0))
-        judge = judge.reshape([-1, 3])
-        judge = np.asarray(map(np.linalg.norm, judge))
-        judge = judge.reshape(grid.xx.shape)
-        judge = judge / np.linalg.norm((self.x2 - self.x1).list()) <= self.radius
-        judge_seg = -(np.array(self.x1.list()) - x0).dot((self.x2 - self.x1).list()) / \
-                    np.linalg.norm((self.x2 - self.x1).list()) ** 2
-        judge = judge * (judge_seg >= 0) * (judge_seg <= 1)
-        grid.grid_delta[judge] = material.refractive_index_delta(grid.energy_kev)
-        grid.grid_beta[judge] = material.refractive_index_beta(grid.energy_kev)
-        print('Rod added.')
+    def __repr__(self):
+        return 'Rod(Start={}, end={}, radius={})'.format([repr(n) for n in self.x1._x],
+                                                         [repr(n) for n in self.x2._x],
+                                                         repr(self.radius))
+
+    @property
+    def bounding_box(self):
+        xmin = np.min([self.x1._x, self.x2._x], axis=0) - np.array([self.radius] * self.x1._dim)
+        xmax = np.max([self.x1._x, self.x2._x], axis=0) + np.array([self.radius] * self.x1._dim)
+
+        return xmin, xmax
+
+    def contains(self, other):
+        """
+        Return whether the cuboid contains the other. 
+        """
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        else:
+            raise NotImplementedError()
+
+        x = np.atleast_2d(x)
+
+        x1 = self.x1._x
+        x2 = self.x2._x
+        x0 = x._x
+        ret = np.cross((x2 - x1), (x1 - x0))
+        ret = np.asarray(map(np.linalg.norm, ret))
+        ret = ret / np.linalg.norm((x2 - x1)) <= self.radius
+        judge_seg = -(x1 - x0).dot((x2 - x1)) / np.linalg.norm((x2 - x1)) ** 2
+        ret = ret * (judge_seg >= 0) * (judge_seg <= 1)
+
+        return ret
 
 
 class TruncatedCone_3d(Entity):
@@ -1266,17 +1301,42 @@ class TruncatedCone_3d(Entity):
         self.length = int(length)
         self.top_radius = top_radius
         self.bottom_radius = bottom_radius
+        self._dim = 3
 
-    def generate(self, grid, material):
-        for slice in range(self.length):
-            rad = self.top_radius + (self.bottom_radius - self.top_radius) / (self.length - 1) * slice
-            rad = np.round(rad)
-            z_coords = int(self.top_center.z+slice)
-            judge = (grid.xx[z_coords, :, :] - self.top_center.x) ** 2 + \
-                    (grid.yy[z_coords, :, :] - self.top_center.y) ** 2 <= rad ** 2
-            grid.grid_delta[z_coords, :, :][judge] = material.refractive_index_delta(grid.energy_kev)
-            grid.grid_beta[z_coords, :, :][judge] = material.refractive_index_beta(grid.energy_kev)
-        print('Truncated cone added.')
+    def __repr__(self):
+        return 'TruncatedCone(center={}, length={}, top_radius={}, bottom_radius={})'.format(repr(self.top_center),
+                                                                                             repr(self.length),
+                                                                                             repr(self.top_radius),
+                                                                                             repr(self.bottom_radius))
+
+    @property
+    def bounding_box(self):
+        max_rad = max([self.top_radius, self.bottom_radius])
+        bottom_center = np.copy(self.top_center._x)
+        bottom_center[0] += self.length
+        xmin = self.top_center._x - np.array([0, max_rad, max_rad])
+        xmax = bottom_center + np.array([0, max_rad, max_rad])
+
+        return xmin, xmax
+
+    def contains(self, other):
+        """
+        Return whether the cuboid contains the other. 
+        """
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        else:
+            raise NotImplementedError()
+
+        x = np.atleast_2d(x)
+
+        rad = self.top_radius + (self.bottom_radius - self.top_radius) / (self.length - 1) * \
+                                (x[:, 0] - self.top_center._x[0])
+        ret = (x[:, 1] - self.top_center._x[1]) ** 2 + (x[:, 2] - self.top_center._x[2]) ** 2 <= rad ** 2
+
+        return ret
 
 
 class Cylinder_3d(TruncatedCone_3d):
