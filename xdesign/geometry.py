@@ -1313,15 +1313,15 @@ class TruncatedCone_3d(Entity):
     def bounding_box(self):
         max_rad = max([self.top_radius, self.bottom_radius])
         bottom_center = np.copy(self.top_center._x)
-        bottom_center[0] += self.length
-        xmin = self.top_center._x - np.array([0, max_rad, max_rad])
-        xmax = bottom_center + np.array([0, max_rad, max_rad])
+        bottom_center[1] += self.length
+        xmin = self.top_center._x - np.array([max_rad, 0, max_rad])
+        xmax = bottom_center + np.array([max_rad, 0, max_rad])
 
         return xmin, xmax
 
     def contains(self, other):
         """
-        Return whether the cuboid contains the other. 
+        Return whether the geometry contains the other. 
         """
         if isinstance(other, Point):
             x = other._x
@@ -1333,8 +1333,8 @@ class TruncatedCone_3d(Entity):
         x = np.atleast_2d(x)
 
         rad = self.top_radius + (self.bottom_radius - self.top_radius) / (self.length - 1) * \
-                                (x[:, 0] - self.top_center._x[0])
-        ret = (x[:, 1] - self.top_center._x[1]) ** 2 + (x[:, 2] - self.top_center._x[2]) ** 2 <= rad ** 2
+                                (x[:, 1] - self.top_center._x[1])
+        ret = (x[:, 0] - self.top_center._x[0]) ** 2 + (x[:, 2] - self.top_center._x[2]) ** 2 <= rad ** 2
 
         return ret
 

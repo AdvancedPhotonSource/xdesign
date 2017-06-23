@@ -73,6 +73,7 @@ import logging
 import polytope as pt
 from copy import deepcopy
 from cached_property import cached_property
+import sys
 try:
     import queue
 except:
@@ -592,4 +593,139 @@ def tomography_3d(grid, wavefront, probe, ang_start, ang_end, ang_step=None, n_a
         dset = xchng.create_dataset('data_dark', (1, grid.size[1], grid.size[2]))
         dset[:, :, :] = np.zeros(dset.shape)
         f.close()
+
+
+class Simulator(object):
+    """Optical simulation based on multislice propagation.
+    
+    Attributes
+    ----------
+    grid : numpy.ndarray or list of numpy.ndarray
+        Descretized grid for the phantom object. If type == 'refractive_index', 
+        it takes a list of [delta_grid, beta_grid].
+    energy : float
+        Beam energy in keV. Should match the energy used for creating the grids.
+    psize : list
+        Pixel size in nm.
+    type : str
+        Value type of input grid. 
+    """
+
+    def __init__(self, energy, grid=None, psize=None, type='refractive_index'):
+
+        if type == 'refractive_index':
+            if grid is not None:
+                self.grid_delta, self.grid_beta = grid
+            else:
+                self.grid_delta = self.grid_beta = None
+            self.energy = energy
+            self.voxel = psize
+            self._ndim = self.grid_delta.ndim
+            self.size = self.grid_delta.shape
+            self.lmbda_nm = 1.24 / self.energy
+            self.mesh = []
+            temp = []
+            for i in range(self._ndim):
+                temp.append(np.arange(self.size[i]))
+            self.mesh = np.meshgrid(*temp, indexing='ij')
+
+            # wavefront in x-y plane or x edge
+            self.wavefront = np.zeros(self.grid_delta.shape[:-1], dtype=np.complex64)
+        else:
+            raise ValueError('Currently only delta and beta grids are supported.')
+
+    def save_grid(self, save_path='data/sav/grid'):
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        np.save(os.path.join(save_path, 'grid_delta'), self.grid_delta)
+        np.save(os.path.join(save_path, 'grid_beta'), self.grid_beta)
+        grid_pars = [self.size, self.voxel, self.energy]
+        np.save(os.path.join(save_path, 'grid_pars'), grid_pars)
+
+    def read_grid(self, save_path='data/sav/grid'):
+        try:
+            self.grid_delta = np.load(os.path.join(save_path, 'grid_delta.npy'))
+            self.grid_beta = np.load(os.path.join(save_path, 'grid_beta.npy'))
+        except:
+            raise ValueError('Failed to read grid.')
+
+    def save_slice_images(self, save_path='data/sav/slices'):
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        dxchange.write_tiff_stack(self.grid_delta, os.path.join(save_path, 'delta'),
+                                  overwrite=True, dtype=np.float32)
+        dxchange.write_tiff_stack(self.grid_beta, os.path.join(save_path, 'beta'),
+                                  overwrite=True, dtype=np.float32)
+
+    def show_grid(self, part='delta'):
+        if part == 'delta':
+            tifffile.imshow(self.grid_delta)
+        elif part == 'beta':
+            tifffile.imshow(self.grid_beta)
+        else:
+            print('WARNING: wrong part specified for show_grid.')
+
+    def initialize_wavefront(self, type, **kwargs):
+        """Initialize wavefront.
+
+        Parameters:
+        -----------
+        type : str
+            Type of wavefront to be initialized.
+        """
+        wave_shape = np.asarray(self.wavefront.shape)
+        if type == 'plane':
+            self.wavefront[...] = 1.
+        elif type == 'spot':
+            wid = kwargs['width']
+            radius = int(wid / 2)
+            if self._ndim == 2:
+                center = int(wave_shape[0] / 2)
+                self.wavefront[center-radius:center-radius+wid] = 1.
+            elif self._ndim == 3:
+                center = np.array(wave_shape / 2, dtype=int)
+                self.wavefront[center[0]-radius:center[0]-radius+wid, center[1]-radius:center[1]-radius+wid] = 1.
+        elif type == 'point_projection_lens':
+            f = kwargs['focal_length']
+            s = kwargs['lens_sample_dist']
+            xx = self.mesh[0][:, :, 0]
+            yy = self.mesh[1][:, :, 0]
+            r = np.sqrt(xx ** 2 + yy ** 2)
+            theta = np.arctan(r / (s - f))
+            path = np.mod(s / np.cos(theta), self.lmbda_nm)
+            phase = path * 2 * np.pi
+            wavefront = np.ones(wave_shape).astype('complex64')
+            wavefront = wavefront + 1j * np.tan(phase)
+            self.wavefront = wavefront / np.abs(wavefront)
+
+    def multislice_propagate(self, free_prop_dist=None):
+        """Do multislice propagation for wave with specified properties in the constructed grid.
+
+        Attributes:
+        -----------
+        delta_grid : ndarray
+            As-constructed grid with defined phantoms filled with material delta values.
+        beta_grid : ndarray
+            As-constructed grid with defined phantoms filled with material beta values.
+        probe : instance
+            Probe beam instance.
+        delta_nm : float
+            Slice thickness in nm.
+        lat_nm : float
+            Lateral pixel size in nm.
+        """
+        n_slice = self.grid_delta.shape[-1]
+        for i_slice in range(n_slice):
+            print('\rSlice: {:d}'.format(i_slice), end=' ')
+            sys.stdout.flush()
+            delta_slice = self.grid_delta[:, :, i_slice]
+            beta_slice = self.grid_beta[:, :, i_slice]
+            self.wavefront = slice_modify(self, delta_slice, beta_slice, self.wavefront)
+            self.wavefront = slice_propagate(self, self.wavefront)
+        # print(wavefront)
+        if free_prop_dist is not None:
+            self.wavefront = free_propagate(self, self.wavefront, free_prop_dist)
+            # wavefront = far_propagate(grid, wavefront, free_prop_dist)
+        return self.wavefront
+
 

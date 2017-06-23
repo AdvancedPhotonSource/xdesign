@@ -68,49 +68,11 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['multislice_propagate',
-           'plot_wavefront',
-           'initialize_wavefront']
-
-
-def initialize_wavefront(grid, type, **kwargs):
-    """Initialize wavefront.
-
-    Parameters:
-    -----------
-    wvfnt_width : int
-        Pixel width of wavefront.
-    """
-    wave_shape = grid.grid_delta.shape[1:]
-    if type == 'plane':
-        wavefront = np.ones(wave_shape).astype('complex64')
-    elif type == 'point':
-        wid = kwargs['width']
-        wavefront = np.zeros(wave_shape).astype('complex64')
-        center = int(wave_shape / 2)
-        radius = int(wid / 2)
-        wavefront[:wid] = 1.
-        wavefront = np.roll(wavefront, int((wave_shape - wid) / 2))
-    elif type == 'point_projection_lens':
-        f = kwargs['focal_length']
-        s = kwargs['lens_sample_dist']
-        xx = grid.xx[0, :, :]
-        yy = grid.yy[0, :, :]
-        r = np.sqrt(xx ** 2 + yy ** 2)
-        dxchange.write_tiff(r, 'tmp/r', dtype=np.float32, overwrite=True)
-        dxchange.write_tiff(np.mod(r, 1), 'tmp/shit', dtype=np.float32, overwrite=True)
-
-        theta = np.arctan(r / (s - f))
-        dxchange.write_tiff(theta, 'tmp/theta', dtype=np.float32, overwrite=True)
-        path = np.mod(s / np.cos(theta), grid.lmbda_nm)
-        dxchange.write_tiff(path, 'tmp/path', dtype=np.float32, overwrite=True)
-        phase = path * 2 * np.pi
-        dxchange.write_tiff(phase, 'tmp/phase', dtype=np.float32, overwrite=True)
-        wavefront = np.ones(wave_shape).astype('complex64')
-        wavefront = wavefront + 1j * np.tan(phase)
-        wavefront = wavefront / np.abs(wavefront)
-
-    return wavefront
+__all__ = ['plot_wavefront',
+           'free_propagate',
+           'far_propagate',
+           'slice_modify',
+           'slice_propagate']
 
 
 def _extract_slice(delta_grid, beta_grid, islice):
@@ -144,7 +106,7 @@ def slice_modify(grid, delta_slice, beta_slice, wavefront):
     lmda : float
         Wavelength in nm.
     """
-    delta_nm = grid.voxel_z
+    delta_nm = grid.voxel[-1]
     kz = 2 * np.pi * delta_nm / grid.lmbda_nm
     wavefront = wavefront * np.exp((kz * delta_slice) * 1j) * np.exp(-kz * beta_slice)
 
@@ -153,7 +115,7 @@ def slice_modify(grid, delta_slice, beta_slice, wavefront):
 
 def slice_propagate(grid, wavefront):
 
-    delta_nm = grid.voxel_z
+    delta_nm = grid.voxel[-1]
     wavefront = free_propagate(grid, wavefront, delta_nm)
     return wavefront
 
@@ -162,8 +124,8 @@ def free_propagate(grid, wavefront, dist_nm):
     """Free space propagation using convolutional algorithm.
     """
     lmbda_nm = grid.lmbda_nm
-    u_max = 1. / (2. * grid.voxel_x)
-    v_max = 1. / (2. * grid.voxel_y)
+    u_max = 1. / (2. * grid.voxel[0])
+    v_max = 1. / (2. * grid.voxel[1])
     u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
     # x = grid.xx[0, :, :]
     # y = grid.yy[0, :, :]
@@ -270,40 +232,3 @@ def plot_wavefront(wavefront, grid, save_folder='simulation', fname='exiting_wav
     plt.ylabel('y (nm)')
     plt.show()
     #fig.savefig(save_folder+'/'+fname+'.png', type='png')
-
-
-def multislice_propagate(grid, wavefront, free_prop_dist=None):
-    """Do multislice propagation for wave with specified properties in the constructed grid.
-
-    Parameters:
-    -----------
-    delta_grid : ndarray
-        As-constructed grid with defined phantoms filled with material delta values.
-    beta_grid : ndarray
-        As-constructed grid with defined phantoms filled with material beta values.
-    probe : instance
-        Probe beam instance.
-    delta_nm : float
-        Slice thickness in nm.
-    lat_nm : float
-        Lateral pixel size in nm.
-    """
-    # 2d array should be reshaped to 3d.
-    assert isinstance(grid, Grid3d)
-    delta_grid = grid.grid_delta
-    beta_grid = grid.grid_beta
-
-    n_slice = delta_grid.shape[0]
-    for i_slice in range(n_slice):
-        print('\rSlice: {:d}'.format(i_slice), end=' ')
-        sys.stdout.flush()
-        delta_slice = delta_grid[i_slice, :, :]
-        beta_slice = beta_grid[i_slice, :, :]
-        wavefront = slice_modify(grid, delta_slice, beta_slice, wavefront)
-        wavefront = slice_propagate(grid, wavefront)
-    # print(wavefront)
-    if free_prop_dist is not None:
-        # wavefront = free_propagate(grid, wavefront, free_prop_dist)
-        wavefront = far_propagate(grid, wavefront, free_prop_dist)
-    # print(wavefront)
-    return wavefront
