@@ -146,10 +146,7 @@ def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
     else:
         coverage_map = np.zeros((sx, sy))
 
-    probe_count = 0
-
     for probe in procedure:
-        probe_count += 1
 
         # Determine quantity and width of alpha lines
         num_lines = max(1, int(n * probe.size / pixel_size))
@@ -223,7 +220,7 @@ def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
                     warnings.warn("{}\nix is {}\niy is {}".format(e, ix, iy),
                                   RuntimeWarning)
 
-    return coverage_map / pixel_size**2 / probe_count
+    return coverage_map / pixel_size**2
 
 
 def make_grid(box, pixel_size):
