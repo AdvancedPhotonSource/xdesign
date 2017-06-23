@@ -119,7 +119,7 @@ def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
     pixel_size : float (default : 0.1) [cm]
         The edge length of the pixels in the coverage map in centimeters.
     n : int (default: 1)
-        The number of lines per pixel_size per beam size
+        The number of lines per beam
     anisotropy : bool (default: False)
         Whether the coverage map includes anisotropy information
 
@@ -149,7 +149,7 @@ def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
     for probe in procedure:
 
         # Determine quantity and width of alpha lines
-        num_lines = max(1, int(n * probe.size / pixel_size))
+        num_lines = max(1, n)
         line_width = probe.size / num_lines
 
         # Move the first alpha line to a starting position
