@@ -68,7 +68,7 @@ from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
-__author__ = "Daniel Ching, Doga Gursoy"
+__author__ = "Daniel Ching, Doga Gursoy, Ming Du"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Entity',
@@ -1347,6 +1347,24 @@ class Cylinder_3d(TruncatedCone_3d):
         if not isinstance(top_center, Point):
             raise TypeError("center must be of type Point.")
         super(Cylinder_3d, self).__init__(top_center, length, radius, radius)
+
+    def contains(self, other):
+        """
+        Return whether the geometry contains the other. 
+        """
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        else:
+            raise NotImplementedError()
+
+        x = np.atleast_2d(x)
+
+        rad = self.top_radius
+        ret = (x[:, 0] - self.top_center._x[0]) ** 2 + (x[:, 2] - self.top_center._x[2]) ** 2 <= rad ** 2
+
+        return ret
 
 
 class Mesh(Entity):

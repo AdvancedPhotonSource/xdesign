@@ -74,7 +74,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['art', 'sirt', 'mlem', 'stream', 'update_progress', 'mba']
+__all__ = ['art', 'sirt', 'mlem', 'stream', 'update_progress']
 
 
 def update_progress(progress):
@@ -376,15 +376,4 @@ def stream(probe, data, init):
     return init
 
 
-def mba(input, lat_voxel, alpha=1):
-    """Modified Bronnikov algorithm for phase retrieval.
-    """
-    assert isinstance(input, np.ndarray)
-    g = input - 1
-    voxel_y, voxel_x = lat_voxel
-    u_max = 1. / (2. * voxel_x)
-    v_max = 1. / (2. * voxel_y)
-    u, v = gen_mesh([v_max, u_max], input.shape)
-    H = 1 / (u **2 + v ** 2 + alpha)
-    phase = np.real(ifftn(ifftshift(fftshift(fftn(g)) * H)))
-    return phase
+

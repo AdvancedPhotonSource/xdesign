@@ -121,11 +121,11 @@ class SimpleMaterial(Material):
         return "SimpleMaterial(mass_attenuation={})".format(
                 repr(self._mass_attenuation))
 
-    def linear_attenuation(self, energy):
+    def linear_attenuation(self, **kwargs):
         """linear x-ray attenuation [1/cm] for the energy [KeV]."""
         return self._mass_attenuation
 
-    def mass_attenuation(self, energy):
+    def mass_attenuation(self, **kwargs):
         """mass x-ray attenuation [1/cm] for the energy [KeV]."""
         return self._mass_attenuation
 
@@ -151,13 +151,15 @@ class XraylibMaterial(Material):
                                                   repr(self.density))
 
     # @memodict
-    def beta(self, energy):
+    def beta(self, **kwargs):
         """Absorption coefficient."""
+        energy = kwargs['energy']
         return xl.Refractive_Index_Im(self.compound, energy, self.density)
 
     # @memodict
-    def delta(self, energy):
+    def delta(self, **kwargs):
         """Decrement of refractive index."""
+        energy = kwargs['energy']
         return 1 - xl.Refractive_Index_Re(self.compound, energy, self.density)
 
 
@@ -175,19 +177,19 @@ class CustomMaterial(Material):
     """
 
     def __init__(self, delta, beta, energy=None):
-        self.delta = delta
-        self.beta = beta
+        self._delta = delta
+        self._beta = beta
         self.energy = energy
 
     def __repr__(self):
         return "CustomMaterial(delta={0}, beta={1})".format(repr(self.delta),
                                                  repr(self.beta))
 
-    def beta(self):
-        return self.beta
+    def beta(self, **kwargs):
+        return self._beta
 
-    def delta(self):
-        return self.delta
+    def delta(self, **kwargs):
+        return self._delta
 
 
 class NISTMaterial(Material):
@@ -240,13 +242,15 @@ class NISTMaterial(Material):
                                                        repr(self.density))
 
     @memodict
-    def linear_attenuation(self, energy):
+    def linear_attenuation(self, **kwargs):
         """linear x-ray attenuation [1/cm] for the energy [KeV]."""
+        energy = kwargs['energy']
         return self.mass_attenuation(energy) * self.density
 
     @memodict
-    def mass_attenuation(self, energy):
+    def mass_attenuation(self, **kwargs):
         """mass x-ray attenuation [1/cm] for the energy [KeV]."""
+        energy = kwargs['energy']
         return self.predict_property('mass_attenuation', energy,
                                      loglogscale=True)
 

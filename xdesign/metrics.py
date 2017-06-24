@@ -61,7 +61,7 @@ import matplotlib.pyplot as plt
 
 from scipy import optimize
 from scipy.stats import norm, exponnorm, expon, ttest_ind
-#from phasepack import phasecongmono as _phasecongmono
+from phasepack import phasecongmono as _phasecongmono
 
 from xdesign.phantom import HyperbolicConcentric, UnitCircle
 

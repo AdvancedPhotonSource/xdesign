@@ -394,9 +394,9 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
         ret = [None] * n_prop
         for i, i_prop in enumerate(prop):
             try:
-                value = getattr(phantom.material, i_prop)(energy)
+                value = getattr(phantom.material, i_prop)(energy=energy)
             except:
-                value = getattr(phantom.material, i_prop)
+                raise TypeError('Invalid material properties.')
 
             # Make a grid to put store all of the discrete geometries
             image = np.zeros([size] * phantom.geometry.dim, dtype=float)
@@ -906,3 +906,19 @@ def plot_histograms(images, masks=None, thresh=0.025):
     # autobins feature doesn't work because one of the groups is all zeros?
     plt.hist(hgrams, bins=25, normed=True, stacked=False)
     plt.legend(labels)
+
+
+def plot_wavefront(simulator):
+    """Plot wavefront intensity.
+
+    Parameters:
+    -----------
+    simulator : :class:`Simulator`
+    """
+    wavefront = simulator.wavefront
+    i = np.abs(wavefront * np.conjugate(wavefront))
+
+    fig = plt.figure()
+    plt.imshow(i, cmap='gray')
+    plt.xlabel('x (nm)')
+    plt.ylabel('y (nm)')

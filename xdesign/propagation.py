@@ -58,18 +58,16 @@ import logging
 import warnings
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from xdesign.grid import *
 from xdesign.util import gen_mesh
 from numpy.fft import fft2, fftn, ifftn, fftshift, ifftshift
 
 logger = logging.getLogger(__name__)
 
 
-__author__ = "Daniel Ching, Doga Gursoy"
+__author__ = "Ming Du"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['plot_wavefront',
-           'free_propagate',
+__all__ = ['free_propagate',
            'far_propagate',
            'slice_modify',
            'slice_propagate']
@@ -106,7 +104,7 @@ def slice_modify(grid, delta_slice, beta_slice, wavefront):
     lmda : float
         Wavelength in nm.
     """
-    delta_nm = grid.voxel[-1]
+    delta_nm = grid.voxel_nm[-1]
     kz = 2 * np.pi * delta_nm / grid.lmbda_nm
     wavefront = wavefront * np.exp((kz * delta_slice) * 1j) * np.exp(-kz * beta_slice)
 
@@ -115,7 +113,7 @@ def slice_modify(grid, delta_slice, beta_slice, wavefront):
 
 def slice_propagate(grid, wavefront):
 
-    delta_nm = grid.voxel[-1]
+    delta_nm = grid.voxel_nm[-1]
     wavefront = free_propagate(grid, wavefront, delta_nm)
     return wavefront
 
@@ -124,8 +122,8 @@ def free_propagate(grid, wavefront, dist_nm):
     """Free space propagation using convolutional algorithm.
     """
     lmbda_nm = grid.lmbda_nm
-    u_max = 1. / (2. * grid.voxel[0])
-    v_max = 1. / (2. * grid.voxel[1])
+    u_max = 1. / (2. * grid.voxel_nm[0])
+    v_max = 1. / (2. * grid.voxel_nm[1])
     u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
     # x = grid.xx[0, :, :]
     # y = grid.yy[0, :, :]
@@ -160,13 +158,13 @@ def far_propagate(grid, wavefront, dist_nm):
     """
     assert isinstance(grid, Grid3d)
     lmbda_nm = grid.lmbda_nm
-    u_max = 1. / (2. * grid.voxel_x)
-    v_max = 1. / (2. * grid.voxel_y)
+    u_max = 1. / (2. * grid.voxel_nm_x)
+    v_max = 1. / (2. * grid.voxel_nm_y)
     u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
-    x = grid.xx[0, :, :] * grid.voxel_x
-    y = grid.yy[0, :, :] * grid.voxel_y
-    x_max = grid.size[0] * grid.voxel_x
-    y_max = grid.size[1] * grid.voxel_y
+    x = grid.xx[0, :, :] * grid.voxel_nm_x
+    y = grid.yy[0, :, :] * grid.voxel_nm_y
+    x_max = grid.size[0] * grid.voxel_nm_x
+    y_max = grid.size[1] * grid.voxel_nm_y
     # h = np.exp(-1j * 2 * np.pi / lmbda_nm * np.sqrt(dist_nm ** 2 + x ** 2 + y ** 2))
     # wavefront = fftshift(fft2(wavefront * h))
     # wavefront = wavefront * \
@@ -184,8 +182,8 @@ def far_propagate(grid, wavefront, dist_nm):
 
     # y0 = grid.yy[0, :, :]
     # x0 = grid.xx[0, :, :]
-    # y = y0 * (lmda * z) * (grid.size[1] * grid.voxel_y) ** 2
-    # x = x0 * (lmda * z) * (grid.size[0] * grid.voxel_x) ** 2
+    # y = y0 * (lmda * z) * (grid.size[1] * grid.voxel_nm_y) ** 2
+    # x = x0 * (lmda * z) * (grid.size[0] * grid.voxel_nm_x) ** 2
     # wavefront = fftshift(fftn(wavefront * np.exp(-1j * 2 * np.pi / lmda * np.sqrt(z ** 2 + x0 ** 2 + y0 ** 2))))
     # wavefront = wavefront * np.exp(-1j * 2 * np.pi / lmda * np.sqrt(z ** 2 + x ** 2 + y ** 2))
     return wavefront
@@ -198,8 +196,8 @@ def _far_propagate_2(grid, wavefront, lmd, z_um):
 
     N = grid.size[1]
     M = grid.size[2]
-    D = N * grid.voxel_y
-    H = M * grid.voxel_x
+    D = N * grid.voxel_nm_y
+    H = M * grid.voxel_nm_x
     f1 = wavefront
 
     V = N/D
@@ -214,21 +212,3 @@ def _far_propagate_2(grid, wavefront, lmd, z_um):
     return f2
 
 
-def plot_wavefront(wavefront, grid, save_folder='simulation', fname='exiting_wave'):
-    """Plot wavefront intensity.
-
-    Parameters:
-    -----------
-    wavefront : ndarray
-        Complex wavefront.
-    lat_nm : float
-        Lateral pixel length in nm.
-    """
-    i = np.abs(wavefront * np.conjugate(wavefront))
-
-    fig = plt.figure(figsize=[9, 9])
-    plt.imshow(np.log(i), cmap='gray')
-    plt.xlabel('x (nm)')
-    plt.ylabel('y (nm)')
-    plt.show()
-    #fig.savefig(save_folder+'/'+fname+'.png', type='png')
