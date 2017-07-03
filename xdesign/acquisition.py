@@ -65,7 +65,10 @@ import numpy as np
 from xdesign.geometry import *
 from xdesign.propagation import *
 import dxchange
-from itertools import izip
+try:
+    from itertools import izip as zip
+except ImportError:  # will be 3.x series
+    pass
 import h5py
 from xdesign.geometry import halfspacecirc
 import logging
@@ -556,7 +559,7 @@ def tomography_3d(simulator, ang_start, ang_end, ang_step=None, n_ang=None, free
                   fname='tomo.h5', pr=False, **pr_options):
     """
     Perform tomography simulation using multislice propagation, and store output data
-    in HDF5 file. 
+    in HDF5 file.
     Attributes:
     -----------
     simulator : :class:`acquisition.Simulator`
@@ -564,19 +567,19 @@ def tomography_3d(simulator, ang_start, ang_end, ang_step=None, n_ang=None, free
     ang_start : float
         Starting angle of rotation.
     ang_end : float
-        Ending angle of rotation. 
+        Ending angle of rotation.
     ang_step : float
         Step of rotation. One and only one of ang_step and n_ang should be specified.
     n_ang : int
         Number of rotation angles. One and only one of ang_step and n_ang should be specified.
     free_prop_dist : float
-        Distance between sample exiting plane and detector plane. Unit is cm. 
+        Distance between sample exiting plane and detector plane. Unit is cm.
     fname : str
         Path and filename of output.
     pr : bool
-        Whether to perform phase retreval. 
+        Whether to perform phase retreval.
     pr_options : kwargs
-        Options for phase retrieval. Valid keywords: 
+        Options for phase retrieval. Valid keywords:
             'alpha': regularization parameter for paganin.
             'pixel_size': detector pixel size in cm.
     """
@@ -614,18 +617,18 @@ def tomography_3d(simulator, ang_start, ang_end, ang_step=None, n_ang=None, free
 
 class Simulator(object):
     """Optical simulation based on multislice propagation.
-    
+
     Attributes
     ----------
     grid : numpy.ndarray or list of numpy.ndarray
-        Descretized grid for the phantom object. If type == 'refractive_index', 
+        Descretized grid for the phantom object. If type == 'refractive_index',
         it takes a list of [delta_grid, beta_grid].
     energy : float
         Beam energy in eV. Should match the energy used for creating the grids.
     psize : list
         Pixel size in cm.
     type : str
-        Value type of input grid. 
+        Value type of input grid.
     """
 
     def __init__(self, energy, grid=None, psize=None, type='refractive_index'):
@@ -691,7 +694,7 @@ class Simulator(object):
         type : str
             Type of wavefront to be initialized. Valid options:
             'plane', 'spot', 'point_projection_lens'
-        kwargs : 
+        kwargs :
             Options specific to the selection of type.
             'plane': no option
             'spot': 'width'
@@ -728,7 +731,7 @@ class Simulator(object):
         Attributes:
         -----------
         free_prop_dist : float, optional
-            Distance between sample exiting plane and detector plane. Unit is cm. 
+            Distance between sample exiting plane and detector plane. Unit is cm.
         """
         n_slice = self.grid_delta.shape[-1]
         for i_slice in range(n_slice):
@@ -752,10 +755,9 @@ class Simulator(object):
         theta : float
             Angle of rotation.
         axes : tuple of int
-            Rotation plane defined by two axes. 
+            Rotation plane defined by two axes.
         """
         from scipy.ndimage.interpolation import rotate
         self.grid_delta = rotate(self.grid_delta, theta, axes=axes, reshape=False)
         self.grid_beta = rotate(self.grid_beta, theta, axes=axes, reshape=False)
         return self
-

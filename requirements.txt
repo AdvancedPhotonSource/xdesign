@@ -1,10 +1,11 @@
-python
+python < 3.6
 nose
 six
-numpy
+numpy < 1.13
 scipy
 matplotlib
 phasepack
 cached-property
 polytope >= 0.1.4
 dxchange
+requests
