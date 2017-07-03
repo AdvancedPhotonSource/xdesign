@@ -234,7 +234,7 @@ class Probe(Line, pt.Polytope):
         else:
             # [ ] = [cm^2] / [cm] * [1/cm]
             attenuation = (intersection / self.cross_section
-                           * phantom.material.linear_attenuation(self.energy))
+                           * phantom.material.linear_attenuation(energy=self.energy))
 
         if phantom.geometry is None or intersection > 0:
             # check the children for containers and intersecting geometries

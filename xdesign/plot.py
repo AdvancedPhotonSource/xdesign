@@ -157,7 +157,7 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=-1,
                 # use the colormap to determine the color
                 # TODO: Add parameter to pass other things besides energy
                 for j in num_props:
-                    props[j] = getattr(phantom.material, c_props[j])(DEFAULT_ENERGY)
+                    props[j] = getattr(phantom.material, c_props[j])(energy=DEFAULT_ENERGY)
                 color = c_map(props)[0]
 
             plotted = plot_geometry(phantom.geometry, axis, c=color, z=z, t=t)
@@ -351,14 +351,14 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
     prop : str or list of str, optional (default: linear_attenuation)
         The name of the property to discretize
     fix_psize : bool
-        Select whether use a fixed pixel size (at 1) or fixed object size 
+        Select whether use a fixed pixel size (at 1) or fixed object size
         (1cm)
     overlay_mode : 'add' or 'replace'
         Select the mode to overlay child phantom values to the existing grid.
         'add': values will be added
         'replace': parent values will be replaced by child values
     return_patch : bool
-        Whether to return image patch of the current phantom. 
+        Whether to return image patch of the current phantom.
 
     Return
     ------
