@@ -51,6 +51,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import time
 import sys
+import operator
 
 import numpy as np
 import scipy.ndimage
@@ -62,6 +63,7 @@ from xdesign.util import gen_mesh
 from numpy.fft import fft2, fftn, ifftn, fftshift, ifftshift
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 __author__ = "Ming Du"
@@ -121,64 +123,43 @@ def slice_propagate(grid, wavefront):
 def free_propagate(grid, wavefront, dist_nm):
     """Free space propagation using convolutional algorithm.
     """
+
     lmbda_nm = grid.lmbda_nm
+    k = 2 * np.pi / lmbda_nm
     u_max = 1. / (2. * grid.voxel_nm[0])
     v_max = 1. / (2. * grid.voxel_nm[1])
     u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
-    # x = grid.xx[0, :, :]
-    # y = grid.yy[0, :, :]
-    # h = np.exp(-1j * np.pi / (lmbda_nm * dist_nm) * (x ** 2 + y ** 2))
-    # H = fftshift(fft2(h))
-    # H = np.exp(-1j * 2 * np.pi * dist_nm / lmbda_nm * np.sqrt(1. - lmbda_nm ** 2 * u ** 2 - lmbda_nm ** 2 * v ** 2))
-    H = np.exp(-1j * np.pi * dist_nm * lmbda_nm * (u ** 2 + v ** 2))
-    # print(1)
-    # x = grid.xx[0, :, :]
-    # y = grid.yy[0, :, :]
-    # print(u)
-    # print(v)
-    # h = np.exp(-1j * np.pi / (lmbda_nm * dist_nm) * (x ** 2 + y ** 2))
-    # H2 = fftshift(fftn(h))
-    # print(2)
-    # plt.figure()
-    # plt.imshow(np.abs(H))
-    # plt.figure()
-    # plt.imshow(np.abs(H2))
-    # plt.show()
-
-    # time.sleep(999)
-
+    H = np.exp(1j * k * dist_nm * np.sqrt(1 - lmbda_nm ** 2 * (u ** 2 - v ** 2)))
     wavefront = ifftn(ifftshift(fftshift(fftn(wavefront)) * H))
-    # H = np.exp(-1j * 2 * np.pi * delta_nm / lmda_nm * np.sqrt(1. - lmda_nm ** 2 * u ** 2))
-    # wavefront = np.fft.ifftn(np.fft.fftn(wavefront) * np.fft.fftshift(H))
+
     return wavefront
 
 
 def far_propagate(grid, wavefront, dist_nm):
     """Free space propagation using product Fourier algorithm. Suitable for far field propagation.
     """
-    assert isinstance(grid, Grid3d)
     lmbda_nm = grid.lmbda_nm
-    u_max = 1. / (2. * grid.voxel_nm_x)
-    v_max = 1. / (2. * grid.voxel_nm_y)
-    u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
-    x = grid.xx[0, :, :] * grid.voxel_nm_x
-    y = grid.yy[0, :, :] * grid.voxel_nm_y
-    x_max = grid.size[0] * grid.voxel_nm_x
-    y_max = grid.size[1] * grid.voxel_nm_y
-    # h = np.exp(-1j * 2 * np.pi / lmbda_nm * np.sqrt(dist_nm ** 2 + x ** 2 + y ** 2))
+    k = 2 * np.pi / lmbda_nm
+    u_max = 1. / (2. * grid.voxel_nm[0])
+    v_max = 1. / (2. * grid.voxel_nm[0])
+    u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[:2])
+    x = grid.mesh[0][:, :, 0] * grid.voxel_nm[0]
+    y = grid.mesh[1][:, :, 0] * grid.voxel_nm[1]
+
+    x2 = lmbda_nm * u * dist_nm
+    y2 = lmbda_nm * v * dist_nm
+    q1 = np.exp(-1j * k * (x ** 2 + y ** 2) / (2 * dist_nm))
+    q2 = np.exp(-1j * k * (x2 ** 2 + y2 ** 2) / (2 * dist_nm))
+    # wavefront *= ifftshift(fft2(fftshift(wavefront * q1)))
+    # wavefront *= np.exp(-1j * k * dist_nm) / (-1 * k * dist_nm) * q2
+
+    wavefront = fftshift(fft2(wavefront))
+
+
+    # h = np.exp(-1j * np.pi * (x ** 2 + y ** 2) / (lmbda_nm * dist_nm))
     # wavefront = fftshift(fft2(wavefront * h))
-    # wavefront = wavefront * \
-    #             np.exp(-1j * dist_nm / lmbda_nm * np.sqrt(4 * np.pi ** 2 + lmbda_nm ** 2 * (u ** 2 + v ** 2))) * \
-    #             4 * np.pi / (x_max ** 2 + y_max ** 2) / (lmbda_nm * dist_nm) * 1j
-
-    h = np.exp(-1j * np.pi * (x ** 2 + y ** 2) / (lmbda_nm * dist_nm))
-    wavefront = fftshift(fft2(wavefront * h))
-    wavefront = wavefront * np.exp(-1j * np.pi * lmbda_nm * dist_nm * (u ** 2 + v ** 2))
-    wavefront = wavefront * 1j / (lmbda_nm * dist_nm)
-
-    print(u)
-    print(lmbda_nm, dist_nm)
-    print(u * lmbda_nm * dist_nm)
+    # wavefront = wavefront * np.exp(-1j * np.pi * lmbda_nm * dist_nm * (u ** 2 + v ** 2))
+    # wavefront = wavefront * 1j / (lmbda_nm * dist_nm)
 
     # y0 = grid.yy[0, :, :]
     # x0 = grid.xx[0, :, :]
@@ -192,6 +173,7 @@ def far_propagate(grid, wavefront, dist_nm):
 def _far_propagate_2(grid, wavefront, lmd, z_um):
     """Free space propagation using product Fourier algorithm.
     """
+    raise DeprecationWarning
     assert isinstance(grid, Grid3d)
 
     N = grid.size[1]
@@ -210,5 +192,3 @@ def _far_propagate_2(grid, wavefront, lmd, z_um):
     f2 = np.fft.fftshift(np.fft.fft2(f1*np.exp(-1j*2*np.pi/lmd*np.sqrt(z_um**2+d**2+h[:,np.newaxis]**2))))*np.exp(-1j*2*np.pi*z_um/lmd*np.sqrt(1.+lmd**2*(v**2+u[:,np.newaxis]**2)))/U/V/(lmd*z_um)*(-np.sqrt(1j))
     d2,h2=v*lmd*z_um,u*lmd*z_um
     return f2
-
-

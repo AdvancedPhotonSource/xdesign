@@ -65,9 +65,6 @@ def test_model_prop_pipeline():
         grid_delta, grid_beta = discrete_phantom(phantom, 512, prop=['delta', 'beta'], ratio=1, energy=25,
                                        fix_psize=True, overlay_mode='replace')
 
-        # np.save('data/sav/grid/grid_delta.npy', grid_delta)
-        # np.save('data/sav/grid/grid_beta.npy', grid_beta)
-
     sim = Simulator(energy=25,
                     grid=(grid_delta, grid_beta),
                     psize=[1, 1, 1])

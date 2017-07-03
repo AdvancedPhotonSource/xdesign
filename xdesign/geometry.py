@@ -210,9 +210,6 @@ class Entity(object):
         """Returns the midpoint between entities."""
         return self.distance(other) / 2.
 
-    def generate(self, grid, material):
-        pass
-
 
 class Point(Entity):
     """A point in ND cartesian space.

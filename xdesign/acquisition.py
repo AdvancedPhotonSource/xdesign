@@ -644,7 +644,7 @@ class Simulator(object):
             temp = []
             for i in range(self._ndim):
                 temp.append(np.arange(self.size[i]))
-            self.mesh = np.meshgrid(*temp, indexing='ij')
+            self.mesh = np.meshgrid(*temp, indexing='xy')
 
             # wavefront in x-y plane or x edge
             self.wavefront = np.zeros(self.grid_delta.shape[:-1], dtype=np.complex64)
@@ -738,11 +738,11 @@ class Simulator(object):
             beta_slice = self.grid_beta[:, :, i_slice]
             self.wavefront = slice_modify(self, delta_slice, beta_slice, self.wavefront)
             self.wavefront = slice_propagate(self, self.wavefront)
-        # print(wavefront)
         if free_prop_dist is not None:
-            free_prop_dist *= 1e-7
-            self.wavefront = free_propagate(self, self.wavefront, free_prop_dist)
-            # wavefront = far_propagate(grid, wavefront, free_prop_dist)
+            logger.debug('Free propagation')
+            free_prop_dist *= 1e7
+            # self.wavefront = free_propagate(self, self.wavefront, free_prop_dist)
+            self.wavefront = far_propagate(self, self.wavefront, free_prop_dist)
         return self.wavefront
 
     def rotate(self, theta, axes=(0, 2)):
