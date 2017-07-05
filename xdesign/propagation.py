@@ -75,39 +75,22 @@ __all__ = ['free_propagate',
            'slice_propagate']
 
 
-def _extract_slice(delta_grid, beta_grid, islice):
-    """Extract a specified slice from the grid.
-
-    Parameters:
-    -----------
-    delta_grid : ndarray
-        As-constructed grid with defined phantoms filled with material delta values.
-    beta_grid : ndarray
-        As-constructed grid with defined phantoms filled with material beta values.
-    islice : int
-        Index of slice to be extracted.
-    """
-    pass
-
-
-def slice_modify(grid, delta_slice, beta_slice, wavefront):
+def slice_modify(simulator, delta_slice, beta_slice, wavefront):
     """Modify wavefront within a slice.
 
     Parameters:
     -----------
+    simulator : :class:`acquisition.Simulator`
+        The Simulator object.
     delta_slice : ndarray
-        Extracted slice filled with material delta values.
+        Array of delta values.
     beta_slice : ndarray
-        Extracted slice filled with material beta values.
+        Array of beta values.
     wavefront : ndarray
-        Wavefront.
-    delta_nm : float
-        Slice thickness in nm.
-    lmda : float
-        Wavelength in nm.
+        Complex wavefront. 
     """
-    delta_nm = grid.voxel_nm[-1]
-    kz = 2 * np.pi * delta_nm / grid.lmbda_nm
+    delta_nm = simulator.voxel_nm[-1]
+    kz = 2 * np.pi * delta_nm / simulator.lmbda_nm
     wavefront = wavefront * np.exp((kz * delta_slice) * 1j) * np.exp(-kz * beta_slice)
 
     return wavefront
@@ -116,35 +99,55 @@ def slice_modify(grid, delta_slice, beta_slice, wavefront):
 def slice_propagate(grid, wavefront):
 
     delta_nm = grid.voxel_nm[-1]
-    wavefront = free_propagate(grid, wavefront, delta_nm)
+    wavefront = free_propagate(grid, wavefront, delta_nm * 1e-7)
     return wavefront
 
 
-def free_propagate(grid, wavefront, dist_nm):
+def free_propagate(simulator, wavefront, dist):
     """Free space propagation using convolutional algorithm.
+    
+    Parameters:
+    -----------
+    simulator : :class:`acquisition.Simulator`
+        The Simulator object.
+    wavefront : ndarray
+        The wavefront array.
+    dist : float
+        Propagation distance in cm.
     """
-
-    lmbda_nm = grid.lmbda_nm
+    dist_nm = dist * 1e7
+    lmbda_nm = simulator.lmbda_nm
     k = 2 * np.pi / lmbda_nm
-    u_max = 1. / (2. * grid.voxel_nm[0])
-    v_max = 1. / (2. * grid.voxel_nm[1])
-    u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[1:3])
+    u_max = 1. / (2. * simulator.voxel_nm[0])
+    v_max = 1. / (2. * simulator.voxel_nm[1])
+    u, v = gen_mesh([v_max, u_max], simulator.grid_delta.shape[1:3])
     H = np.exp(1j * k * dist_nm * np.sqrt(1 - lmbda_nm ** 2 * (u ** 2 - v ** 2)))
     wavefront = ifftn(ifftshift(fftshift(fftn(wavefront)) * H))
 
     return wavefront
 
 
-def far_propagate(grid, wavefront, dist_nm):
+def far_propagate(simulator, wavefront, dist):
     """Free space propagation using product Fourier algorithm. Suitable for far field propagation.
+    
+    Parameters:
+    -----------
+    simulator : :class:`acquisition.Simulator`
+        The Simulator object.
+    wavefront : ndarray
+        The wavefront array.
+    dist : float
+        Propagation distance in cm.
     """
-    lmbda_nm = grid.lmbda_nm
+    dist_nm = dist * 1.e7
+    warnings.warn('This function is still under construction.')
+    lmbda_nm = simulator.lmbda_nm
     k = 2 * np.pi / lmbda_nm
-    u_max = 1. / (2. * grid.voxel_nm[0])
-    v_max = 1. / (2. * grid.voxel_nm[0])
-    u, v = gen_mesh([v_max, u_max], grid.grid_delta.shape[:2])
-    x = grid.mesh[0][:, :, 0] * grid.voxel_nm[0]
-    y = grid.mesh[1][:, :, 0] * grid.voxel_nm[1]
+    u_max = 1. / (2. * simulator.voxel_nm[0])
+    v_max = 1. / (2. * simulator.voxel_nm[0])
+    u, v = gen_mesh([v_max, u_max], simulator.grid_delta.shape[:2])
+    x = simulator.mesh[0][:, :, 0] * simulator.voxel_nm[0]
+    y = simulator.mesh[1][:, :, 0] * simulator.voxel_nm[1]
 
     x2 = lmbda_nm * u * dist_nm
     y2 = lmbda_nm * v * dist_nm
@@ -173,8 +176,7 @@ def far_propagate(grid, wavefront, dist_nm):
 def _far_propagate_2(grid, wavefront, lmd, z_um):
     """Free space propagation using product Fourier algorithm.
     """
-    raise DeprecationWarning
-    assert isinstance(grid, Grid3d)
+    raise warnings.warn('DeprecatedWarning')
 
     N = grid.size[1]
     M = grid.size[2]

@@ -14,13 +14,13 @@ from xdesign.acquisition import Simulator
 
 def test_model_prop_pipeline():
 
-    n_particles = 20
-    top_y = 50.
-    top_radius = 20.
-    bottom_radius = 200.
-    top_thickness = 10.
-    bottom_thickness = 30.
-    length = 400.
+    n_particles = 5
+    top_y = 25.e-7
+    top_radius = 10.e-7
+    bottom_radius = 100.e-7
+    top_thickness = 5.e-7
+    bottom_thickness = 15.e-7
+    length = 200.e-7
     bottom_y = top_y + length
 
     silicon = XraylibMaterial('Si', 2.33)
@@ -30,15 +30,15 @@ def test_model_prop_pipeline():
     try:
         grid_delta = np.load('data/sav/grid/grid_delta.npy')
         grid_beta = np.load('data/sav/grid/grid_beta.npy')
-    except:
+    except IOError:
 
-        tube0 = TruncatedCone_3d(top_center=Point([256, top_y, 256]),
+        tube0 = TruncatedCone_3d(top_center=Point([128.e-7, top_y, 128.e-7]),
                                  length=length,
                                  top_radius=top_radius,
                                  bottom_radius=bottom_radius)
         phantom = Phantom(geometry=tube0, material=silicon)
 
-        tube1 = TruncatedCone_3d(top_center=Point([256, top_y, 256]),
+        tube1 = TruncatedCone_3d(top_center=Point([128.e-7, top_y, 128.e-7]),
                                  length=length,
                                  top_radius=top_radius-top_thickness,
                                  bottom_radius=bottom_radius-bottom_thickness)
@@ -52,22 +52,22 @@ def test_model_prop_pipeline():
                           (top_radius - bottom_radius) * length + top_y)
 
         for part_y in rand_y:
-            r = top_radius + (bottom_radius - top_radius) / (length - 1) * (part_y - top_y)
+            r = top_radius + (bottom_radius - top_radius) / (length) * (part_y - top_y)
             theta = np.random.rand() * np.pi * 2
-            part_x = np.cos(theta) * r + 256
-            part_z = np.sin(theta) * r + 256
-            rad = int(np.random.rand() * 6) + 4
+            part_x = np.cos(theta) * r + 128.e-7
+            part_z = np.sin(theta) * r + 128.e-7
+            rad = int(np.random.rand() * 6.e-7) + 4.e-7
             sphere = Sphere_3d(center=Point([part_x, part_y, part_z]),
                                radius=rad)
             sphere = Phantom(geometry=sphere, material=titania)
             phantom.children.append(sphere)
 
-        grid_delta, grid_beta = discrete_phantom(phantom, 512, prop=['delta', 'beta'], ratio=1, energy=25,
-                                       fix_psize=True, overlay_mode='replace')
+        grid_delta, grid_beta = discrete_phantom(phantom, 1.e-7, bounding_box=((0, 255.e-7), (0, 255.e-7), (0, 255.e-7)),
+                                                 prop=['delta', 'beta'], ratio=1, energy=25, overlay_mode='replace')
 
     sim = Simulator(energy=25,
                     grid=(grid_delta, grid_beta),
-                    psize=[1, 1, 1])
+                    psize=[1.e-7, 1.e-7, 1.e-7])
 
     sim.initialize_wavefront('plane')
     wavefront = sim.multislice_propagate()

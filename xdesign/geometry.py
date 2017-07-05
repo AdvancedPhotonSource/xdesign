@@ -1295,7 +1295,7 @@ class TruncatedCone_3d(Entity):
             raise TypeError("center must be of type Point.")
         super(TruncatedCone_3d, self).__init__()
         self.top_center = top_center
-        self.length = int(length)
+        self.length = length
         self.top_radius = top_radius
         self.bottom_radius = bottom_radius
         self._dim = 3
@@ -1313,6 +1313,7 @@ class TruncatedCone_3d(Entity):
         bottom_center[1] += self.length
         xmin = self.top_center._x - np.array([max_rad, 0, max_rad])
         xmax = bottom_center + np.array([max_rad, 0, max_rad])
+        np.set_printoptions(suppress=False)
 
         return xmin, xmax
 
@@ -1329,7 +1330,7 @@ class TruncatedCone_3d(Entity):
 
         x = np.atleast_2d(x)
 
-        rad = self.top_radius + (self.bottom_radius - self.top_radius) / (self.length - 1) * \
+        rad = self.top_radius + (self.bottom_radius - self.top_radius) / (self.length) * \
                                 (x[:, 1] - self.top_center._x[1])
         ret = (x[:, 0] - self.top_center._x[0]) ** 2 + (x[:, 2] - self.top_center._x[2]) ** 2 <= rad ** 2
 

@@ -328,9 +328,10 @@ def _make_axis():
     return fig, axis
 
 
-def discrete_phantom(phantom, size, ratio=9, uniform=True,
+def discrete_phantom(phantom, psize, bounding_box=((0, 0), (1, 1)),
+                     ratio=9, uniform=True,
                      prop='linear_attenuation', energy=DEFAULT_ENERGY,
-                     fix_psize=False, overlay_mode='add', return_patch=False):
+                     overlay_mode='add', return_patch=False):
     """Return a discrete map of the `property` in the `phantom`.
 
     The values of overlapping :class:`phantom.Phantom` are additive.
@@ -338,8 +339,12 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
     Parameters
     ----------
     phantom: :class:`phantom.Phantom`
-    size : scalar
-        The side length in pixels of the resulting 1 by 1 cm image.
+    psize : float
+        The side length of a cubic pixel.
+    bounding_box : :py:class:`numpy.ndarray`, :py:class:`List`
+        The desired field of view specified as `[min, max]` where min and max
+        are two column vectors pointing to the min and max corners of the
+        desired field of view.
     ratio : scalar, optional (default: 9)
         The antialiasing works by supersampling. This parameter controls
         how many pixels in the larger representation are averaged for the
@@ -358,7 +363,7 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
         'add': values will be added
         'replace': parent values will be replaced by child values
     return_patch : bool
-        Whether to return image patch of the current phantom.
+        Whether to return the combined patch of the current phantom and all its children.
 
     Return
     ------
@@ -371,19 +376,19 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
     ValueError
         If size is less than or equal to 0
     """
-    if size <= 0:
+    if psize <= 0:
         raise ValueError('size must be greater than 0.')
 
-    image = 0
+    bounding_box = np.asarray(bounding_box)
+    if bounding_box.min() < 0 or bounding_box.max() > 1:
+        raise ValueError('bounding box must be within (0, 1).')
+
+    size = map(int, ((bounding_box[1] - bounding_box[0]) / psize + 1))
+
+    image = ret = patch = 0
 
     if phantom.geometry is not None and phantom.material is not None \
        and np.alltrue([hasattr(phantom.material, temp) for temp in prop]):
-
-        # select whether use a fixed pixel size (at 1) or fixed object size (1cm)
-        if fix_psize:
-            psize = 1
-        else:
-            psize = 1.0 / size
 
         # Rasterize all geometry in the phantom.
         pmin, patch = discrete_geometry(phantom.geometry, psize, ratio)
@@ -399,7 +404,7 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
                 raise TypeError('Invalid material properties.')
 
             # Make a grid to put store all of the discrete geometries
-            image = np.zeros([size] * phantom.geometry.dim, dtype=float)
+            image = np.zeros(size, dtype=float)
             imin = [0] * phantom.geometry.dim
 
             image = combine_grid(imin, image, pmin // psize, patch * value)
@@ -410,8 +415,8 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
         patch = combine_grid(imin, np.zeros_like(image).astype('bool'), pmin // psize, patch)
 
     for child in phantom.children:
-        temp, temp_patch = discrete_phantom(child, size, ratio, uniform, prop, energy, fix_psize, return_patch=True,
-                                            overlay_mode=overlay_mode)
+        temp, temp_patch = discrete_phantom(child, psize, bounding_box, ratio, uniform,
+                                            prop, energy, return_patch=True, overlay_mode=overlay_mode)
         for i in range(len(ret)):
             if overlay_mode == 'add':
                 ret[i] += temp[i]
