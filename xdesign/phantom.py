@@ -279,7 +279,7 @@ class Phantom(object):
 
         else:
             warnings.warn("{} not appended; it is not a subset.".format(
-                          repr(child)), ValueError)
+                          repr(child)), RuntimeWarning)
             return False
 
     def pop(self, i=-1):
@@ -649,7 +649,7 @@ class DogaCircles(Phantom):
         # Draw it
         period = np.arange(0, n_sizes)/n_sizes + 1/(2*n_sizes)
         _x, _y = np.meshgrid(period, period)
-        radii = 1/(2*n_sizes)*size_ratio**lsquare
+        radii = (1 - 1e-10) / (2 * n_sizes) * size_ratio**lsquare
 
         for (k, x, y) in zip(radii.flatten(), _x.flatten(),
                              _y.flatten()):
