@@ -1044,18 +1044,12 @@ class WoodCell(Phantom):
                  wall_thickness=0.0008, material=None):
         super(WoodCell, self).__init__()
 
-        p1 = deepcopy(corner)
-        p2 = deepcopy(corner) + Point([width, 0])
-        p3 = deepcopy(corner) + Point([width, height])
-        p4 = deepcopy(corner) + Point([0, height])
-        cell_wall = Rectangle(p1, p2, p3, p4)
+        p1 = deepcopy(corner) + Point([width/2, height/2])
+        cell_wall = Rectangle(p1, [width, height])
 
         wt = wall_thickness
-        p1 = deepcopy(corner) + Point([wt, wt])
-        p2 = deepcopy(corner) + Point([width - wt, wt])
-        p3 = deepcopy(corner) + Point([width - wt, height - wt])
-        p4 = deepcopy(corner) + Point([wt, height-wt])
-        lumen = -Rectangle(p1, p2, p3, p4)
+        p1 = deepcopy(p1)
+        lumen = -Rectangle(p1, [width - 2*wt, height - 2*wt])
 
         self._geometry = Mesh(faces=[cell_wall, lumen])
         self.material = material
