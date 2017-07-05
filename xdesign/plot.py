@@ -417,11 +417,14 @@ def discrete_phantom(phantom, psize, bounding_box=((0, 0), (1, 1)),
     for child in phantom.children:
         temp, temp_patch = discrete_phantom(child, psize, bounding_box, ratio, uniform,
                                             prop, energy, return_patch=True, overlay_mode=overlay_mode)
-        for i in range(len(ret)):
-            if overlay_mode == 'add':
-                ret[i] += temp[i]
-            elif overlay_mode == 'replace':
-                ret[i][temp_patch] = temp[i][temp_patch]
+        if ret == 0:
+            ret[i] += temp[i]
+        else:
+            for i in range(len(ret)):
+                if overlay_mode == 'add':
+                    ret[i] += temp[i]
+                elif overlay_mode == 'replace':
+                    ret[i][temp_patch] = temp[i][temp_patch]
     if return_patch:
         try:
             patch += temp_patch

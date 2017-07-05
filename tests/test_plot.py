@@ -122,10 +122,10 @@ def test_discrete_geometry():
 def test_discrete_phantom_uniform(size=100, ratio=9):
     """The uniform discrete phantom is the same after rotating 90 degrees."""
 
-    d0 = discrete_phantom(p, size, ratio=ratio, prop='mass_attenuation')
+    d0 = discrete_phantom(p, 1. / size, ratio=ratio, prop='mass_attenuation')
 
     p.rotate(theta=np.pi/2, point=Point([0.5, 0.5]))
-    d1 = np.rot90(discrete_phantom(p, size, ratio=ratio,
+    d1 = np.rot90(discrete_phantom(p, 1. / size, ratio=ratio,
                                    prop='mass_attenuation'))
 
     # plot rotated phantom

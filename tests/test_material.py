@@ -85,8 +85,8 @@ def _save_and_load(phantom_class, args=[]):
 
     p1 = load_phantom(saved_phantom)
 
-    refere = discrete_phantom(p0, 200, uniform=False)
-    target = discrete_phantom(p1, 200, uniform=False)
+    refere = discrete_phantom(p0, 0.005, uniform=False)
+    target = discrete_phantom(p1, 0.005, uniform=False)
 
     _plot_both(refere, target)
 
