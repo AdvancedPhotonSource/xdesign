@@ -69,6 +69,7 @@ import polytope as pt
 from copy import deepcopy
 from cached_property import cached_property
 import queue
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -408,11 +409,16 @@ def calculate_gram(procedure, niter, phantom, pool=None,
                                            'at chunk {}'.format(item[0]))
                 else:  # not ready
                     async_data.put(item)
+                    time.sleep(5)
 
             probes = [None] * chunksize
 
             for n in range(chunksize):
-                probes[n] = deepcopy(next(procedure))
+                probe = next(procedure)
+                probe.record()
+                probe_copy = deepcopy(probe)
+                probe_copy.history = []
+                probes[n] = probe_copy
 
             async_data.put((m,
                             pool.apply_async(probe_wrapper,
@@ -430,7 +436,6 @@ def calculate_gram(procedure, niter, phantom, pool=None,
                 raise RuntimeError('Process Failed '
                                    'at chunk {}'.format(item[0]))
 
-        probe = probes.pop()
         measurements = measurements.flatten()
 
     return measurements, probe
