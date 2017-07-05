@@ -52,10 +52,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from xdesign.acquisition import beamintersect
-from xdesign.material import HyperbolicConcentric, UnitCircle
-from xdesign.geometry import Circle, Point, Line
-
 import scipy.ndimage
 import logging
 import warnings
@@ -68,7 +64,12 @@ from scipy import optimize
 from scipy.stats import norm, exponnorm, expon, ttest_ind
 from phasepack import phasecongmono as _phasecongmono
 
+from xdesign.phantom import HyperbolicConcentric, UnitCircle
+from xdesign.acquisition import beamintersect
+from xdesign.geometry import Circle, Point, Line
+
 logger = logging.getLogger(__name__)
+
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -82,7 +83,6 @@ __all__ = ['compute_PCC',
            'compute_nps_ffst',
            'compute_neq_d',
            'ImageQuality',
-           'compute_quality',
            'procedure_coverage',
            'coverage_approx']
 
@@ -366,8 +366,8 @@ def compute_mtf(phantom, image):
         :meth:`compute_mtf_ffst`
         :meth:`compute_mtf_lwkj`
     """
-    DeprecationWarning('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
-                       'compute_mtf_ffst instead')
+    warnings.warn('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
+                  'compute_mtf_ffst instead', DeprecationWarning)
 
     if not isinstance(phantom, HyperbolicConcentric):
         raise TypeError
@@ -928,126 +928,123 @@ class ImageQuality(object):
     """Store information about image quality.
 
     Attributes
-    ----------------
-    orig : numpy.ndarray
-    recon : numpy.ndarray
-    qualities : list of scalars
-    maps : list of numpy.ndarray
-    scales : list of scalars
+    ----------
+    img0 : array
+    img1 : array
+        Stacks of reference and deformed images.
+    metrics : dict
+        A dictionary with image quality information organized by scale.
+        ``metric[scale] = (mean_quality, quality_map)``
+    method : string
+        The metric used to calculate the quality
     """
 
-    def __init__(self, original, reconstruction, method=''):
-        self.orig = original.astype(np.float)
-        self.recon = reconstruction.astype(np.float)
+    def __init__(self, original, reconstruction):
+        self.img0 = original.astype(np.float)
+        self.img1 = reconstruction.astype(np.float)
 
-        if self.orig.shape != self.recon.shape:
-            raise ValueError("original and reconstruction should be the " +
-                             "same shape")
-        if self.orig.ndim != 2:
-            raise ValueError("This function only support 2D images.")
+        self.scales = None
+        self.mets = None
+        self.maps = None
+        self.method = ''
 
-        self.qualities = []
-        self.maps = []
-        self.scales = []
+    def compute_quality(self, method="MSSSIM", L=1):
+        """Compute the full-reference image quality of each image pair.
+
+        Available methods include SSIM :cite:`wang:02`, MSSSIM :cite:`wang:03`,
+        VIFp :cite:`Sheikh:15`, and FSIM :cite:`zhang:11`.
+
+        Parameters
+        ----------
+        method : string, optional, (default: MSSSIM)
+            The quality metric desired for this comparison.
+            Options include: SSIM, MSSSIM, VIFp, FSIM
+        L : scalar, (default, 1.0)
+            The dynamic range of the data. This value is 1 for float
+            representations and 2^bitdepth for integer representations.
+        """
+        if L < 1:
+            raise ValueError("Dynamic range must be >= 1.")
+
+        dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim,
+                      "VIFp": _compute_vifp, "FSIM": _compute_fsim}
+        try:
+            method_func = dictionary[method]
+        except KeyError:
+            ValueError("That method is not implemented.")
+
         self.method = method
 
-    def __str__(self):
-        return ("QUALITY: " + str(self.qualities) +
-                "\nSCALES: " + str(self.scales))
+        if self.img0.ndim > 2:
+            self.mets = list()
+            self.maps = list()
 
-    def __add__(self, other):
-        if not isinstance(other, ImageQuality):
-            raise TypeError("Can only add ImageQuality to ImageQuality")
+            for i in range(self.img0.shape[2]):
 
-        self.qualities += other.qualities
-        self.maps += other.maps
-        self.scales += other.scales
-        return self
+                scales, mets, maps = method_func(self.img0[:, :, i],
+                                                 self.img1[:, :, i], L=L)
 
-    def add_quality(self, quality, scale, maps=None):
-        '''
-        Parameters
-        -----------
-        quality : scalar, list
-            The average quality for the image
-        map : array, list of arrays, optional
-            the local quality rating across the image
-        scale : scalar, list
-            the size scale at which the quality was calculated
-        '''
-        if (isinstance(quality, list) and isinstance(scale, list) and
-           (maps is None or isinstance(maps, list))):
-            self.qualities += quality
-            self.scales += scale
-            if maps is None:
-                maps = [None] * len(quality)
-            self.maps += maps
-        elif (isinstance(quality, float) and isinstance(scale, float) and
-              (maps is None or isinstance(maps, np.ndarray))):
-            self.qualities.append(quality)
-            self.scales.append(scale)
-            self.maps.append(maps)
+                self.scales = scales
+                self.mets.append(mets)
+                self.maps.append(maps)
+
+            self.mets = np.stack(self.mets, axis=1)
+
+            newmaps = []
+            for level in range(len(self.maps[0])):
+                this_level = []
+                for m in self.maps:
+                    this_level.append(m[level])
+
+                this_level = np.stack(this_level, axis=2)
+                newmaps.append(this_level)
+
+            self.maps = newmaps
+
         else:
-            raise TypeError
-
-    def sort(self):
-        """Sorts the qualities by scale"""
-        raise NotImplementedError
+            self.scales, self.mets, self.maps = method_func(self.img0,
+                                                            self.img1, L=L)
 
 
-def compute_quality(reference, reconstructions, method="MSSSIM", L=1):
-    """
-    Computes full-reference image quality metrics for each of the
-    reconstructions.
+def _join_metrics(A, B):
+    """Join two image metric dictionaries."""
 
-    Available methods include SSIM :cite:`wang:02`, MSSSIM :cite:`wang:03`,
-    VIFp :cite:`Sheikh:15`, and FSIM :cite:`zhang:11`.
+    for key in list(B.keys()):
+        if key in A:
+            A[key][0] = np.concatenate((A[key][0], B[key][0]))
 
-    Parameters
-    ---------
-    reference : array
-        the discrete reference image. In a future release, we will
-        determine the best way to compare a continuous domain to a discrete
-        reconstruction.
-    reconstructions : list of arrays
-        A list of discrete reconstructions
-    method : string, optional
-        The quality metric desired for this comparison.
-        Options include: SSIM, MSSSIM, VIFp, FSIM
-    L : scalar
-        The dynamic range of the data. This value is 1 for float
-        representations and 2^bitdepth for integer representations.
+            A[key][1] = np.concatenate((np.atleast_3d(A[key][1]),
+                                        np.atleast_3d(B[key][1])), axis=2)
 
-    Returns
-    ---------
-    metrics : list of ImageQuality
-    """
-    if L < 1:
-        raise ValueError("Dynamic range must be >= 1.")
-    if not isinstance(reconstructions, list):
-        reconstructions = [reconstructions]
+        else:
+            A[key] = B[key]
 
-    dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim,
-                  "VIFp": _compute_vifp, "FSIM": _compute_fsim}
-    try:
-        method_func = dictionary[method]
-    except KeyError:
-        ValueError("That method is not implemented.")
-
-    metrics = []
-    for image in reconstructions:
-        IQ = ImageQuality(reference, image, method)
-        IQ = method_func(IQ, L=L)
-        metrics.append(IQ)
-
-    return metrics
+    return A
 
 
-def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
-    """Calculates the Visual Information Fidelity (VIFp) between two images in
+def _compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
+    """Calculate the Visual Information Fidelity (VIFp) between two images in
     in a multiscale pixel domain with scalar.
 
-    -----------COPYRIGHT NOTICE STARTS WITH THIS LINE------------
+    Parameters
+    ----------
+    img0 : array
+    img1 : array
+        Two images for comparison.
+    nlevels : scalar
+        The number of levels to measure quality.
+    sigma : scalar
+        The size of the quality filter at the smallest scale.
+
+    Returns
+    -------
+    metrics : dict
+        A dictionary with image quality information organized by scale.
+        ``metric[scale] = (mean_quality, quality_map)``
+        The valid range for VIFp is (0, 1].
+
+
+    .. centered:: COPYRIGHT NOTICE
     Copyright (c) 2005 The University of Texas at Austin
     All rights reserved.
 
@@ -1070,51 +1067,37 @@ def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
     AND FITNESS FOR A PARTICULAR PURPOSE. THE DATABASE PROVIDED HEREUNDER IS ON
     AN "AS IS" BASIS, AND THE UNIVERSITY OF TEXAS AT AUSTIN HAS NO OBLIGATION
     TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-    -----------COPYRIGHT NOTICE ENDS WITH THIS LINE------------
-
-    Parameters
-    -----------
-    imQual : ImageQuality
-        A struct used to organize image quality information.
-    nlevels : scalar
-        The number of levels to measure quality.
-    sigma : scalar
-        The size of the quality filter at the smallest scale.
-
-    Returns
-    -----------
-    imQual : ImageQuality
-        A struct used to organize image quality information. NOTE: the valid
-        range for VIFp is (0, 1].
+    .. centered:: END COPYRIGHT NOTICE
     """
-    _full_reference_input_check(imQual, sigma, nlevels, L)
-
-    ref = imQual.orig
-    dist = imQual.recon
+    _full_reference_input_check(img0, img1, sigma, nlevels, L)
 
     sigmaN_sq = 2  # used to tune response
     eps = 1e-10
 
+    scales = np.zeros(nlevels)
+    mets = np.zeros(nlevels)
+    maps = [None] * nlevels
+
     for level in range(0, nlevels):
         # Downsample (using ndimage.zoom to prevent sampling bias)
         if (level > 0):
-            ref = scipy.ndimage.zoom(ref, 1/2)
-            dist = scipy.ndimage.zoom(dist, 1/2)
+            img0 = scipy.ndimage.zoom(img0, 1/2)
+            img1 = scipy.ndimage.zoom(img1, 1/2)
 
-        mu1 = scipy.ndimage.gaussian_filter(ref, sigma)
-        mu2 = scipy.ndimage.gaussian_filter(dist, sigma)
+        mu0 = scipy.ndimage.gaussian_filter(img0, sigma)
+        mu1 = scipy.ndimage.gaussian_filter(img1, sigma)
 
-        sigma1_sq = scipy.ndimage.gaussian_filter((ref - mu1)**2, sigma)
-        sigma2_sq = scipy.ndimage.gaussian_filter((dist - mu2)**2, sigma)
-        sigma12 = scipy.ndimage.gaussian_filter((ref - mu1) * (dist - mu2),
+        sigma0_sq = scipy.ndimage.gaussian_filter((img0 - mu0)**2, sigma)
+        sigma1_sq = scipy.ndimage.gaussian_filter((img1 - mu1)**2, sigma)
+        sigma01 = scipy.ndimage.gaussian_filter((img0 - mu0) * (img1 - mu1),
                                                 sigma)
 
-        g = sigma12 / (sigma1_sq + eps)
-        sigmav_sq = sigma2_sq - g * sigma12
+        g = sigma01 / (sigma0_sq + eps)
+        sigmav_sq = sigma1_sq - g * sigma01
 
         # Calculate VIF
-        numator = np.log2(1 + g**2 * sigma1_sq / (sigmav_sq + sigmaN_sq))
-        denator = np.sum(np.log2(1 + sigma1_sq / sigmaN_sq))
+        numator = np.log2(1 + g**2 * sigma0_sq / (sigmav_sq + sigmaN_sq))
+        denator = np.sum(np.log2(1 + sigma0_sq / sigmaN_sq))
 
         vifmap = numator / denator
         vifp = np.sum(vifmap)
@@ -1122,14 +1105,41 @@ def _compute_vifp(imQual, nlevels=5, sigma=1.2, L=None):
         vifmap *= vifmap.size
 
         scale = sigma * 2**level
-        imQual.add_quality(vifp, scale, maps=vifmap)
 
-    return imQual
+        scales[level] = scale
+        mets[level] = vifp
+        maps[level] = vifmap
+
+    return scales, mets, maps
 
 
-def _compute_fsim(imQual, nlevels=5, nwavelets=16, L=None):
-    """
-    FSIM Index with automatic downsampling, Version 1.0
+def _compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
+    """FSIM Index with automatic downsampling, Version 1.0
+
+    An implementation of the algorithm for calculating the Feature SIMilarity
+    (FSIM) index was ported to Python. This implementation only considers the
+    luminance component of images. For multichannel images, convert to
+    grayscale first. Dynamic range should be 0-255.
+
+    Parameters
+    ----------
+    img0 : array
+    img1 : array
+        Two images for comparison.
+    nlevels : scalar
+        The number of levels to measure quality.
+    nwavelets : scalar
+        The number of wavelets to use in the phase congruency calculation.
+
+    Returns
+    -------
+    metrics : dict
+        A dictionary with image quality information organized by scale.
+        ``metric[scale] = (mean_quality, quality_map)``
+        The valid range for FSIM is (0, 1].
+
+
+    .. centered:: COPYRIGHT NOTICE
     Copyright(c) 2010 Lin ZHANG, Lei Zhang, Xuanqin Mou and David Zhang
     All Rights Reserved.
     ----------------------------------------------------------------------
@@ -1146,39 +1156,23 @@ def _compute_fsim(imQual, nlevels=5, nwavelets=16, L=None):
     Lin Zhang, Lei Zhang, Xuanqin Mou, and David Zhang,"FSIM: a feature
     similarity index for image qualtiy assessment", IEEE Transactions on Image
     Processing, vol. 20, no. 8, pp. 2378-2386, 2011.
-
-    ----------------------------------------------------------------------
-    An implementation of the algorithm for calculating the Feature SIMilarity
-    (FSIM) index was ported to Python. This implementation only considers the
-    luminance component of images. For multichannel images, convert to
-    grayscale first. Dynamic range should be 0-255.
-
-    Parameters
-    --------------------------
-    imQual : ImageQuality
-        A struct used to organize image quality information.
-    nlevels : scalar
-        The number of levels to measure quality.
-    nwavelets : scalar
-        The number of wavelets to use in the phase congruency calculation.
-
-    Returns
-    ------------------
-    imQual : ImageQuality
-        A struct used to organize image quality information. NOTE: the valid
-        range for FSIM is (0, 1].
+    .. centered:: END COPYRIGHT NOTICE
     """
-    _full_reference_input_check(imQual, 1.2, nlevels, L)
+    _full_reference_input_check(img0, img1, 1.2, nlevels, L)
     if nwavelets < 1:
         raise ValueError('There must be at least one wavelet level.')
 
-    Y1 = imQual.orig
-    Y2 = imQual.recon
+    Y1 = img0
+    Y2 = img1
 
-    for scale in range(0, nlevels):
+    scales = np.zeros(nlevels)
+    mets = np.zeros(nlevels)
+    maps = [None] * nlevels
+
+    for level in range(0, nlevels):
         # sigma = 1.2 is approximately correct because the width of the scharr
         # and min wavelet filter (phase congruency filter) is 3.
-        sigma = 1.2 * 2**scale
+        sigma = 1.2 * 2**level
 
         F = 2  # Downsample (using ndimage.zoom to prevent sampling bias)
         Y1 = scipy.ndimage.zoom(Y1, 1/F)
@@ -1213,25 +1207,22 @@ def _compute_fsim(imQual, nlevels=5, nwavelets=16, L=None):
         PCm = np.maximum(PC1, PC2)
         FSIMmap = gradientSimMatrix * PCSimMatrix
         FSIM = np.sum(FSIMmap * PCm) / np.sum(PCm)
-        imQual.add_quality(FSIM, sigma, maps=FSIMmap)
 
-    return imQual
+        scales[level] = sigma
+        mets[level] = FSIM
+        maps[level] = FSIMmap
+
+    return scales, mets, maps
 
 
-def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
-    '''
-    An implementation of the Multi-Scale Structural SIMilarity index (MS-SSIM).
-
-    References
-    -------------
-    Multi-scale Structural Similarity Index (MS-SSIM)
-    Z. Wang, E. P. Simoncelli and A. C. Bovik, "Multi-scale structural
-    similarity for image quality assessment," Invited Paper, IEEE Asilomar
-    Conference on Signals, Systems and Computers, Nov. 2003
+def _compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
+    """Multi-Scale Structural SIMilarity index (MS-SSIM).
 
     Parameters
-    -------------
-    imQual : ImageQuality
+    ----------
+    img0 : array
+    img1 : array
+        Two images for comparison.
     nlevels : int
         The max number of levels to analyze
     sigma : float
@@ -1245,37 +1236,73 @@ def _compute_msssim(imQual, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
 
     Returns
     -------
-    imQual : ImageQuality
-        A struct used to organize image quality information. NOTE: the valid
-        range for SSIM is [-1, 1].
-    '''
-    _full_reference_input_check(imQual, sigma, nlevels, L)
+    metrics : dict
+        A dictionary with image quality information organized by scale.
+        ``metric[scale] = (mean_quality, quality_map)``
+        The valid range for SSIM is [-1, 1].
 
-    img1 = imQual.orig
-    img2 = imQual.recon
+
+    References
+    ----------
+    Multi-scale Structural Similarity Index (MS-SSIM)
+    Z. Wang, E. P. Simoncelli and A. C. Bovik, "Multi-scale structural
+    similarity for image quality assessment," Invited Paper, IEEE Asilomar
+    Conference on Signals, Systems and Computers, Nov. 2003
+    """
+    _full_reference_input_check(img0, img1, sigma, nlevels, L)
 
     # The relative imporance of each level as determined by human experiment
     # weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
+    scales = np.zeros(nlevels)
+    mets = np.zeros(nlevels)
+    maps = [None] * nlevels
+
     for level in range(0, nlevels):
-        imQual += _compute_ssim(ImageQuality(img1, img2), sigma=sigma, L=L,
-                                K=K, scale=sigma * 2**level)
+
+        scale, SIM, SIMmap = _compute_ssim(img0, img1, sigma=sigma, L=L,
+                                           K=K, scale=sigma * 2**level)
+
+        scales[level] = scale
+        mets[level] = SIM
+        maps[level] = SIMmap
+
         if level == nlevels - 1:
             break
 
         # Downsample (using ndimage.zoom to prevent sampling bias)
-        img1 = scipy.ndimage.zoom(img1, 1/2)
-        img2 = scipy.ndimage.zoom(img2, 1/2)
+        img0 = scipy.ndimage.zoom(img0, 0.5)
+        img1 = scipy.ndimage.zoom(img1, 0.5)
 
-    return imQual
+    return scales, mets, maps
 
 
-def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
-    """
+def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
+    """Return the Structural SIMilarity index (SSIM).
+
     A modified version of the Structural SIMilarity index (SSIM) based on an
     implementation by Helder C. R. de Oliveira, based on the implementation by
     Antoine Vacavant, ISIT lab, antoine.vacavant@iut.u-clermont1.fr
     http://isit.u-clermont1.fr/~anvacava
+
+    Attributes
+    ----------
+    img1 : array
+    img2 : array
+        Two images for comparison.
+    L : scalar
+        The dynamic range of the data. This value is 1 for float
+        representations and 2^bitdepth for integer representations.
+    sigma : list, optional
+        The standard deviation of the gaussian filter.
+
+    Returns
+    -------
+    metrics : dict
+        A dictionary with image quality information organized by scale.
+        ``metric[scale] = (mean_quality, quality_map)``
+        The valid range for SSIM is [-1, 1].
+
 
     References
     ----------
@@ -1286,23 +1313,8 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     Z. Wang and A. C. Bovik. Mean squared error: Love it or leave it? - A new
     look at signal fidelity measures. IEEE Signal Processing Magazine,
     26(1):98--117, 2009.
-
-    Attributes
-    ----------
-    imQual : ImageQuality
-    L : scalar
-        The dynamic range of the data. This value is 1 for float
-        representations and 2^bitdepth for integer representations.
-    sigma : list, optional
-        The standard deviation of the gaussian filter.
-
-    Returns
-    -------
-    imQual : ImageQuality
-        A struct used to organize image quality information. NOTE: the valid
-        range for SSIM is [-1, 1].
     """
-    _full_reference_input_check(imQual, sigma, 1, L)
+    _full_reference_input_check(img1, img2, sigma, 1, L)
     if scale is not None and scale <= 0:
         raise ValueError("Scale cannot be negative or zero.")
 
@@ -1313,8 +1325,6 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     c_2 = (K[1] * L)**2
 
     # Convert image matrices to double precision (like in the Matlab version)
-    img1 = imQual.orig
-    img2 = imQual.recon
 
     # Means obtained by Gaussian filtering of inputs
     mu_1 = scipy.ndimage.filters.gaussian_filter(img1, sigma)
@@ -1364,20 +1374,23 @@ def _compute_ssim(imQual, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
 
     # return SSIM
     index = np.mean(ssim_map)
-    imQual.add_quality(index, scale, maps=ssim_map)
-    return imQual
+
+    return scale, index, ssim_map
 
 
-def _full_reference_input_check(imQual, sigma, nlevels, L):
+def _full_reference_input_check(img0, img1, sigma, nlevels, L):
     """Checks full reference quality measures for valid inputs."""
-    if not isinstance(imQual, ImageQuality):
-        raise TypeError
     if nlevels <= 0:
         raise ValueError('nlevels must be >= 1.')
     if sigma < 1.2:
         raise ValueError('sigma < 1.2 is effective meaningless.')
-    if np.min(imQual.orig.shape) / (2**(nlevels - 1)) < sigma * 2:
+    if np.min(img0.shape) / (2**(nlevels - 1)) < sigma * 2:
         raise ValueError("The image becomes smaller than the filter size! " +
                          "Decrease the number of levels.")
     if L is not None and L < 1:
         raise ValueError("Dynamic range must be >= 1.")
+    if img0.shape != img1.shape:
+        raise ValueError("original and reconstruction should be the " +
+                         "same shape")
+    if img0.ndim != 2:
+        raise ValueError("This function only support 2D images.")
