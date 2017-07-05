@@ -418,7 +418,7 @@ def discrete_phantom(phantom, psize, bounding_box=((0, 0), (1, 1)),
         temp, temp_patch = discrete_phantom(child, psize, bounding_box, ratio, uniform,
                                             prop, energy, return_patch=True, overlay_mode=overlay_mode)
         if ret == 0:
-            ret[i] += temp[i]
+            ret += temp
         else:
             for i in range(len(ret)):
                 if overlay_mode == 'add':
