@@ -948,7 +948,7 @@ class ImageQuality(object):
         self.maps = None
         self.method = ''
 
-    def compute_quality(self, method="MSSSIM", L=1):
+    def compute_quality(self, method="MSSSIM", L=1.0, **kwargs):
         """Compute the full-reference image quality of each image pair.
 
         Available methods include SSIM :cite:`wang:02`, MSSSIM :cite:`wang:03`,
@@ -959,12 +959,10 @@ class ImageQuality(object):
         method : string, optional, (default: MSSSIM)
             The quality metric desired for this comparison.
             Options include: SSIM, MSSSIM, VIFp, FSIM
-        L : scalar, (default, 1.0)
+        L : scalar
             The dynamic range of the data. This value is 1 for float
             representations and 2^bitdepth for integer representations.
         """
-        if L < 1:
-            raise ValueError("Dynamic range must be >= 1.")
 
         dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim,
                       "VIFp": _compute_vifp, "FSIM": _compute_fsim}
@@ -982,7 +980,8 @@ class ImageQuality(object):
             for i in range(self.img0.shape[2]):
 
                 scales, mets, maps = method_func(self.img0[:, :, i],
-                                                 self.img1[:, :, i], L=L)
+                                                 self.img1[:, :, i],
+                                                 L=L, **kwargs)
 
                 self.scales = scales
                 self.mets.append(mets)
@@ -1003,7 +1002,8 @@ class ImageQuality(object):
 
         else:
             self.scales, self.mets, self.maps = method_func(self.img0,
-                                                            self.img1, L=L)
+                                                            self.img1,
+                                                            L=L, **kwargs)
 
 
 def _join_metrics(A, B):
@@ -1385,8 +1385,10 @@ def _full_reference_input_check(img0, img1, sigma, nlevels, L):
     if sigma < 1.2:
         raise ValueError('sigma < 1.2 is effective meaningless.')
     if np.min(img0.shape) / (2**(nlevels - 1)) < sigma * 2:
-        raise ValueError("The image becomes smaller than the filter size! " +
-                         "Decrease the number of levels.")
+        raise ValueError("{nlevels} levels makes {shape} smaller than a filter"
+                         " size of 2 * {sigma}".format(nlevels=nlevels,
+                                                       shape=img0.shape,
+                                                       sigma=sigma))
     if L is not None and L < 1:
         raise ValueError("Dynamic range must be >= 1.")
     if img0.shape != img1.shape:
