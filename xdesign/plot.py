@@ -328,113 +328,101 @@ def _make_axis():
     return fig, axis
 
 
-def discrete_phantom(phantom, psize, bounding_box=((0, 0), (1, 1)),
+def discrete_phantom(phantom, psize, bounding_box=[[0, 1], [0, 1]],
                      ratio=9, uniform=True,
-                     prop='linear_attenuation', energy=DEFAULT_ENERGY,
-                     overlay_mode='add', return_patch=False):
-    """Return a discrete map of the `property` in the `phantom`.
-
-    The values of overlapping :class:`phantom.Phantom` are additive.
+                     prop='linear_attenuation',
+                     mkwargs={'energy': DEFAULT_ENERGY},
+                     overlay_mode='add', return_mask=False):
+    """Return a discrete map of the properties, `prop`, in the `phantom`.
 
     Parameters
     ----------
     phantom: :class:`phantom.Phantom`
-    psize : float
-        The side length of a cubic pixel.
-    bounding_box : :py:class:`numpy.ndarray`, :py:class:`List`
-        The desired field of view specified as `[min, max]` where min and max
-        are two column vectors pointing to the min and max corners of the
-        desired field of view.
-    ratio : scalar, optional (default: 9)
-        The antialiasing works by supersampling. This parameter controls
-        how many pixels in the larger representation are averaged for the
-        final representation. e.g. if ratio = 9, then the final pixel
-        values are the average of 81 pixels.
-    uniform : boolean, optional (default: True)
+    psize : float [cm]
+        The side length of the pixel.
+    bounding_box : :py:class:`numpy.ndarray`, :py:class:`List` [cm]
+        `[min, max)` where min and max are *column* vectors pointing to the
+        min and max corners of the desired field of view. This bounding box is
+        adjusted to align with the nearest integer multiple of psize.
+    ratio : scalar
+        For antialiasing by supersampling, this parameter controls
+        how many pixels are averaged for the final representation.
+        e.g. for 2D and ratio = 9, the final pixel values are the average
+        of 81 pixels.
+    uniform : boolean
         When set to False, changes the way pixels are averaged from a
         uniform weights to gaussian weigths.
-    prop : str or list of str, optional (default: linear_attenuation)
-        The name of the property to discretize
-    fix_psize : bool
-        Select whether use a fixed pixel size (at 1) or fixed object size
-        (1cm)
+    prop : :py:class:`str` or :py:class:`List`
+        The name(s) of the property(s) to discretize
     overlay_mode : 'add' or 'replace'
         Select the mode to overlay child phantom values to the existing grid.
         'add': values will be added
         'replace': parent values will be replaced by child values
-    return_patch : bool
-        Whether to return the combined patch of the current phantom and all its children.
+    mkwargs : :py:class:`dict`
+        Keyword arguments for the materials properties in `prop`.
+    return_mask : bool
+        Whether to append a mask of the current phantom and all its children to
+        the property map.
 
     Return
     ------
     image : :class:`numpy.ndarray`
-        The discrete representation of the :class:`.Phantom` that is size x
-        size. 0 if phantom has no geometry or material property.
+        The discrete representation of the :class:`.Phantom`; shape determined
+        by `psize`, `bounding_box`, and `prop`. Returns the zero array when
+        `phantom` has no geometry or material properties. If more than one
+        property is specified, then a N+1 dimension array is returned where
+        the property dimension is last.
 
     Raise
     -----
     ValueError
-        If size is less than or equal to 0
+        If size is less than or equal to 0.
+        If `bounding_box` is not [min, max]
     """
     if psize <= 0:
         raise ValueError('size must be greater than 0.')
-
-    bounding_box = np.asarray(bounding_box)
-    if bounding_box.min() < 0 or bounding_box.max() > 1:
-        raise ValueError('bounding box must be within (0, 1).')
-
-    size = (bounding_box[1] - bounding_box[0]) / psize
-    size = size.astype('int')
-
-    image = ret = patch = 0
-
+    bounding_box = np.asanyarray(bounding_box)
+    if np.any(bounding_box[:, 0] > bounding_box[:, 1]):
+        raise ValueError('bounding_box must have lower values in the zeroth '
+                         'column.\n{}'.format(bounding_box))
     prop = np.atleast_1d(prop)
+    n_prop = prop.size + return_mask
+    # Make an output grid of the appropriate size
+    image_size = (bounding_box[:, 1] - bounding_box[:, 0]) / psize
+    # np.ceil so [0, 0.1) -> size 1
+    image_size = np.ceil(image_size).astype('int')
+    imin = bounding_box[:, 0] // psize
+    image = np.zeros(np.concatenate([image_size, [n_prop]]), dtype=float)
+
     if phantom.geometry is not None and phantom.material is not None \
        and np.alltrue([hasattr(phantom.material, temp) for temp in prop]):
         # Rasterize all geometry in the phantom.
         pmin, patch = discrete_geometry(phantom.geometry, psize, ratio)
-
-        # Get the property value
-        n_prop = prop.size
-        ret = [None] * n_prop
+        # Get the value for each property
         for i, i_prop in enumerate(prop):
-            # try:
-            value = getattr(phantom.material, i_prop)(energy=energy)
-            # except:
-            #     raise TypeError('Invalid material properties.')
-
-            # Make a grid to put store all of the discrete geometries
-            image = np.zeros(size, dtype=float)
-            imin = [0] * phantom.geometry.dim
-
-            image = combine_grid(imin, image, pmin // psize, patch * value)
-            ret[i] = image
-
-        patch = patch.astype('bool')
-        imin = [0] * phantom.geometry.dim
-        patch = combine_grid(imin, np.zeros_like(image).astype('bool'), pmin // psize, patch)
+            value = getattr(phantom.material, i_prop)(**mkwargs)
+            image[..., i] = combine_grid(imin, image[..., i],
+                                         pmin // psize, patch * value)
+        if return_mask:
+            image[..., -1] = combine_grid(imin, image[..., i],
+                                          pmin // psize, patch)
+    # Remove extra dimension if only one property
+    image = np.squeeze(image)
 
     for child in phantom.children:
-        temp, temp_patch = discrete_phantom(child, psize, bounding_box, ratio, uniform,
-                                            prop, energy, return_patch=True, overlay_mode=overlay_mode)
-        if ret is 0:
-            ret = temp
-        else:
-            for i in range(len(ret)):
-                if overlay_mode == 'add':
-                    ret[i] = ret[i] + temp[i]
-                elif overlay_mode == 'replace':
-                    ret[i][temp_patch] = temp[i][temp_patch]
-    # if ret is not 0:
-    #     ret = np.squeeze(ret)
-    if return_patch:
-        try:
-            patch += temp_patch
-        except:
-            pass
-        return ret, patch
-    else:
-        return np.squeeze(ret)
+        child_mask = overlay_mode is 'replace' or return_mask
+        child_image = discrete_phantom(child, psize, bounding_box,
+                                       ratio, uniform,
+                                       prop, mkwargs,
+                                       overlay_mode=overlay_mode,
+                                       return_mask=child_mask)
+        if overlay_mode is 'replace':
+            image[child_image[..., -1] > 0] = 0
+        if child_mask and return_mask is False:
+            child_image = child_image[..., 0:-1]
+        image += child_image
+
+    return image
 
 
 def combine_grid(Amin, A, Bmin, B):
@@ -508,7 +496,7 @@ def discrete_geometry(geometry, psize, ratio=9):
         A geometric object with `dim`, `bounding_box`, and `contains` methods
     psize : float [cm]
         The real size of the pixels in the discrete image
-    ratio : int (default: 9)
+    ratio : int
         The supersampling ratio for antialiasing. 1 means no antialiasing
 
     Return
@@ -516,7 +504,7 @@ def discrete_geometry(geometry, psize, ratio=9):
     corner : 1darray [cm]
         The min corner of the patch
     patch : ndarray
-        The discretized geometry in it's bounding box
+        The discretized geometry in its bounding box
 
     Raise
     -----

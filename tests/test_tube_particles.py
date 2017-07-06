@@ -63,12 +63,16 @@ def test_model_prop_pipeline():
             sphere = Phantom(geometry=sphere, material=titania)
             phantom.children.append(sphere)
 
-        grid_delta, grid_beta = discrete_phantom(phantom, 1.e-7,
-                                                 bounding_box=((0, 0, 0),
-                                                               (255.e-7, 255.e-7, 255.e-7)),
-                                                 prop=['delta', 'beta'],
-                                                 ratio=1, energy=25,
-                                                 overlay_mode='replace')
+        grid = discrete_phantom(phantom, 1.e-7,
+                                 bounding_box=[[0, 255.e-7],
+                                               [0, 255.e-7],
+                                               [0, 255.e-7]],
+                                 prop=['delta', 'beta'],
+                                 ratio=1,
+                                 mkwargs={'energy': 25},
+                                 overlay_mode='replace')
+        grid_delta = grid[..., 0]
+        grid_beta = grid[..., 1]
 
     sim = Simulator(energy=25000,
                     grid=(grid_delta, grid_beta),
