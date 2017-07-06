@@ -32,7 +32,6 @@ before_install:
 install:
   - conda install python=$TRAVIS_PYTHON_VERSION nose six "numpy<1.13" scipy matplotlib python-coveralls pillow cached-property setuptools requests
   - conda install -c dgursoy dxchange
-  - conda install xraylib
   - pip install phasepack polytope
   - conda info -a
   - python setup.py build_ext --inplace
