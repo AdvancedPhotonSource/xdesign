@@ -9,4 +9,3 @@ cached-property
 polytope >= 0.1.4
 dxchange
 requests
-xraylib
