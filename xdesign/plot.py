@@ -398,10 +398,10 @@ def discrete_phantom(phantom, psize, bounding_box=((0, 0), (1, 1)),
         n_prop = prop.size
         ret = [None] * n_prop
         for i, i_prop in enumerate(prop):
-            try:
-                value = getattr(phantom.material, i_prop)(energy=energy)
-            except:
-                raise TypeError('Invalid material properties.')
+            # try:
+            value = getattr(phantom.material, i_prop)(energy=energy)
+            # except:
+            #     raise TypeError('Invalid material properties.')
 
             # Make a grid to put store all of the discrete geometries
             image = np.zeros(size, dtype=float)
