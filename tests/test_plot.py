@@ -46,6 +46,8 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
@@ -91,7 +93,7 @@ def test_discrete_geometry():
 
     t0 = Triangle(deepcopy(b), deepcopy(c), deepcopy(d))
 
-    corner, patch = discrete_geometry(t0, 1/100)
+    corner, patch = discrete_geometry(t0, 1. / 100)
     plt.subplot(131)
     plt.imshow(patch)
     plt.title("single triangle")
@@ -101,7 +103,7 @@ def test_discrete_geometry():
     m0.append(Triangle(deepcopy(a), deepcopy(e), deepcopy(d)))
     m0.append(Triangle(deepcopy(b), deepcopy(d), deepcopy(e)))
 
-    corner, patch = discrete_geometry(m0, 1/100)
+    corner, patch = discrete_geometry(m0, 1. / 100)
     plt.subplot(132)
     plt.imshow(patch)
     plt.title("double triangle mesh")
@@ -111,7 +113,7 @@ def test_discrete_geometry():
     m1.append(Circle(Point([0.3, 0.5]), radius=0.1))
     m1.append(-Circle(Point([0.3, 0.5]), radius=0.02))
 
-    corner, patch = discrete_geometry(m1, 1/100)
+    corner, patch = discrete_geometry(m1, 1. / 100)
     plt.subplot(133)
     plt.imshow(patch)
     plt.title("double circle mesh")

@@ -87,7 +87,6 @@ def _save_and_load(phantom_class, args=[]):
 
     refere = discrete_phantom(p0, 0.005, uniform=False)
     target = discrete_phantom(p1, 0.005, uniform=False)
-
     _plot_both(refere, target)
 
     assert_equal(target, refere,

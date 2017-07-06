@@ -383,18 +383,17 @@ def discrete_phantom(phantom, psize, bounding_box=((0, 0), (1, 1)),
     if bounding_box.min() < 0 or bounding_box.max() > 1:
         raise ValueError('bounding box must be within (0, 1).')
 
-    size = map(int, ((bounding_box[1] - bounding_box[0]) / psize + 1))
+    size = map(int, ((bounding_box[1] - bounding_box[0]) / psize))
 
     image = ret = patch = 0
 
+    prop = np.atleast_1d(prop)
     if phantom.geometry is not None and phantom.material is not None \
        and np.alltrue([hasattr(phantom.material, temp) for temp in prop]):
-
         # Rasterize all geometry in the phantom.
         pmin, patch = discrete_geometry(phantom.geometry, psize, ratio)
 
         # Get the property value
-        prop = np.atleast_1d(prop)
         n_prop = prop.size
         ret = [None] * n_prop
         for i, i_prop in enumerate(prop):
@@ -417,20 +416,22 @@ def discrete_phantom(phantom, psize, bounding_box=((0, 0), (1, 1)),
     for child in phantom.children:
         temp, temp_patch = discrete_phantom(child, psize, bounding_box, ratio, uniform,
                                             prop, energy, return_patch=True, overlay_mode=overlay_mode)
-        if ret == 0:
-            ret += temp
+        if ret is 0:
+            ret = temp
         else:
             for i in range(len(ret)):
                 if overlay_mode == 'add':
-                    ret[i] += temp[i]
+                    ret[i] = ret[i] + temp[i]
                 elif overlay_mode == 'replace':
                     ret[i][temp_patch] = temp[i][temp_patch]
+    # if ret is not 0:
+    #     ret = np.squeeze(ret)
     if return_patch:
         try:
             patch += temp_patch
         except:
             pass
-        return np.squeeze(ret), patch
+        return ret, patch
     else:
         return np.squeeze(ret)
 
@@ -612,7 +613,7 @@ def sidebyside(p, size=100, labels=None, prop='mass_attenuation'):
     axis.set_yticks(np.linspace(0, 1, 6, True))
 
     axis = plt.subplot(122)
-    d = discrete_phantom(p, size, prop=prop)
+    d = discrete_phantom(p, 1. / size, prop=prop)
     plt.imshow(d, interpolation='none', cmap=plt.cm.inferno)
     axis.set_xticks(np.linspace(0, size, 6, True))
     axis.set_yticks(np.linspace(0, size, 6, True))
