@@ -75,14 +75,11 @@ def test_SSIM_same_image_is_unity():
 def test_VIFp_same_image_is_unity():
     scales, mets, maps = _compute_vifp(img1, img1)
     assert_almost_equal(mets, 1, err_msg="Mean is not unity.")
-    # assert_equal(IQ.maps,1,err_msg="local metrics are not unity.")
 
 
 def test_FSIM_same_image_is_unity():
     scales, mets, maps = _compute_fsim(img1, img1)
     assert_almost_equal(mets, 1., err_msg="Mean is not unity.")
-    # assert_almost_equal(IQ.maps, np.ones(len(IQ.maps)),
-    #                     err_msg="local metrics are not unity.")
 
 
 def test_compute_quality_cameraman():
@@ -96,7 +93,7 @@ def test_compute_quality_cameraman():
 
 
 if __name__ == '__main__':
+    # run tests which create figures
     import matplotlib.pyplot as plt
-
     test_compute_quality_cameraman()
     plt.show(block=True)

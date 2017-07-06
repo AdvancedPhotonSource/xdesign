@@ -63,7 +63,10 @@ import warnings
 try:
     import xraylib as xl
 except ImportError:
-    warnings.warn("xraylib is requried for XraylibMaterial", ImportWarning)
+    warnings.warn("""
+Module 'xraylib' could not be imported. It is requried for the XraylibMaterial
+class. See github.com/tschoonj/xraylib/wiki for installation instructions.
+""")
 
 from xdesign.formats import get_NIST_table
 
@@ -165,7 +168,7 @@ class XraylibMaterial(Material):
 
 class CustomMaterial(Material):
     """Materials with uncertain formula yet certain complex refractive indices.
-    
+
     Attributes
     ----------
     delta : float

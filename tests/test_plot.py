@@ -80,7 +80,6 @@ def test_sidebyside():
 
 
 def test_discrete_geometry():
-
     plt.figure()
     plt.suptitle('test_discrete_geometry')
 
@@ -145,12 +144,12 @@ def test_discrete_phantom_uniform(size=100, ratio=9):
 
 
 if __name__ == '__main__':
+    # run tests which create figures
     test_plot_phantom_plain()
     test_plot_phantom_color_map()
     test_sidebyside()
     test_discrete_geometry()
     test_discrete_phantom_uniform()
-
     plt.show(block=True)
 
 # def test_discrete_phantom_gaussian():

@@ -78,3 +78,8 @@ def test_get_NIST_table_misspelled():
         return 0
 
     assert False
+
+
+if __name__ == '__main__':
+    # run tests which create figures
+    pass

@@ -80,7 +80,7 @@ import os
 import warnings
 try:
     import queue
-except:
+except ImportError:
     import Queue as queue
 
 logger = logging.getLogger(__name__)
