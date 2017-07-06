@@ -47,10 +47,13 @@ def test_model_prop_pipeline():
         rand_y = []
         for i in range(n_particles):
             xi = np.random.rand()
-            rand_y.append((top_radius - np.sqrt(top_radius ** 2 - top_radius ** 2 * xi + bottom_radius ** 2 * xi)) /
-                          (top_radius - bottom_radius) * length + top_y)
+            rand_y.append((top_radius
+                           - np.sqrt(top_radius**2 - top_radius**2
+                                     * xi + bottom_radius ** 2 * xi))
+                          / (top_radius - bottom_radius) * length + top_y)
         for part_y in rand_y:
-            r = top_radius + (bottom_radius - top_radius) / (length) * (part_y - top_y)
+            r = (top_radius + (bottom_radius - top_radius) / (length)
+                 * (part_y - top_y))
             theta = np.random.rand() * np.pi * 2
             part_x = np.cos(theta) * r + 128.e-7
             part_z = np.sin(theta) * r + 128.e-7
@@ -60,8 +63,12 @@ def test_model_prop_pipeline():
             sphere = Phantom(geometry=sphere, material=titania)
             phantom.children.append(sphere)
 
-        grid_delta, grid_beta = discrete_phantom(phantom, 1.e-7, bounding_box=((0, 0, 0), (255.e-7, 255.e-7, 255.e-7)),
-                                                 prop=['delta', 'beta'], ratio=1, energy=25, overlay_mode='replace')
+        grid_delta, grid_beta = discrete_phantom(phantom, 1.e-7,
+                                                 bounding_box=((0, 0, 0),
+                                                               (255.e-7, 255.e-7, 255.e-7)),
+                                                 prop=['delta', 'beta'],
+                                                 ratio=1, energy=25,
+                                                 overlay_mode='replace')
 
     sim = Simulator(energy=25000,
                     grid=(grid_delta, grid_beta),
