@@ -50,7 +50,6 @@ def test_model_prop_pipeline():
             xi = np.random.rand()
             rand_y.append((top_radius - np.sqrt(top_radius ** 2 - top_radius ** 2 * xi + bottom_radius ** 2 * xi)) /
                           (top_radius - bottom_radius) * length + top_y)
-
         for part_y in rand_y:
             r = top_radius + (bottom_radius - top_radius) / (length) * (part_y - top_y)
             theta = np.random.rand() * np.pi * 2
@@ -65,7 +64,7 @@ def test_model_prop_pipeline():
         grid_delta, grid_beta = discrete_phantom(phantom, 1.e-7, bounding_box=((0, 0, 0), (255.e-7, 255.e-7, 255.e-7)),
                                                  prop=['delta', 'beta'], ratio=1, energy=25, overlay_mode='replace')
 
-    sim = Simulator(energy=25,
+    sim = Simulator(energy=25000,
                     grid=(grid_delta, grid_beta),
                     psize=[1.e-7, 1.e-7, 1.e-7])
 
@@ -77,6 +76,6 @@ def test_model_prop_pipeline():
 
 
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(exit=False)
-    # test_model_prop_pipeline()
+    # import nose
+    # nose.runmodule(exit=False)
+    test_model_prop_pipeline()

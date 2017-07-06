@@ -383,7 +383,8 @@ def discrete_phantom(phantom, psize, bounding_box=((0, 0), (1, 1)),
     if bounding_box.min() < 0 or bounding_box.max() > 1:
         raise ValueError('bounding box must be within (0, 1).')
 
-    size = map(int, ((bounding_box[1] - bounding_box[0]) / psize))
+    size = (bounding_box[1] - bounding_box[0]) / psize
+    size = size.astype('int')
 
     image = ret = patch = 0
 

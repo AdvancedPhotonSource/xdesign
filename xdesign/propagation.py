@@ -96,10 +96,10 @@ def slice_modify(simulator, delta_slice, beta_slice, wavefront):
     return wavefront
 
 
-def slice_propagate(grid, wavefront):
+def slice_propagate(simulator, wavefront):
 
-    delta_nm = grid.voxel_nm[-1]
-    wavefront = free_propagate(grid, wavefront, delta_nm * 1e-7)
+    delta_nm = simulator.voxel_nm[-1]
+    wavefront = free_propagate(simulator, wavefront, delta_nm * 1e-7)
     return wavefront
 
 

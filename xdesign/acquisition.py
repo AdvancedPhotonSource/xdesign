@@ -646,7 +646,7 @@ class Simulator(object):
             self.mesh = []
             temp = []
             for i in range(self._ndim):
-                temp.append(np.arange(self.size[i]))
+                temp.append(np.arange(self.size[i]) * self.voxel_nm[i])
             self.mesh = np.meshgrid(*temp, indexing='xy')
 
             # wavefront in x-y plane or x edge
@@ -735,7 +735,7 @@ class Simulator(object):
         """
         n_slice = self.grid_delta.shape[-1]
         for i_slice in range(n_slice):
-            print('\rSlice: {:d}'.format(i_slice), end=' ')
+            print('Slice: {:d}'.format(i_slice))
             sys.stdout.flush()
             delta_slice = self.grid_delta[:, :, i_slice]
             beta_slice = self.grid_beta[:, :, i_slice]
@@ -743,7 +743,6 @@ class Simulator(object):
             self.wavefront = slice_propagate(self, self.wavefront)
         if free_prop_dist is not None:
             logger.debug('Free propagation')
-            free_prop_dist *= 1e7
             # self.wavefront = free_propagate(self, self.wavefront, free_prop_dist)
             self.wavefront = far_propagate(self, self.wavefront, free_prop_dist)
         return self.wavefront
