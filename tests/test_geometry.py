@@ -419,5 +419,5 @@ def test_Mesh_contains():
 
 
 if __name__ == '__main__':
-    import nose
-    nose.runmodule(exit=False)
+    # run tests which create figures
+    pass

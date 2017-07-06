@@ -96,17 +96,20 @@ def _save_and_load(phantom_class, args=[]):
 
 def test_HyperbolicCocentric():
     _save_and_load(HyperbolicConcentric)
+    plt.suptitle('test_HyperbolicCocentric')
 
 
 def test_DynamicRange():
     warnings.filterwarnings("ignore", "The Square*", UserWarning)
     _save_and_load(DynamicRange, [10, True])
     _save_and_load(DynamicRange, [10, False])
+    plt.suptitle('test_DynamicRange')
 
 
 def test_Soil():
     warnings.filterwarnings("ignore", "Reached*", RuntimeWarning)
     _save_and_load(Soil)
+    plt.suptitle('test_Soil')
 
 
 # def test_Foam():
@@ -117,9 +120,13 @@ def test_Soil():
 def test_XDesignDefault():
     _save_and_load(XDesignDefault)
     p = XDesignDefault()
-    sidebyside(p)
+    plt.suptitle('test_XDesignDefault')
 
 
 if __name__ == '__main__':
+    # run tests which create figures
+    test_HyperbolicCocentric()
+    test_DynamicRange()
+    test_Soil()
     test_XDesignDefault()
     plt.show(block=True)

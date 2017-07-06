@@ -53,8 +53,9 @@ def test_plot_polytope():
     _, axis = xdesign.plot._make_axis()
     plot_geometry(tri, axis)
     plot_geometry(Square(Point([0.3, 0.3]), 0.1), axis)
-    # plt.show(block=True)
 
 
 if __name__ == '__main__':
-    test_probe_circular(N=32)
+    # run tests which create figures
+    test_plot_polytope()
+    plt.show(block=True)

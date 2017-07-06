@@ -13,7 +13,6 @@ from xdesign.acquisition import Simulator
 
 
 def test_model_prop_pipeline():
-
     n_particles = 5
     top_y = 25.e-7
     top_radius = 10.e-7
@@ -72,10 +71,9 @@ def test_model_prop_pipeline():
     wavefront = sim.multislice_propagate()
 
     plt.imshow(np.abs(wavefront))
-    plt.show()
 
 
 if __name__ == '__main__':
-    # import nose
-    # nose.runmodule(exit=False)
+    # run tests which create figures
     test_model_prop_pipeline()
+    plt.show(block=True)
