@@ -611,7 +611,7 @@ class DogaCircles(Phantom):
         """
         super(DogaCircles, self).__init__(geometry=Square(center=Point([0.5,
                                                                         0.5]),
-                                                          side_length=1))
+                                                          side_length=0.7))
 
         n_sizes = int(n_sizes)
         if n_sizes <= 0:
@@ -647,13 +647,15 @@ class DogaCircles(Phantom):
                                                         lsquare[i, :]), rowsum)
 
         # Draw it
-        period = np.arange(0, n_sizes)/n_sizes + 1/(2*n_sizes)
+        period = (np.arange(0, n_sizes)/n_sizes + 1/(2*n_sizes)) * 0.7
         _x, _y = np.meshgrid(period, period)
-        radii = (1 - 1e-10) / (2 * n_sizes) * size_ratio**lsquare
+        radii = (1 - 1e-10) / (2 * n_sizes) * size_ratio**lsquare * 0.7
+        _x += (1 - 0.7) / 2
+        _y += (1 - 0.7) / 2
 
         for (k, x, y) in zip(radii.flatten(), _x.flatten(),
                              _y.flatten()):
-            self.append(Phantom(geometry=Circle(Point([x, y]), k),
+            self.append(Phantom(geometry=Circle(Point([x, y]), radius=k),
                                 material=SimpleMaterial(1.0)))
 
         self.radii = radii
