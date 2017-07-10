@@ -609,9 +609,9 @@ class DogaCircles(Phantom):
         n_shuffles : int
             The number of times to shuffles the latin square
         """
-        super(DogaCircles, self).__init__(geometry=Square(center=Point([0.5,
+        super(DogaCircles, self).__init__(geometry=Circle(center=Point([0.5,
                                                                         0.5]),
-                                                          side_length=0.7))
+                                                          radius=0.5))
 
         n_sizes = int(n_sizes)
         if n_sizes <= 0:
