@@ -82,13 +82,12 @@ def slice_modify(simulator, delta_slice, beta_slice, wavefront):
     """
     delta_nm = simulator.voxel_nm[-1]
     kz = 2 * np.pi * delta_nm / simulator.lmbda_nm
-    wavefront = wavefront * np.exp((kz * delta_slice) * 1j) * np.exp(-kz * beta_slice)
-
+    wavefront *= np.exp((kz * delta_slice) * 1j) * np.exp(-kz * beta_slice)
     return wavefront
 
 
 def slice_propagate(simulator, wavefront):
-
+    """"""
     delta_nm = simulator.voxel_nm[-1]
     wavefront = free_propagate(simulator, wavefront, delta_nm * 1e-7)
     return wavefront
@@ -112,14 +111,15 @@ def free_propagate(simulator, wavefront, dist):
     u_max = 1. / (2. * simulator.voxel_nm[0])
     v_max = 1. / (2. * simulator.voxel_nm[1])
     u, v = gen_mesh([v_max, u_max], simulator.grid_delta.shape[1:3])
-    H = np.exp(1j * k * dist_nm * np.sqrt(1 - lmbda_nm ** 2 * (u ** 2 - v ** 2)))
+    H = np.exp(1j * k * dist_nm * np.sqrt(1 - lmbda_nm**2 * (u**2 - v**2)))
     wavefront = ifftn(ifftshift(fftshift(fftn(wavefront)) * H))
 
     return wavefront
 
 
 def far_propagate(simulator, wavefront, dist):
-    """Free space propagation using product Fourier algorithm. Suitable for far field propagation.
+    """Free space propagation using product Fourier algorithm. Suitable for far
+    field propagation.
 
     Parameters:
     -----------
