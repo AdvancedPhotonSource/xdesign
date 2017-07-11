@@ -49,22 +49,13 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import time
-import sys
-import operator
-
 import numpy as np
-import scipy.ndimage
 import logging
 import warnings
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 from xdesign.util import gen_mesh
 from numpy.fft import fft2, fftn, ifftn, fftshift, ifftshift
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 
 __author__ = "Ming Du"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -87,7 +78,7 @@ def slice_modify(simulator, delta_slice, beta_slice, wavefront):
     beta_slice : ndarray
         Array of beta values.
     wavefront : ndarray
-        Complex wavefront. 
+        Complex wavefront.
     """
     delta_nm = simulator.voxel_nm[-1]
     kz = 2 * np.pi * delta_nm / simulator.lmbda_nm
@@ -105,7 +96,7 @@ def slice_propagate(simulator, wavefront):
 
 def free_propagate(simulator, wavefront, dist):
     """Free space propagation using convolutional algorithm.
-    
+
     Parameters:
     -----------
     simulator : :class:`acquisition.Simulator`
@@ -129,7 +120,7 @@ def free_propagate(simulator, wavefront, dist):
 
 def far_propagate(simulator, wavefront, dist):
     """Free space propagation using product Fourier algorithm. Suitable for far field propagation.
-    
+
     Parameters:
     -----------
     simulator : :class:`acquisition.Simulator`
