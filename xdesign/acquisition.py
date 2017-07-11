@@ -62,6 +62,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
+from xdesign.constants import PI
 from xdesign.geometry import *
 from xdesign.propagation import *
 import dxchange
@@ -143,7 +144,7 @@ class Probe(Line, pt.Polytope):
         # Rotate the polytope around axis 0 to create a cylinder
         if self.dim > 2:
             nrotations = circleapprox
-            angle = np.pi / (2 * (nrotations + 1))
+            angle = PI / (2 * (nrotations + 1))
             for i in range(nrotations):
                 rotated = p.rotation(i=1, j=2, theta=angle)
                 p = pt.intersect(p, rotated)
@@ -248,7 +249,7 @@ class Probe(Line, pt.Polytope):
         if self.dim == 2:
             return self.size
         else:
-            return np.pi * self.size**2 / 4
+            return PI * self.size**2 / 4
 
 
 def beamintersect(beam, geometry):
@@ -342,7 +343,7 @@ def beamcirc(beam, circle):
         else:  # w <= pd
             f = halfspacecirc(p - w, r)
 
-    a = np.pi * r**2 * f
+    a = PI * r**2 * f
     assert(a >= 0), a
     return a
 
@@ -498,7 +499,7 @@ def raster_scan3D(sz, sa, st, zstart=None):
     # Step sizes of the probe.
     tstep = Point([0, 1. / st, 0])
     zstep = Point([0, 0, 1. / sz])
-    theta = np.pi / sa
+    theta = PI / sa
 
     # Fixed probe location.
     if zstart is None:
@@ -516,8 +517,8 @@ def raster_scan3D(sz, sa, st, zstart=None):
             p.translate(-st * tstep._x)
             p.rotate(theta, Point([0.5, 0.5, 0]))
             tstep.rotate(theta)
-        p.rotate(np.pi, Point([0.5, 0.5, 0]))
-        tstep.rotate(np.pi)
+        p.rotate(PI, Point([0.5, 0.5, 0]))
+        tstep.rotate(PI)
         p.translate(zstep._x)
 
 
@@ -542,7 +543,7 @@ def raster_scan(sx, sy):
     step = 1. / sy
 
     # Step size of the rotation angle.
-    theta = np.pi / sx
+    theta = PI / sx
 
     # Fixed probe location.
     p = Probe(Point([step / 2., -10]), Point([step / 2., 10]), step)
@@ -720,7 +721,7 @@ class Simulator(object):
             r = np.sqrt(xx ** 2 + yy ** 2)
             theta = np.arctan(r / (s - f))
             path = np.mod(s / np.cos(theta), self.lmbda_nm)
-            phase = path * 2 * np.pi
+            phase = path * 2 * PI
             wavefront = np.ones(wave_shape).astype('complex64')
             wavefront = wavefront + 1j * np.tan(phase)
             self.wavefront = wavefront / np.abs(wavefront)

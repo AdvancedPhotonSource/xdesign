@@ -65,6 +65,7 @@ from cached_property import cached_property
 import copy
 from math import sqrt, asin
 from copy import deepcopy
+from xdesign.constants import PI
 
 logger = logging.getLogger(__name__)
 
@@ -700,7 +701,7 @@ class Ellipse(Superellipse):
     @property
     def area(self):
         """Return area."""
-        return np.pi * self.a * self.b
+        return PI * self.a * self.b
 
     def scale(self, val):
         """Scale."""
@@ -753,7 +754,7 @@ class Circle(Curve):
     @property
     def circumference(self):
         """Returns the circumference."""
-        return 2 * np.pi * self.radius
+        return 2 * PI * self.radius
 
     @property
     def diameter(self):
@@ -763,7 +764,7 @@ class Circle(Curve):
     @property
     def area(self):
         """Return the area."""
-        return self.sign * np.pi * self.radius**2
+        return self.sign * PI * self.radius**2
 
     @property
     def patch(self):
@@ -1600,7 +1601,7 @@ def halfspacecirc(d, r):
     if d >= r:  # The line is too far away to overlap!
         return 0
 
-    f = 0.5 - d*sqrt(r**2 - d**2)/(np.pi*r**2) - asin(d/r)/np.pi
+    f = 0.5 - d*sqrt(r**2 - d**2)/(PI*r**2) - asin(d/r)/PI
 
     # Returns the smaller fraction of the circle, so it can be at most 1/2.
     if f < 0 or 0.5 < f:
