@@ -115,10 +115,11 @@ def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
         of Probe objects.
     region : :py:class:`np.array` [cm]
         A rectangle in which to map the coverage. Specify the bounds as
-        `[[min_corner], [max_corner]]`.
-    pixel_size : float (default : 0.1) [cm]
+        `[[min_x, max_x], [min_y, max_y]]`. i.e. column vectors pointing to the
+        min and max corner.
+    pixel_size : float [cm]
         The edge length of the pixels in the coverage map in centimeters.
-    n : int (default: 1)
+    n : int
         The number of lines per beam
     anisotropy : bool (default: False)
         Whether the coverage map includes anisotropy information
@@ -132,11 +133,11 @@ def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
     --------
     :py:func:`.plot.plot_coverage_anisotropy`
     """
-    box = np.array(region)
+    box = np.asanyarray(region)
 
     # Define the locations of the grid lines (gx, gy)
-    gx = np.arange(box[0, 0], box[1, 0] + pixel_size, pixel_size)
-    gy = np.arange(box[0, 1], box[1, 1] + pixel_size, pixel_size)
+    gx = np.arange(box[0, 0], box[0, 1] + pixel_size, pixel_size)
+    gy = np.arange(box[1, 0], box[1, 1] + pixel_size, pixel_size)
 
     # the number of pixels = number of gridlines - 1
     sx, sy = gx.size-1, gy.size-1
