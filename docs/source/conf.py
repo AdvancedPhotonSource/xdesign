@@ -318,7 +318,12 @@ texinfo_documents = [
 # texinfo_no_detailmenu = False
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/3': None}
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
+                       'numpy': ('https://docs.scipy.org/doc/numpy/', None),
+                       'scipy': ('https://docs.scipy.org/doc/scipy/reference',
+                                 None),
+                       'matplotlib': ('https://matplotlib.org', None)
+                       }
 
 
 # picked from http://read-the-docs.readthedocs.org/en/latest/faq.html
