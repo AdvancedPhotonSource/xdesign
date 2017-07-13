@@ -157,7 +157,7 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=-1,
                 # use the colormap to determine the color
                 # TODO: Add parameter to pass other things besides energy
                 for j in num_props:
-                    props[j] = getattr(phantom.material, c_props[j])(DEFAULT_ENERGY)
+                    props[j] = getattr(phantom.material, c_props[j])(energy=DEFAULT_ENERGY)
                 color = c_map(props)[0]
 
             plotted = plot_geometry(phantom.geometry, axis, c=color, z=z, t=t)
@@ -328,63 +328,99 @@ def _make_axis():
     return fig, axis
 
 
-def discrete_phantom(phantom, size, ratio=9, uniform=True,
-                     prop='linear_attenuation'):
-    """Return a discrete map of the `property` in the `phantom`.
-
-    The values of overlapping :class:`phantom.Phantom` are additive.
+def discrete_phantom(phantom, psize, bounding_box=[[0, 1], [0, 1]],
+                     ratio=9, uniform=True,
+                     prop='linear_attenuation',
+                     mkwargs={'energy': DEFAULT_ENERGY},
+                     overlay_mode='add', return_mask=False):
+    """Return a discrete map of the properties, `prop`, in the `phantom`.
 
     Parameters
     ----------
     phantom: :class:`phantom.Phantom`
-    size : scalar
-        The side length in pixels of the resulting 1 by 1 cm image.
-    ratio : scalar, optional (default: 9)
-        The antialiasing works by supersampling. This parameter controls
-        how many pixels in the larger representation are averaged for the
-        final representation. e.g. if ratio = 9, then the final pixel
-        values are the average of 81 pixels.
-    uniform : boolean, optional (default: True)
+    psize : float [cm]
+        The side length of the pixel.
+    bounding_box : :py:class:`numpy.ndarray`, :py:class:`List` [cm]
+        `[min, max)` where min and max are *column* vectors pointing to the
+        min and max corners of the desired field of view. This bounding box is
+        adjusted to align with the nearest integer multiple of psize.
+    ratio : scalar
+        For antialiasing by supersampling, this parameter controls
+        how many pixels are averaged for the final representation.
+        e.g. for 2D and ratio = 9, the final pixel values are the average
+        of 81 pixels.
+    uniform : boolean
         When set to False, changes the way pixels are averaged from a
         uniform weights to gaussian weigths.
-    prop : str, optional (default: linear_attenuation)
-        The name of the property to discretize
+    prop : :py:class:`str` or :py:class:`List`
+        The name(s) of the property(s) to discretize
+    overlay_mode : 'add' or 'replace'
+        Select the mode to overlay child phantom values to the existing grid.
+        'add': values will be added
+        'replace': parent values will be replaced by child values
+    mkwargs : :py:class:`dict`
+        Keyword arguments for the materials properties in `prop`.
+    return_mask : bool
+        Whether to append a mask of the current phantom and all its children to
+        the property map.
 
     Return
     ------
     image : :class:`numpy.ndarray`
-        The discrete representation of the :class:`.Phantom` that is size x
-        size. 0 if phantom has no geometry or material property.
+        The discrete representation of the :class:`.Phantom`; shape determined
+        by `psize`, `bounding_box`, and `prop`. Returns the zero array when
+        `phantom` has no geometry or material properties. If more than one
+        property is specified, then a N+1 dimension array is returned where
+        the property dimension is last.
 
     Raise
     -----
     ValueError
-        If size is less than or equal to 0
+        If size is less than or equal to 0.
+        If `bounding_box` is not [min, max]
     """
-    if size <= 0:
+    if psize <= 0:
         raise ValueError('size must be greater than 0.')
-
-    image = 0
+    bounding_box = np.asanyarray(bounding_box)
+    if np.any(bounding_box[:, 0] > bounding_box[:, 1]):
+        raise ValueError('bounding_box must have lower values in the zeroth '
+                         'column.\n{}'.format(bounding_box))
+    prop = np.atleast_1d(prop)
+    n_prop = prop.size + return_mask
+    # Make an output grid of the appropriate size
+    image_size = (bounding_box[:, 1] - bounding_box[:, 0]) / psize
+    # np.ceil so [0, 0.1) -> size 1
+    image_size = np.ceil(image_size).astype('int')
+    imin = bounding_box[:, 0] // psize
+    image = np.zeros(np.concatenate([image_size, [n_prop]]), dtype=float)
 
     if phantom.geometry is not None and phantom.material is not None \
-       and hasattr(phantom.material, prop):
-
-        psize = 1.0 / size
-
+       and np.alltrue([hasattr(phantom.material, temp) for temp in prop]):
         # Rasterize all geometry in the phantom.
         pmin, patch = discrete_geometry(phantom.geometry, psize, ratio)
-
-        # Get the property value
-        value = getattr(phantom.material, prop)(DEFAULT_ENERGY)
-
-        # Make a grid to put store all of the discrete geometries
-        image = np.zeros([size] * phantom.geometry.dim, dtype=float)
-        imin = [0] * phantom.geometry.dim
-
-        image = combine_grid(imin, image, pmin // psize, patch * value)
+        # Get the value for each property
+        for i, i_prop in enumerate(prop):
+            value = getattr(phantom.material, i_prop)(**mkwargs)
+            image[..., i] = combine_grid(imin, image[..., i],
+                                         pmin // psize, patch * value)
+        if return_mask:
+            image[..., -1] = combine_grid(imin, image[..., i],
+                                          pmin // psize, patch)
+    # Remove extra dimension if only one property
+    image = np.squeeze(image)
 
     for child in phantom.children:
-        image += discrete_phantom(child, size, ratio, uniform, prop)
+        child_mask = overlay_mode is 'replace' or return_mask
+        child_image = discrete_phantom(child, psize, bounding_box,
+                                       ratio, uniform,
+                                       prop, mkwargs,
+                                       overlay_mode=overlay_mode,
+                                       return_mask=child_mask)
+        if overlay_mode is 'replace':
+            image[child_image[..., -1] > 0] = 0
+        if child_mask and return_mask is False:
+            child_image = child_image[..., 0:-1]
+        image += child_image
 
     return image
 
@@ -460,7 +496,7 @@ def discrete_geometry(geometry, psize, ratio=9):
         A geometric object with `dim`, `bounding_box`, and `contains` methods
     psize : float [cm]
         The real size of the pixels in the discrete image
-    ratio : int (default: 9)
+    ratio : int
         The supersampling ratio for antialiasing. 1 means no antialiasing
 
     Return
@@ -468,7 +504,7 @@ def discrete_geometry(geometry, psize, ratio=9):
     corner : 1darray [cm]
         The min corner of the patch
     patch : ndarray
-        The discretized geometry in it's bounding box
+        The discretized geometry in its bounding box
 
     Raise
     -----
@@ -502,8 +538,6 @@ def discrete_geometry(geometry, psize, ratio=9):
         # TODO: @carterbox Determine whether arange, or linspace works better
         # at surpressing rotation error. SEE test_discrete_phantom_uniform
 
-        # print(x)
-
         # Check whether the patch range, x, contains the bounding box
         assert x[0] <= xmin.flat[i], x[0]
         assert xmax.flat[i] < x[-1] + psize / ratio, x[-1] + psize / ratio
@@ -524,7 +558,6 @@ def discrete_geometry(geometry, psize, ratio=9):
 
     # Compute whether each pixel is contained within the geometry
     image = geometry.contains(pixel_coords)
-
     image.shape = final_shape
     image = image.astype(float)
 
@@ -569,7 +602,7 @@ def sidebyside(p, size=100, labels=None, prop='mass_attenuation'):
     axis.set_yticks(np.linspace(0, 1, 6, True))
 
     axis = plt.subplot(122)
-    d = discrete_phantom(p, size, prop=prop)
+    d = discrete_phantom(p, 1. / size, prop=prop)
     plt.imshow(d, interpolation='none', cmap=plt.cm.inferno)
     axis.set_xticks(np.linspace(0, size, 6, True))
     axis.set_yticks(np.linspace(0, size, 6, True))
@@ -871,3 +904,19 @@ def plot_histograms(images, masks=None, thresh=0.025):
     # autobins feature doesn't work because one of the groups is all zeros?
     plt.hist(hgrams, bins=25, normed=True, stacked=False)
     plt.legend(labels)
+
+
+def plot_wavefront(simulator):
+    """Plot wavefront intensity.
+
+    Parameters:
+    -----------
+    simulator : :class:`Simulator`
+    """
+    wavefront = simulator.wavefront
+    i = np.abs(wavefront * np.conjugate(wavefront))
+
+    fig = plt.figure()
+    plt.imshow(i, cmap='gray')
+    plt.xlabel('x (nm)')
+    plt.ylabel('y (nm)')

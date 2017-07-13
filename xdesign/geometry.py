@@ -65,10 +65,11 @@ from cached_property import cached_property
 import copy
 from math import sqrt, asin
 from copy import deepcopy
+from xdesign.constants import PI
 
 logger = logging.getLogger(__name__)
 
-__author__ = "Daniel Ching, Doga Gursoy"
+__author__ = "Daniel Ching, Doga Gursoy, Ming Du"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Entity',
@@ -79,6 +80,11 @@ __all__ = ['Entity',
            'Triangle',
            'Rectangle',
            'Square',
+           'Cuboid_3d',
+           'Rod_3d',
+           'Sphere_3d',
+           'TruncatedCone_3d',
+           'Cylinder_3d',
            'Mesh',
            'NOrthotope',
            'NCube']
@@ -292,7 +298,7 @@ class Point(Entity):
     def scale(self, vector):
         """Scales the coordinates of the point in each dimension according to
         the given vector. Scaling is centered on the origin."""
-        if not isinstance(vector, (List, np.ndarray)):
+        if not isinstance(vector, (list, np.ndarray)):
             raise TypeError("vector must be arraylike.")
 
         self._x *= vector
@@ -301,7 +307,7 @@ class Point(Entity):
         """Return wether the other is within the bounds of the Point. Points
         can only contain other Points."""
         if isinstance(other, Point):
-            return self == point
+            return self == other
         if isinstance(other, np.ndarray):
             return np.all(self._x == other, axis=1)
         else:  # points can only contain points
@@ -310,7 +316,7 @@ class Point(Entity):
     def collision(self, other):
         """Returns True if this Point collides with another entity."""
         if isinstance(other, Point):
-            return self == point
+            return self == other
         else:
             raise NotImplementedError
 
@@ -695,7 +701,7 @@ class Ellipse(Superellipse):
     @property
     def area(self):
         """Return area."""
-        return np.pi * self.a * self.b
+        return PI * self.a * self.b
 
     def scale(self, val):
         """Scale."""
@@ -748,7 +754,7 @@ class Circle(Curve):
     @property
     def circumference(self):
         """Returns the circumference."""
-        return 2 * np.pi * self.radius
+        return 2 * PI * self.radius
 
     @property
     def diameter(self):
@@ -758,7 +764,7 @@ class Circle(Curve):
     @property
     def area(self):
         """Return the area."""
-        return self.sign * np.pi * self.radius**2
+        return self.sign * PI * self.radius**2
 
     @property
     def patch(self):
@@ -1156,6 +1162,217 @@ class Square(Rectangle):
         super(Square, self).__init__(center, side_lengths)
 
 
+class Cuboid_3d(Entity):
+    """Cuboid in 3-D cartesian space.
+    """
+
+    def __init__(self, x1, x2):
+        if not isinstance(x1, Point) and isinstance(x2, Point):
+            raise TypeError("input must be of type Point.")
+        super(Cuboid_3d, self).__init__()
+        self.x1 = x1
+        self.x2 = x2
+        self._dim = 3
+
+    def __repr__(self):
+        return 'Cuboid({}, {})'.format([repr(n) for n in self.x1._x],
+                                       [repr(n) for n in self.x2._x])
+
+    @property
+    def bounding_box(self):
+        xmin = self.x1._x
+        xmax = self.x2._x
+
+        return xmin, xmax
+
+    def contains(self, other):
+        """
+        Return whether the cuboid contains the other.
+        """
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        else:
+            raise NotImplementedError()
+
+        x = np.atleast_2d(x)
+        ret = (np.alltrue(self.x1._x <= x, axis=-1)
+               * np.alltrue(x <= self.x2._x, axis=-1))
+        return ret
+
+
+class Sphere_3d(Entity):
+    """Sphere in 3-D catesian space.
+    """
+
+    def __init__(self, center, radius):
+        if not isinstance(center, Point):
+            raise TypeError("center must be of type Point.")
+        super(Sphere_3d, self).__init__()
+        self.center = center
+        self.radius = radius
+        self._dim = 3
+
+    def __repr__(self):
+        return 'Sphere(center={}, radius={})'.format(repr(self.center),
+                                                     repr(self.radius))
+
+    @property
+    def bounding_box(self):
+        xmin = self.center._x - np.array([self.radius] * self.center._dim)
+        xmax = self.center._x + np.array([self.radius] * self.center._dim)
+
+        return xmin, xmax
+
+    def contains(self, other):
+        """
+        Return whether the cuboid contains the other.
+        """
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        else:
+            raise NotImplementedError()
+
+        x = np.atleast_2d(x)
+        ret = np.sum((x - self.center._x)**2, axis=-1) <= self.radius**2
+        return ret
+
+
+class Rod_3d(Entity):
+    """Rod in 3-D cartesian space.
+    """
+
+    def __init__(self, x1, x2, radius):
+        if not isinstance(x1, Point) and isinstance(x2, Point):
+            raise TypeError("end points must be of type Point.")
+        super(Rod_3d, self).__init__()
+        self.x1 = x1
+        self.x2 = x2
+        self.radius = radius
+        self._dim = 3
+
+    def __repr__(self):
+        return 'Rod(Start={}, end={}, radius={})'.format([repr(n) for n in self.x1._x],
+                                                         [repr(n) for n in self.x2._x],
+                                                         repr(self.radius))
+
+    @property
+    def bounding_box(self):
+        xmin = (np.min([self.x1._x, self.x2._x], axis=0)
+                - np.array([self.radius] * self.x1._dim))
+        xmax = (np.max([self.x1._x, self.x2._x], axis=0)
+                + np.array([self.radius] * self.x1._dim))
+
+        return xmin, xmax
+
+    def contains(self, other):
+        """
+        Return whether the cuboid contains the other.
+        """
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        else:
+            raise NotImplementedError()
+
+        x = np.atleast_2d(x)
+
+        x1 = self.x1._x
+        x2 = self.x2._x
+        x0 = x._x
+        ret = np.cross((x2 - x1), (x1 - x0))
+        ret = np.asarray(map(np.linalg.norm, ret))
+        ret = ret / np.linalg.norm((x2 - x1)) <= self.radius
+        judge_seg = -(x1 - x0).dot((x2 - x1)) / np.linalg.norm((x2 - x1)) ** 2
+        ret = ret * (judge_seg >= 0) * (judge_seg <= 1)
+
+        return ret
+
+
+class TruncatedCone_3d(Entity):
+
+    def __init__(self, top_center, length, top_radius, bottom_radius):
+        if not isinstance(top_center, Point):
+            raise TypeError("center must be of type Point.")
+        super(TruncatedCone_3d, self).__init__()
+        self.top_center = top_center
+        self.length = length
+        self.top_radius = top_radius
+        self.bottom_radius = bottom_radius
+        self._dim = 3
+
+    def __repr__(self):
+        return 'TruncatedCone(center={}, length={}, top_radius={},' \
+               'bottom_radius={})'.format(repr(self.top_center),
+                                          repr(self.length),
+                                          repr(self.top_radius),
+                                          repr(self.bottom_radius))
+
+    @property
+    def bounding_box(self):
+        max_rad = max([self.top_radius, self.bottom_radius])
+        bottom_center = np.copy(self.top_center._x)
+        bottom_center[1] += self.length
+        xmin = self.top_center._x - np.array([max_rad, 0, max_rad])
+        xmax = bottom_center + np.array([max_rad, 0, max_rad])
+        np.set_printoptions(suppress=False)
+
+        return xmin, xmax
+
+    def contains(self, other):
+        """
+        Return whether the geometry contains the other.
+        """
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        else:
+            raise NotImplementedError()
+
+        x = np.atleast_2d(x)
+
+        rad = self.top_radius + (self.bottom_radius - self.top_radius) \
+            / (self.length) * (x[:, 1] - self.top_center._x[1])
+        ret = (x[:, 0] - self.top_center._x[0])**2 \
+            + (x[:, 2] - self.top_center._x[2])**2 <= rad**2
+
+        return ret
+
+
+class Cylinder_3d(TruncatedCone_3d):
+    """Cylinder in 3-D cartesian space.
+    """
+
+    def __init__(self, top_center, length, radius, material):
+        if not isinstance(top_center, Point):
+            raise TypeError("center must be of type Point.")
+        super(Cylinder_3d, self).__init__(top_center, length, radius, radius)
+
+    def contains(self, other):
+        """
+        Return whether the geometry contains the other.
+        """
+        if isinstance(other, Point):
+            x = other._x
+        elif isinstance(other, np.ndarray):
+            x = other
+        else:
+            raise NotImplementedError()
+
+        x = np.atleast_2d(x)
+
+        rad = self.top_radius
+        ret = (x[:, 0] - self.top_center._x[0])**2 \
+            + (x[:, 2] - self.top_center._x[2])**2 <= rad**2
+
+        return ret
+
+
 class Mesh(Entity):
     """A collection of Entities
 
@@ -1384,7 +1601,7 @@ def halfspacecirc(d, r):
     if d >= r:  # The line is too far away to overlap!
         return 0
 
-    f = 0.5 - d*sqrt(r**2 - d**2)/(np.pi*r**2) - asin(d/r)/np.pi
+    f = 0.5 - d*sqrt(r**2 - d**2)/(PI*r**2) - asin(d/r)/PI
 
     # Returns the smaller fraction of the circle, so it can be at most 1/2.
     if f < 0 or 0.5 < f:

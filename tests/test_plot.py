@@ -46,6 +46,8 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
@@ -78,7 +80,6 @@ def test_sidebyside():
 
 
 def test_discrete_geometry():
-
     plt.figure()
     plt.suptitle('test_discrete_geometry')
 
@@ -91,7 +92,7 @@ def test_discrete_geometry():
 
     t0 = Triangle(deepcopy(b), deepcopy(c), deepcopy(d))
 
-    corner, patch = discrete_geometry(t0, 1/100)
+    corner, patch = discrete_geometry(t0, 1. / 100)
     plt.subplot(131)
     plt.imshow(patch)
     plt.title("single triangle")
@@ -101,7 +102,7 @@ def test_discrete_geometry():
     m0.append(Triangle(deepcopy(a), deepcopy(e), deepcopy(d)))
     m0.append(Triangle(deepcopy(b), deepcopy(d), deepcopy(e)))
 
-    corner, patch = discrete_geometry(m0, 1/100)
+    corner, patch = discrete_geometry(m0, 1. / 100)
     plt.subplot(132)
     plt.imshow(patch)
     plt.title("double triangle mesh")
@@ -111,7 +112,7 @@ def test_discrete_geometry():
     m1.append(Circle(Point([0.3, 0.5]), radius=0.1))
     m1.append(-Circle(Point([0.3, 0.5]), radius=0.02))
 
-    corner, patch = discrete_geometry(m1, 1/100)
+    corner, patch = discrete_geometry(m1, 1. / 100)
     plt.subplot(133)
     plt.imshow(patch)
     plt.title("double circle mesh")
@@ -122,10 +123,10 @@ def test_discrete_geometry():
 def test_discrete_phantom_uniform(size=100, ratio=9):
     """The uniform discrete phantom is the same after rotating 90 degrees."""
 
-    d0 = discrete_phantom(p, size, ratio=ratio, prop='mass_attenuation')
+    d0 = discrete_phantom(p, 1. / size, ratio=ratio, prop='mass_attenuation')
 
     p.rotate(theta=np.pi/2, point=Point([0.5, 0.5]))
-    d1 = np.rot90(discrete_phantom(p, size, ratio=ratio,
+    d1 = np.rot90(discrete_phantom(p, 1. / size, ratio=ratio,
                                    prop='mass_attenuation'))
 
     # plot rotated phantom
@@ -143,12 +144,12 @@ def test_discrete_phantom_uniform(size=100, ratio=9):
 
 
 if __name__ == '__main__':
+    # run tests which create figures
     test_plot_phantom_plain()
     test_plot_phantom_color_map()
     test_sidebyside()
     test_discrete_geometry()
     test_discrete_phantom_uniform()
-
     plt.show(block=True)
 
 # def test_discrete_phantom_gaussian():

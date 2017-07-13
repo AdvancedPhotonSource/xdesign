@@ -56,6 +56,7 @@ from xdesign.algorithms import *
 from xdesign.metrics import *
 from xdesign.plot import *
 from xdesign.material import *
+from xdesign.propagation import *
 
 import logging
 logging.basicConfig()

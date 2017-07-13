@@ -64,6 +64,7 @@ from scipy.stats import norm, exponnorm, expon, ttest_ind
 from phasepack import phasecongmono as _phasecongmono
 
 from xdesign.phantom import HyperbolicConcentric, UnitCircle
+from xdesign.constants import PI
 
 logger = logging.getLogger(__name__)
 
@@ -204,10 +205,10 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
     R_bins = np.arange(0, np.max(R), R_bin_width)
     # print(R_bins)
 
-    Th_bin_width = 2 * np.pi / Ntheta  # [radians]
-    Th_bins = np.arange(-Th_bin_width / 2, 2 * np.pi -
+    Th_bin_width = 2 * PI / Ntheta  # [radians]
+    Th_bins = np.arange(-Th_bin_width / 2, 2 * PI -
                         Th_bin_width / 2, Th_bin_width)
-    Th[Th < -Th_bin_width / 2] = 2 * np.pi + Th[Th < -Th_bin_width / 2]
+    Th[Th < -Th_bin_width / 2] = 2 * PI + Th[Th < -Th_bin_width / 2]
     # print(Th_bins)
 
     # data with radius falling within a given bin are averaged together for a
@@ -338,7 +339,7 @@ def get_line_at_radius(image, fradius, N):
     M = fradius.size
 
     # calculate the angles to sample
-    theta = np.expand_dims((np.arange(0, N)/N) * 2 * np.pi, 1)
+    theta = np.expand_dims((np.arange(0, N)/N) * 2 * PI, 1)
 
     # convert the angles to xy coordinates
     x = fradius*np.cos(theta)
@@ -385,7 +386,7 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
     # Distance to the target function
     def errorfunc(p, x, y): return periodic_function(p, x) - y
 
-    time = np.linspace(0, 2*np.pi, 100)
+    time = np.linspace(0, 2*PI, 100)
 
     MTFR = np.ndarray((1, M))
     x = (f*angle).squeeze()

@@ -62,13 +62,28 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
+from scipy.ndimage.interpolation import rotate as rotate_grid
+from xdesign.constants import PI
 from xdesign.geometry import *
+from xdesign.propagation import *
+import dxchange
+try:
+    from itertools import izip as zip
+except ImportError:  # will be 3.x series
+    pass
+import h5py
 from xdesign.geometry import halfspacecirc
 import logging
 import polytope as pt
 from copy import deepcopy
 from cached_property import cached_property
-import queue
+import sys
+import os
+import warnings
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +145,7 @@ class Probe(Line, pt.Polytope):
         # Rotate the polytope around axis 0 to create a cylinder
         if self.dim > 2:
             nrotations = circleapprox
-            angle = np.pi / (2 * (nrotations + 1))
+            angle = PI / (2 * (nrotations + 1))
             for i in range(nrotations):
                 rotated = p.rotation(i=1, j=2, theta=angle)
                 p = pt.intersect(p, rotated)
@@ -221,7 +236,7 @@ class Probe(Line, pt.Polytope):
         else:
             # [ ] = [cm^2] / [cm] * [1/cm]
             attenuation = (intersection / self.cross_section
-                           * phantom.material.linear_attenuation(self.energy))
+                           * phantom.material.linear_attenuation(energy=self.energy))
 
         if phantom.geometry is None or intersection > 0:
             # check the children for containers and intersecting geometries
@@ -235,7 +250,7 @@ class Probe(Line, pt.Polytope):
         if self.dim == 2:
             return self.size
         else:
-            return np.pi * self.size**2 / 4
+            return PI * self.size**2 / 4
 
 
 def beamintersect(beam, geometry):
@@ -329,7 +344,7 @@ def beamcirc(beam, circle):
         else:  # w <= pd
             f = halfspacecirc(p - w, r)
 
-    a = np.pi * r**2 * f
+    a = PI * r**2 * f
     assert(a >= 0), a
     return a
 
@@ -485,7 +500,7 @@ def raster_scan3D(sz, sa, st, zstart=None):
     # Step sizes of the probe.
     tstep = Point([0, 1. / st, 0])
     zstep = Point([0, 0, 1. / sz])
-    theta = np.pi / sa
+    theta = PI / sa
 
     # Fixed probe location.
     if zstart is None:
@@ -503,8 +518,8 @@ def raster_scan3D(sz, sa, st, zstart=None):
             p.translate(-st * tstep._x)
             p.rotate(theta, Point([0.5, 0.5, 0]))
             tstep.rotate(theta)
-        p.rotate(np.pi, Point([0.5, 0.5, 0]))
-        tstep.rotate(np.pi)
+        p.rotate(PI, Point([0.5, 0.5, 0]))
+        tstep.rotate(PI)
         p.translate(zstep._x)
 
 
@@ -529,7 +544,7 @@ def raster_scan(sx, sy):
     step = 1. / sy
 
     # Step size of the rotation angle.
-    theta = np.pi / sx
+    theta = PI / sx
 
     # Fixed probe location.
     p = Probe(Point([step / 2., -10]), Point([step / 2., 10]), step)
@@ -540,3 +555,209 @@ def raster_scan(sx, sy):
             p.translate(step)
         p.translate(-1)
         p.rotate(theta, Point([0.5, 0.5]))
+
+
+def tomography_3d(simulator, ang_start, ang_end, ang_step=None, n_ang=None, free_prop_dist=None,
+                  fname='tomo.h5', pr=False, **pr_options):
+    """
+    Perform tomography simulation using multislice propagation, and store output data
+    in HDF5 file.
+    Attributes:
+    -----------
+    simulator : :class:`acquisition.Simulator`
+        Instance of simulator class.
+    ang_start : float
+        Starting angle of rotation.
+    ang_end : float
+        Ending angle of rotation.
+    ang_step : float
+        Step of rotation. One and only one of ang_step and n_ang should be specified.
+    n_ang : int
+        Number of rotation angles. One and only one of ang_step and n_ang should be specified.
+    free_prop_dist : float
+        Distance between sample exiting plane and detector plane. Unit is cm.
+    fname : str
+        Path and filename of output.
+    pr : bool
+        Whether to perform phase retreval.
+    pr_options : kwargs
+        Options for phase retrieval. Valid keywords:
+            'alpha': regularization parameter for paganin.
+            'pixel_size': detector pixel size in cm.
+    """
+    assert isinstance(simulator, Simulator)
+    if pr:
+        from tomopy import retrieve_phase
+        alpha = pr_options['alphas']
+        psize = pr_options['pixel_size']
+    if not ang_step is None:
+        angles = np.arange(ang_start, ang_end + ang_step, ang_step)
+        n_ang = int((ang_end - ang_start) / ang_step) + 1
+    elif not n_ang is None:
+        angles = np.linspace(ang_start, ang_end, n_ang)
+        ang_step = float(ang_end - ang_start) / (n_ang - 1)
+    else:
+        raise ValueError('One of angular step or number of angles should be specified.')
+    f = h5py.File(fname)
+    xchng = f.create_group('exchange')
+    dset = xchng.create_dataset('data', (n_ang, simulator.size[1], simulator.size[2]), dtype='float32')
+    for theta, i in izip(angles, range(n_ang)):
+        print('\rNow at angle ', str(theta), end='')
+        exiting = simulator.multislice_propagate(free_prop_dist=free_prop_dist)
+        exiting = np.real(exiting * np.conjugate(exiting))
+        if pr:
+            exiting = retrieve_phase(exiting[np.newaxis, :, :], pixel_size=psize,
+                                     energy=simulator.energy_kev, dist=free_prop_dist, alpha=alpha)
+        dset[i, :, :] = exiting
+        simulator.rotate(ang_step)
+    dset = xchng.create_dataset('data_white', (1, simulator.size[1], simulator.size[2]))
+    dset[:, :, :] = np.ones(dset.shape)
+    dset = xchng.create_dataset('data_dark', (1, simulator.size[1], simulator.size[2]))
+    dset[:, :, :] = np.zeros(dset.shape)
+    f.close()
+
+
+class Simulator(object):
+    """Optical simulation based on multislice propagation.
+
+    Attributes
+    ----------
+    grid : numpy.ndarray or list of numpy.ndarray
+        Descretized grid for the phantom object. If type == 'refractive_index',
+        it takes a list of [delta_grid, beta_grid].
+    energy : float
+        Beam energy in eV. Should match the energy used for creating the grids.
+    psize : list
+        Pixel size in cm.
+    type : str
+        Value type of input grid.
+    """
+
+    def __init__(self, energy, grid=None, psize=None, type='refractive_index'):
+
+        if type == 'refractive_index':
+            if grid is not None:
+                self.grid_delta, self.grid_beta = grid
+            else:
+                self.grid_delta = self.grid_beta = None
+            self.energy_kev = energy * 1.e-3
+            self.voxel_nm = np.array(psize) * 1.e7
+            self._ndim = self.grid_delta.ndim
+            self.size = self.grid_delta.shape
+            self.lmbda_nm = 1.24 / self.energy_kev
+            self.mesh = []
+            temp = []
+            for i in range(self._ndim):
+                temp.append(np.arange(self.size[i]) * self.voxel_nm[i])
+            self.mesh = np.meshgrid(*temp, indexing='xy')
+
+            # wavefront in x-y plane or x edge
+            self.wavefront = np.zeros(self.grid_delta.shape[:-1], dtype=np.complex64)
+        else:
+            raise ValueError('Currently only delta and beta grids are supported.')
+
+    def save_grid(self, save_path='data/sav/grid'):
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        np.save(os.path.join(save_path, 'grid_delta'), self.grid_delta)
+        np.save(os.path.join(save_path, 'grid_beta'), self.grid_beta)
+        grid_pars = [self.size, self.voxel_nm, self.energy_kev * 1.e3]
+        np.save(os.path.join(save_path, 'grid_pars'), grid_pars)
+
+    def read_grid(self, save_path='data/sav/grid'):
+        try:
+            self.grid_delta = np.load(os.path.join(save_path, 'grid_delta.npy'))
+            self.grid_beta = np.load(os.path.join(save_path, 'grid_beta.npy'))
+        except:
+            raise ValueError('Failed to read grid.')
+
+    def save_slice_images(self, save_path='data/sav/slices'):
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        dxchange.write_tiff_stack(self.grid_delta, os.path.join(save_path, 'delta'),
+                                  overwrite=True, dtype=np.float32)
+        dxchange.write_tiff_stack(self.grid_beta, os.path.join(save_path, 'beta'),
+                                  overwrite=True, dtype=np.float32)
+
+    def show_grid(self, part='delta'):
+        import tifffile
+        if part == 'delta':
+            tifffile.imshow(self.grid_delta)
+        elif part == 'beta':
+            tifffile.imshow(self.grid_beta)
+        else:
+            warnings.warn('Wrong part specified for show_grid.')
+
+    def initialize_wavefront(self, type, **kwargs):
+        """Initialize wavefront.
+
+        Parameters:
+        -----------
+        type : str
+            Type of wavefront to be initialized. Valid options:
+            'plane', 'spot', 'point_projection_lens'
+        kwargs :
+            Options specific to the selection of type.
+            'plane': no option
+            'spot': 'width'
+            'point_projection_lens': 'focal_length', 'lens_sample_dist'
+        """
+        wave_shape = np.asarray(self.wavefront.shape)
+        if type == 'plane':
+            self.wavefront[...] = 1.
+        elif type == 'spot':
+            wid = kwargs['width']
+            radius = int(wid / 2)
+            if self._ndim == 2:
+                center = int(wave_shape[0] / 2)
+                self.wavefront[center-radius:center-radius+wid] = 1.
+            elif self._ndim == 3:
+                center = np.array(wave_shape / 2, dtype=int)
+                self.wavefront[center[0]-radius:center[0]-radius+wid, center[1]-radius:center[1]-radius+wid] = 1.
+        elif type == 'point_projection_lens':
+            f = kwargs['focal_length']
+            s = kwargs['lens_sample_dist']
+            xx = self.mesh[0][:, :, 0]
+            yy = self.mesh[1][:, :, 0]
+            r = np.sqrt(xx ** 2 + yy ** 2)
+            theta = np.arctan(r / (s - f))
+            path = np.mod(s / np.cos(theta), self.lmbda_nm)
+            phase = path * 2 * PI
+            wavefront = np.ones(wave_shape).astype('complex64')
+            wavefront = wavefront + 1j * np.tan(phase)
+            self.wavefront = wavefront / np.abs(wavefront)
+
+    def multislice_propagate(self, free_prop_dist=None):
+        """Do multislice propagation for wave with specified properties in the constructed grid.
+
+        Attributes:
+        -----------
+        free_prop_dist : float, optional
+            Distance between sample exiting plane and detector plane. Unit is cm.
+        """
+        n_slice = self.grid_delta.shape[-1]
+        for i_slice in range(n_slice):
+            print('Slice: {:d}'.format(i_slice))
+            sys.stdout.flush()
+            delta_slice = self.grid_delta[:, :, i_slice]
+            beta_slice = self.grid_beta[:, :, i_slice]
+            self.wavefront = slice_modify(self, delta_slice, beta_slice, self.wavefront)
+            self.wavefront = slice_propagate(self, self.wavefront)
+        if free_prop_dist is not None:
+            logger.debug('Free propagation')
+            # self.wavefront = free_propagate(self, self.wavefront, free_prop_dist)
+            self.wavefront = far_propagate(self, self.wavefront, free_prop_dist)
+        return self.wavefront
+
+    def rotate(self, theta, axes=(0, 2)):
+        """Rotate grid along a certain axis.
+        Attributes:
+        -----------
+        theta : float
+            Angle of rotation.
+        axes : tuple of int
+            Rotation plane defined by two axes.
+        """
+        self.grid_delta = rotate_grid(self.grid_delta, theta, axes=axes, reshape=False)
+        self.grid_beta = rotate_grid(self.grid_beta, theta, axes=axes, reshape=False)
+        return self

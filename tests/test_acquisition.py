@@ -33,9 +33,11 @@ def test_sinogram():
 
     ref_file = 'tests/test_sinogram.npy'
 
-    # plt.imshow(sino)
-    # plt.show(block=True)
+    plt.imshow(sino)
 
+    # TODO: This tests is disabled because it will always fail. This is because
+    # the intersection solver for polygons is not deterministic, so it doesn't
+    # return the same answer each time.
     # if not os.path.isfile(ref_file):
     #     ImportError('sinogram reference not found; use test_sinogram.ipynb' +
     #                 'to generate it')
@@ -43,3 +45,9 @@ def test_sinogram():
     # sino_reference = np.load(ref_file)
     #
     # assert_allclose(sino, sino_reference, atol=1e-2)
+
+
+if __name__ == '__main__':
+    # run tests which create figures
+    test_sinogram()
+    plt.show(block=True)
