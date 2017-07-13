@@ -62,6 +62,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import numpy as np
+from scipy.ndimage.interpolation import rotate as rotate_grid
 from xdesign.constants import PI
 from xdesign.geometry import *
 from xdesign.propagation import *
@@ -757,7 +758,6 @@ class Simulator(object):
         axes : tuple of int
             Rotation plane defined by two axes.
         """
-        from scipy.ndimage.interpolation import rotate
-        self.grid_delta = rotate(self.grid_delta, theta, axes=axes, reshape=False)
-        self.grid_beta = rotate(self.grid_beta, theta, axes=axes, reshape=False)
+        self.grid_delta = rotate_grid(self.grid_delta, theta, axes=axes, reshape=False)
+        self.grid_beta = rotate_grid(self.grid_beta, theta, axes=axes, reshape=False)
         return self
