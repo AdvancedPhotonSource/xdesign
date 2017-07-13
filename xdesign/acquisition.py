@@ -68,7 +68,10 @@ import logging
 import polytope as pt
 from copy import deepcopy
 from cached_property import cached_property
-import queue
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 import time
 
 logger = logging.getLogger(__name__)
