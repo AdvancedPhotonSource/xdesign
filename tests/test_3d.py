@@ -39,10 +39,10 @@ def test_beampoly_vertical_intersection():
     assert_allclose(beamtope(beam, tri), 1, rtol=1e-6)
 
 
-def test_probe_circular(N=4):
-    beam = Probe(Point([0, 0, -1]), Point([0, 0, 1]), 1, circleapprox=N)
-    tri = NCube(Point([0, 0, 0]), 1.0)
-    assert_allclose(beamtope(beam, tri), np.pi/4, atol=0.01)
+# def test_probe_circular(N=4):
+#     beam = Probe(Point([0, 0, -1]), Point([0, 0, 1]), 1, circleapprox=N)
+#     tri = NCube(Point([0, 0, 0]), 1.0)
+#     assert_allclose(beamtope(beam, tri), np.pi/4, atol=0.01)
 
 
 def test_plot_polytope():
