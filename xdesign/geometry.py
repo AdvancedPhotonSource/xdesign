@@ -65,6 +65,7 @@ from cached_property import cached_property
 import copy
 from math import sqrt, asin
 from copy import deepcopy
+from xdesign.constants import PI
 
 logger = logging.getLogger(__name__)
 
@@ -700,7 +701,7 @@ class Ellipse(Superellipse):
     @property
     def area(self):
         """Return area."""
-        return np.pi * self.a * self.b
+        return PI * self.a * self.b
 
     def scale(self, val):
         """Scale."""
@@ -753,7 +754,7 @@ class Circle(Curve):
     @property
     def circumference(self):
         """Returns the circumference."""
-        return 2 * np.pi * self.radius
+        return 2 * PI * self.radius
 
     @property
     def diameter(self):
@@ -763,7 +764,7 @@ class Circle(Curve):
     @property
     def area(self):
         """Return the area."""
-        return self.sign * np.pi * self.radius**2
+        return self.sign * PI * self.radius**2
 
     @property
     def patch(self):
@@ -1162,7 +1163,7 @@ class Square(Rectangle):
 
 
 class Cuboid_3d(Entity):
-    """Cuboid in 3-D cartesian space. 
+    """Cuboid in 3-D cartesian space.
     """
 
     def __init__(self, x1, x2):
@@ -1174,7 +1175,8 @@ class Cuboid_3d(Entity):
         self._dim = 3
 
     def __repr__(self):
-        return 'Cuboid({}, {})'.format([repr(n) for n in self.x1._x], [repr(n) for n in self.x2._x])
+        return 'Cuboid({}, {})'.format([repr(n) for n in self.x1._x],
+                                       [repr(n) for n in self.x2._x])
 
     @property
     def bounding_box(self):
@@ -1185,7 +1187,7 @@ class Cuboid_3d(Entity):
 
     def contains(self, other):
         """
-        Return whether the cuboid contains the other. 
+        Return whether the cuboid contains the other.
         """
         if isinstance(other, Point):
             x = other._x
@@ -1195,8 +1197,8 @@ class Cuboid_3d(Entity):
             raise NotImplementedError()
 
         x = np.atleast_2d(x)
-        ret = np.alltrue(self.x1._x <= x, axis=-1) * \
-                np.alltrue(x <= self.x2._x, axis=-1)
+        ret = (np.alltrue(self.x1._x <= x, axis=-1)
+               * np.alltrue(x <= self.x2._x, axis=-1))
         return ret
 
 
@@ -1213,7 +1215,8 @@ class Sphere_3d(Entity):
         self._dim = 3
 
     def __repr__(self):
-        return 'Sphere(center={}, radius={})'.format(repr(self.center), repr(self.radius))
+        return 'Sphere(center={}, radius={})'.format(repr(self.center),
+                                                     repr(self.radius))
 
     @property
     def bounding_box(self):
@@ -1224,7 +1227,7 @@ class Sphere_3d(Entity):
 
     def contains(self, other):
         """
-        Return whether the cuboid contains the other. 
+        Return whether the cuboid contains the other.
         """
         if isinstance(other, Point):
             x = other._x
@@ -1234,7 +1237,7 @@ class Sphere_3d(Entity):
             raise NotImplementedError()
 
         x = np.atleast_2d(x)
-        ret = np.sum((x - self.center._x) ** 2 , axis=-1) <= self.radius ** 2
+        ret = np.sum((x - self.center._x)**2, axis=-1) <= self.radius**2
         return ret
 
 
@@ -1258,14 +1261,16 @@ class Rod_3d(Entity):
 
     @property
     def bounding_box(self):
-        xmin = np.min([self.x1._x, self.x2._x], axis=0) - np.array([self.radius] * self.x1._dim)
-        xmax = np.max([self.x1._x, self.x2._x], axis=0) + np.array([self.radius] * self.x1._dim)
+        xmin = (np.min([self.x1._x, self.x2._x], axis=0)
+                - np.array([self.radius] * self.x1._dim))
+        xmax = (np.max([self.x1._x, self.x2._x], axis=0)
+                + np.array([self.radius] * self.x1._dim))
 
         return xmin, xmax
 
     def contains(self, other):
         """
-        Return whether the cuboid contains the other. 
+        Return whether the cuboid contains the other.
         """
         if isinstance(other, Point):
             x = other._x
@@ -1301,10 +1306,11 @@ class TruncatedCone_3d(Entity):
         self._dim = 3
 
     def __repr__(self):
-        return 'TruncatedCone(center={}, length={}, top_radius={}, bottom_radius={})'.format(repr(self.top_center),
-                                                                                             repr(self.length),
-                                                                                             repr(self.top_radius),
-                                                                                             repr(self.bottom_radius))
+        return 'TruncatedCone(center={}, length={}, top_radius={},' \
+               'bottom_radius={})'.format(repr(self.top_center),
+                                          repr(self.length),
+                                          repr(self.top_radius),
+                                          repr(self.bottom_radius))
 
     @property
     def bounding_box(self):
@@ -1319,7 +1325,7 @@ class TruncatedCone_3d(Entity):
 
     def contains(self, other):
         """
-        Return whether the geometry contains the other. 
+        Return whether the geometry contains the other.
         """
         if isinstance(other, Point):
             x = other._x
@@ -1330,9 +1336,10 @@ class TruncatedCone_3d(Entity):
 
         x = np.atleast_2d(x)
 
-        rad = self.top_radius + (self.bottom_radius - self.top_radius) / (self.length) * \
-                                (x[:, 1] - self.top_center._x[1])
-        ret = (x[:, 0] - self.top_center._x[0]) ** 2 + (x[:, 2] - self.top_center._x[2]) ** 2 <= rad ** 2
+        rad = self.top_radius + (self.bottom_radius - self.top_radius) \
+            / (self.length) * (x[:, 1] - self.top_center._x[1])
+        ret = (x[:, 0] - self.top_center._x[0])**2 \
+            + (x[:, 2] - self.top_center._x[2])**2 <= rad**2
 
         return ret
 
@@ -1348,7 +1355,7 @@ class Cylinder_3d(TruncatedCone_3d):
 
     def contains(self, other):
         """
-        Return whether the geometry contains the other. 
+        Return whether the geometry contains the other.
         """
         if isinstance(other, Point):
             x = other._x
@@ -1360,7 +1367,8 @@ class Cylinder_3d(TruncatedCone_3d):
         x = np.atleast_2d(x)
 
         rad = self.top_radius
-        ret = (x[:, 0] - self.top_center._x[0]) ** 2 + (x[:, 2] - self.top_center._x[2]) ** 2 <= rad ** 2
+        ret = (x[:, 0] - self.top_center._x[0])**2 \
+            + (x[:, 2] - self.top_center._x[2])**2 <= rad**2
 
         return ret
 
@@ -1593,7 +1601,7 @@ def halfspacecirc(d, r):
     if d >= r:  # The line is too far away to overlap!
         return 0
 
-    f = 0.5 - d*sqrt(r**2 - d**2)/(np.pi*r**2) - asin(d/r)/np.pi
+    f = 0.5 - d*sqrt(r**2 - d**2)/(PI*r**2) - asin(d/r)/PI
 
     # Returns the smaller fraction of the circle, so it can be at most 1/2.
     if f < 0 or 0.5 < f:
