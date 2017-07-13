@@ -140,7 +140,7 @@ class Glyph(patches.Ellipse):
     """A 2D glyph for visualizing tensors.
 
     The width and height of the Glyph are the unit normalized eigenvalues of
-    the tensor. The orientaiton of the Glyph is determined by the eigenvectors
+    the tensor. The orientation of the Glyph is determined by the eigenvectors
     of the tensor. The default color of the Glyph is determined by the trace of
     the tensor and the :py:data:`plot.DEFAULT_COLOR_MAP`.
 
@@ -149,7 +149,17 @@ class Glyph(patches.Ellipse):
     :py:class:`matplotlib.patches.Ellipse`,
     :py:func:`.plot_coverage_anisotropy`
     """
-    def __init__(self, xy, tensor, color='coverage', **kwargs):
+    def __init__(self, xy, tensor, color='coverage', trace_normal=1, **kwargs):
+        """
+        Parameters
+        ----------
+        color : 'coverage' or 'other'
+            The coloring mode of the Glyph. If 'coverage', then the color is
+            determined by the trace of the `tensor`. Otherwise, the color is
+            the ratio between the width and height i.e. the anisotropy
+        trace_normal : float
+            A scalar used to normalize the trace for coloring the glyph.
+        """
         values, orientation = np.linalg.eig(tensor)
         scale = np.sqrt(values.dot(values))
         if scale == 0:
@@ -161,7 +171,7 @@ class Glyph(patches.Ellipse):
         degrees = np.arctan2(orientation[1, 0], orientation[1, 1]) \
             * 180 / np.pi
         if color is 'coverage':
-            color = DEFAULT_COLOR_MAP(tensor.trace())
+            color = DEFAULT_COLOR_MAP(tensor.trace() / trace_normal)
         else:
             color = plt.cm.inferno(min(width, height) / max(width, height))
         super(Glyph, self).__init__(xy, width, height, angle=degrees,
