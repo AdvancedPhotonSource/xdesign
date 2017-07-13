@@ -93,7 +93,7 @@ class Probe(Line, pt.Polytope):
     A Probe is initialized by two points and a size (diameter).
 
     Attributes
-    -----------------
+    ----------
     p1 : Point
     p2 : Point
     size : float, cm (default: 0.0 cm)
@@ -103,8 +103,11 @@ class Probe(Line, pt.Polytope):
     energy : float, eV (defauly: 15 eV)
         The energy of the probe in eV.
 
-    .. todo:: Implement additional attributes for Probe such as wavelength,
-    etc.
+
+    .. todo::
+        Implement additional attributes for Probe such as wavelength,
+        etc.
+
     """
     def __init__(self, p1, p2, size=0.0, intensity=1.0, energy=15.0,
                  circleapprox=32):
