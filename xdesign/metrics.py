@@ -52,24 +52,23 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import scipy.ndimage
 import logging
 import warnings
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
-from copy import deepcopy
+import phasepack as phase
 
+from scipy import ndimage
 from scipy import optimize
-from scipy.stats import norm, exponnorm, expon, ttest_ind
-from phasepack import phasecongmono as _phasecongmono
+from scipy import stats
+from copy import deepcopy
 
 from xdesign.phantom import HyperbolicConcentric, UnitCircle
 from xdesign.acquisition import beamintersect
 from xdesign.geometry import Circle, Point, Line
 
 logger = logging.getLogger(__name__)
-
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -765,11 +764,11 @@ def compute_likeness(A, B, masks):
     # generate the pdf or pmf for each of the phases
     pdfs = []
     for m in masks:
-        K, mu, std = exponnorm.fit(np.ravel(A[m > 0]))
+        K, mu, std = stats.exponnorm.fit(np.ravel(A[m > 0]))
         print((K, mu, std))
         # for each reconstruciton, plot the likelihood that this phase
         # generates that pixel
-        pdfs.append(exponnorm.pdf(B, K, mu, std))
+        pdfs.append(stats.exponnorm.pdf(B, K, mu, std))
 
     # determine the probability that it belongs to its correct phase
     pdfs_total = sum(pdfs)
@@ -803,7 +802,7 @@ def compute_background_ttest(image, masks):
         other = np.logical_or(other, masks[i] > 0)
     other = image[other]
 
-    tstat, pvalue = ttest_ind(background, other, axis=None, equal_var=False)
+    tstat, pvalue = stats.ttest_ind(background, other, axis=None, equal_var=False)
     # print([tstat,pvalue])
 
     return tstat, pvalue
@@ -966,15 +965,15 @@ def _compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
     for level in range(0, nlevels):
         # Downsample (using ndimage.zoom to prevent sampling bias)
         if (level > 0):
-            img0 = scipy.ndimage.zoom(img0, 1/2)
-            img1 = scipy.ndimage.zoom(img1, 1/2)
+            img0 = ndimage.zoom(img0, 1/2)
+            img1 = ndimage.zoom(img1, 1/2)
 
-        mu0 = scipy.ndimage.gaussian_filter(img0, sigma)
-        mu1 = scipy.ndimage.gaussian_filter(img1, sigma)
+        mu0 = ndimage.gaussian_filter(img0, sigma)
+        mu1 = ndimage.gaussian_filter(img1, sigma)
 
-        sigma0_sq = scipy.ndimage.gaussian_filter((img0 - mu0)**2, sigma)
-        sigma1_sq = scipy.ndimage.gaussian_filter((img1 - mu1)**2, sigma)
-        sigma01 = scipy.ndimage.gaussian_filter((img0 - mu0) * (img1 - mu1),
+        sigma0_sq = ndimage.gaussian_filter((img0 - mu0)**2, sigma)
+        sigma1_sq = ndimage.gaussian_filter((img1 - mu1)**2, sigma)
+        sigma01 = ndimage.gaussian_filter((img0 - mu0) * (img1 - mu1),
                                                 sigma)
 
         g = sigma01 / (sigma0_sq + eps)
@@ -1060,12 +1059,12 @@ def _compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
         sigma = 1.2 * 2**level
 
         F = 2  # Downsample (using ndimage.zoom to prevent sampling bias)
-        Y1 = scipy.ndimage.zoom(Y1, 1/F)
-        Y2 = scipy.ndimage.zoom(Y2, 1/F)
+        Y1 = ndimage.zoom(Y1, 1/F)
+        Y2 = ndimage.zoom(Y2, 1/F)
 
         # Calculate the phase congruency maps
-        [PC1, Orient1, ft1, T1] = _phasecongmono(Y1, nscale=nwavelets)
-        [PC2, Orient2, ft2, T2] = _phasecongmono(Y2, nscale=nwavelets)
+        [PC1, Orient1, ft1, T1] = phase.phasecongmono(Y1, nscale=nwavelets)
+        [PC2, Orient2, ft2, T2] = phase.phasecongmono(Y2, nscale=nwavelets)
 
         # Calculate the gradient magnitude map using Scharr filters
         dx = np.array([[3., 0., -3.],
@@ -1075,12 +1074,12 @@ def _compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
                        [0., 0., 0.],
                        [-3., -10., -3.]]) / 16
 
-        IxY1 = scipy.ndimage.filters.convolve(Y1, dx)
-        IyY1 = scipy.ndimage.filters.convolve(Y1, dy)
+        IxY1 = ndimage.filters.convolve(Y1, dx)
+        IyY1 = ndimage.filters.convolve(Y1, dy)
         gradientMap1 = np.sqrt(IxY1**2 + IyY1**2)
 
-        IxY2 = scipy.ndimage.filters.convolve(Y2, dx)
-        IyY2 = scipy.ndimage.filters.convolve(Y2, dy)
+        IxY2 = ndimage.filters.convolve(Y2, dx)
+        IyY2 = ndimage.filters.convolve(Y2, dy)
         gradientMap2 = np.sqrt(IxY2**2 + IyY2**2)
 
         # Calculate the FSIM
@@ -1156,8 +1155,8 @@ def _compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
             break
 
         # Downsample (using ndimage.zoom to prevent sampling bias)
-        img0 = scipy.ndimage.zoom(img0, 0.5)
-        img1 = scipy.ndimage.zoom(img1, 0.5)
+        img0 = ndimage.zoom(img0, 0.5)
+        img1 = ndimage.zoom(img1, 0.5)
 
     return scales, mets, maps
 
@@ -1212,8 +1211,8 @@ def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     # Convert image matrices to double precision (like in the Matlab version)
 
     # Means obtained by Gaussian filtering of inputs
-    mu_1 = scipy.ndimage.filters.gaussian_filter(img1, sigma)
-    mu_2 = scipy.ndimage.filters.gaussian_filter(img2, sigma)
+    mu_1 = ndimage.filters.gaussian_filter(img1, sigma)
+    mu_2 = ndimage.filters.gaussian_filter(img2, sigma)
 
     # Squares of means
     mu_1_sq = mu_1**2
@@ -1226,11 +1225,11 @@ def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     im12 = img1 * img2
 
     # Variances obtained by Gaussian filtering of inputs' squares
-    sigma_1_sq = scipy.ndimage.filters.gaussian_filter(im1_sq, sigma)
-    sigma_2_sq = scipy.ndimage.filters.gaussian_filter(im2_sq, sigma)
+    sigma_1_sq = ndimage.filters.gaussian_filter(im1_sq, sigma)
+    sigma_2_sq = ndimage.filters.gaussian_filter(im2_sq, sigma)
 
     # Covariance
-    sigma_12 = scipy.ndimage.filters.gaussian_filter(im12, sigma)
+    sigma_12 = ndimage.filters.gaussian_filter(im12, sigma)
 
     # Centered squares of variances
     sigma_1_sq -= mu_1_sq
