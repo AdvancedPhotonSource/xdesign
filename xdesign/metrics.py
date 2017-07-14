@@ -451,49 +451,52 @@ def get_line_at_radius(image, fradius, N):
 
     Parameters
     ----------
-    image: ndarray
+    image : :py:class:`numpy.ndarray`
         A centered image of the seimens star.
-    fradius: float, Mx1 ndarray
-        The radius(i) fractions of the image at which to extract the line.
-        Given as a float in the range (0, 1)
-    N: integer > 0
-        the number of points to sample around the circumference of the circle
+    fradius : :py:class:`numpy.array_like`
+        The M radius fractions of the image at which to extract the line
+        given as a floats in the range (0, 1).
+    N : int
+        The number of points to sample around the circumference of each circle
 
     Returns
     -------
-    line : NxM ndarray
+    line : NxM :py:class:`numpy.ndarray`
         the values from image at the radius
-    theta : Nx1 ndarray
+    theta : Nx1 :py:class:`numpy.ndarray`
         the angles that were sampled in radians
+
+    Raises
+    ------
+    ValueError
+        If `image` is not square.
+        If any value of `fradius` is not in the range (0, 1).
+        If `N` < 1.
     """
+    fradius = np.asanyarray(fradius)
     if image.shape[0] != image.shape[1]:
         raise ValueError('image must be square.')
     if np.any(0 >= fradius) or np.any(fradius >= 1):
         raise ValueError('fradius must be in the range (0, 1)')
     if N < 1:
         raise ValueError('Sampling less than 1 point is not useful.')
-
     # add singleton dimension to enable matrix multiplication
-    fradius = np.expand_dims(np.array(fradius), 0)
     M = fradius.size
-
+    fradius.shape = (1, M)
     # calculate the angles to sample
-    theta = np.expand_dims((np.arange(0, N)/N) * 2 * np.pi, 1)
-
+    theta = np.arange(0, N) / N * 2 * np.pi
+    theta.shape = (N, 1)
     # convert the angles to xy coordinates
-    x = fradius*np.cos(theta)
-    y = fradius*np.sin(theta)
-
+    x = fradius * np.cos(theta)
+    y = fradius * np.sin(theta)
     # round to nearest integer location and shift to center
     image_half = image.shape[0]/2
     x = np.round((x + 1) * image_half)
     y = np.round((y + 1) * image_half)
-
     # extract from image
     line = image[x.astype(int), y.astype(int)]
-
-    assert(line.shape == (N, M)), line.shape
-    assert(theta.shape == (N, 1)), theta.shape
+    assert line.shape == (N, M), line.shape
+    assert theta.shape == (N, 1), theta.shape
     return line, theta
 
 
