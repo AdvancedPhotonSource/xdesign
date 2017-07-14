@@ -119,7 +119,7 @@ def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
         The edge length of the pixels in the coverage map in centimeters.
     n : int
         The number of lines per beam
-    anisotropy : bool (default: False)
+    anisotropy : bool
         Whether the coverage map includes anisotropy information
 
     Returns
@@ -293,16 +293,16 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
     '''Calculate the MTF using the method described in :cite:`Friedman:13`.
 
     Parameters
-    ---------------
-    phantom : UnitCircle
+    ----------
+    phantom : :py:class:`.UnitCircle`
         Predefined phantom with single circle whose radius is less than 0.5.
     image : ndarray
-        The reconstruction of the above phantom.
+        The reconstruction of the phantom.
     Ntheta : scalar
         The number of directions at which to calculate the MTF.
 
     Returns
-    --------------
+    -------
     wavenumber : ndarray
         wavelenth in the scale of the original phantom
     MTF : ndarray
@@ -414,13 +414,13 @@ def compute_mtf_lwkj(phantom, image):
     """Calculate the MTF using the modulated Siemens Star method in
     :cite:`loebich2007digital`.
 
-    parameters
+    Parameters
     ----------
-    phantom : SiemensStar
+    phantom : :py:class:`.SiemensStar`
     image : ndarray
         The reconstruciton of the SiemensStar
 
-    returns
+    Returns
     -------
     frequency : array
         The spatial frequency in cycles per unit length
@@ -449,7 +449,7 @@ def compute_mtf_lwkj(phantom, image):
 def get_line_at_radius(image, fradius, N):
     """Return an Nx1 array of the values of the image at a radius.
 
-    parameters
+    Parameters
     ----------
     image: ndarray
         A centered image of the seimens star.
