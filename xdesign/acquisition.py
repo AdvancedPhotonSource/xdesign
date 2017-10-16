@@ -278,12 +278,13 @@ class Probe(Beam):
 
         Parameters
         ----------
-        sigma : float >= 0
-            The standard deviation of the normally distributed noise.
+        perc : float >= 0
+            Percentage of Gaussian noise.
         """
         newdata = self._measure_helper(phantom)
+        std = perc * newdata
         if sigma > 0:
-            newdata += newdata * np.random.normal(scale=sigma)
+            newdata += newdata * np.random.normal(scale=std)
 
         self.record()
         return newdata
