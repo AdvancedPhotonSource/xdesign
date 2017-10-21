@@ -198,18 +198,18 @@ class Probe(Line, pt.Polytope):
         pt.polytope._rotate(self, i=0, j=1, theta=theta)
         pt.polytope._translate(self, d)
 
-    def measure(self, phantom, sigma=0.0, pool=None):
+    def measure(self, phantom, perc=0.0, pool=None):
         """Return the probe measurement with optional Gaussian noise.
 
         Parameters
         ----------
-        sigma : float >= 0
-            The standard deviation of the normally distributed noise.
+        perc : float >= 0
+            Percentage of Gaussian noise.
         """
         newdata = self.intensity * np.exp(-self._get_attenuation(phantom))
 
-        if sigma > 0:
-            newdata += newdata * np.random.normal(scale=sigma)
+        if perc > 0:
+            newdata += newdata * perc * np.random.normal(scale=1)
 
         self.record()
 
