@@ -356,6 +356,8 @@ def plot_polygon(polygon, axis=None, alpha=None, c=None):
         fig, axis = _make_axis()
     if c is None:
         c = POLY_COLOR
+    if polygon.sign == -1:
+        c = tuple([1, 1, 1, 2] - np.array(c))
 
     p = polygon.patch
     p.set_alpha(alpha)
@@ -411,6 +413,8 @@ def plot_curve(curve, axis=None, alpha=None, c=None):
         fig, axis = _make_axis()
     if c is None:
         c = DEFAULT_COLOR
+    if curve.sign == -1:
+        c = tuple([1, 1, 1, 2] - np.array(c))
 
     p = curve.patch
     p.set_alpha(alpha)
