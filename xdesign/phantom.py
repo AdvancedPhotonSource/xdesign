@@ -955,6 +955,7 @@ class Softwood(Phantom):
         super(Softwood, self).__init__()
 
         ring_size = 0.5
+        ring_offset = np.random.rand()
         latewood_fraction = 0.35
 
         ray_fraction = 1/8
@@ -997,8 +998,8 @@ class Softwood(Phantom):
             else:
                 is_ray = False
 
-            ring_progress = 0
             for c in itertools.count():
+                ring_progress = ((x + ring_offset) / ring_size) % 1
 
                 if x < x0 and abs(x - x0) > atol:
                     # skip first cell if jittered outside the frame
@@ -1012,7 +1013,7 @@ class Softwood(Phantom):
 
                 else:  # not ray cells
                     if ring_progress < 1 - latewood_fraction:
-                        # TODO: Add some randomness to when latewood starts
+                        # earlywood
                         dw, dt = 1, 1
                     else:
                         # transition to latewood
@@ -1026,7 +1027,6 @@ class Softwood(Phantom):
                 self.append(cell)
 
                 x += cell.width
-                ring_progress = (x / ring_size) % 1
 
                 if x + cell.width > x1 and abs(x + cell.width - x1) > atol:
                     # Stop if cell reaches out of frame
