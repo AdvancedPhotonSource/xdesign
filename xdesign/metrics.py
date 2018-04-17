@@ -52,24 +52,23 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import scipy.ndimage
 import logging
 import warnings
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
-from copy import deepcopy
+import phasepack as phase
 
+from scipy import ndimage
 from scipy import optimize
-from scipy.stats import norm, exponnorm, expon, ttest_ind
-from phasepack import phasecongmono as _phasecongmono
+from scipy import stats
+from copy import deepcopy
 
 from xdesign.phantom import HyperbolicConcentric, UnitCircle
 from xdesign.acquisition import beamintersect
 from xdesign.geometry import Circle, Point, Line
 
 logger = logging.getLogger(__name__)
-
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -120,7 +119,7 @@ def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
         The edge length of the pixels in the coverage map in centimeters.
     n : int
         The number of lines per beam
-    anisotropy : bool (default: False)
+    anisotropy : bool
         Whether the coverage map includes anisotropy information
 
     Returns
@@ -294,16 +293,16 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
     '''Calculate the MTF using the method described in :cite:`Friedman:13`.
 
     Parameters
-    ---------------
-    phantom : UnitCircle
+    ----------
+    phantom : :py:class:`.UnitCircle`
         Predefined phantom with single circle whose radius is less than 0.5.
     image : ndarray
-        The reconstruction of the above phantom.
+        The reconstruction of the phantom.
     Ntheta : scalar
         The number of directions at which to calculate the MTF.
 
     Returns
-    --------------
+    -------
     wavenumber : ndarray
         wavelenth in the scale of the original phantom
     MTF : ndarray
@@ -415,13 +414,13 @@ def compute_mtf_lwkj(phantom, image):
     """Calculate the MTF using the modulated Siemens Star method in
     :cite:`loebich2007digital`.
 
-    parameters
+    Parameters
     ----------
-    phantom : SiemensStar
+    phantom : :py:class:`.SiemensStar`
     image : ndarray
         The reconstruciton of the SiemensStar
 
-    returns
+    Returns
     -------
     frequency : array
         The spatial frequency in cycles per unit length
@@ -450,51 +449,54 @@ def compute_mtf_lwkj(phantom, image):
 def get_line_at_radius(image, fradius, N):
     """Return an Nx1 array of the values of the image at a radius.
 
-    parameters
+    Parameters
     ----------
-    image: ndarray
+    image : :py:class:`numpy.ndarray`
         A centered image of the seimens star.
-    fradius: float, Mx1 ndarray
-        The radius(i) fractions of the image at which to extract the line.
-        Given as a float in the range (0, 1)
-    N: integer > 0
-        the number of points to sample around the circumference of the circle
+    fradius : :py:class:`numpy.array_like`
+        The M radius fractions of the image at which to extract the line
+        given as a floats in the range (0, 1).
+    N : int
+        The number of points to sample around the circumference of each circle
 
     Returns
     -------
-    line : NxM ndarray
+    line : NxM :py:class:`numpy.ndarray`
         the values from image at the radius
-    theta : Nx1 ndarray
+    theta : Nx1 :py:class:`numpy.ndarray`
         the angles that were sampled in radians
+
+    Raises
+    ------
+    ValueError
+        If `image` is not square.
+        If any value of `fradius` is not in the range (0, 1).
+        If `N` < 1.
     """
+    fradius = np.asanyarray(fradius)
     if image.shape[0] != image.shape[1]:
         raise ValueError('image must be square.')
     if np.any(0 >= fradius) or np.any(fradius >= 1):
         raise ValueError('fradius must be in the range (0, 1)')
     if N < 1:
         raise ValueError('Sampling less than 1 point is not useful.')
-
     # add singleton dimension to enable matrix multiplication
-    fradius = np.expand_dims(np.array(fradius), 0)
     M = fradius.size
-
+    fradius.shape = (1, M)
     # calculate the angles to sample
-    theta = np.expand_dims((np.arange(0, N)/N) * 2 * np.pi, 1)
-
+    theta = np.arange(0, N) / N * 2 * np.pi
+    theta.shape = (N, 1)
     # convert the angles to xy coordinates
-    x = fradius*np.cos(theta)
-    y = fradius*np.sin(theta)
-
+    x = fradius * np.cos(theta)
+    y = fradius * np.sin(theta)
     # round to nearest integer location and shift to center
     image_half = image.shape[0]/2
     x = np.round((x + 1) * image_half)
     y = np.round((y + 1) * image_half)
-
     # extract from image
     line = image[x.astype(int), y.astype(int)]
-
-    assert(line.shape == (N, M)), line.shape
-    assert(theta.shape == (N, 1)), theta.shape
+    assert line.shape == (N, M), line.shape
+    assert theta.shape == (N, 1), theta.shape
     return line, theta
 
 
@@ -765,11 +767,11 @@ def compute_likeness(A, B, masks):
     # generate the pdf or pmf for each of the phases
     pdfs = []
     for m in masks:
-        K, mu, std = exponnorm.fit(np.ravel(A[m > 0]))
+        K, mu, std = stats.exponnorm.fit(np.ravel(A[m > 0]))
         print((K, mu, std))
         # for each reconstruciton, plot the likelihood that this phase
         # generates that pixel
-        pdfs.append(exponnorm.pdf(B, K, mu, std))
+        pdfs.append(stats.exponnorm.pdf(B, K, mu, std))
 
     # determine the probability that it belongs to its correct phase
     pdfs_total = sum(pdfs)
@@ -803,7 +805,7 @@ def compute_background_ttest(image, masks):
         other = np.logical_or(other, masks[i] > 0)
     other = image[other]
 
-    tstat, pvalue = ttest_ind(background, other, axis=None, equal_var=False)
+    tstat, pvalue = stats.ttest_ind(background, other, axis=None, equal_var=False)
     # print([tstat,pvalue])
 
     return tstat, pvalue
@@ -966,15 +968,15 @@ def _compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
     for level in range(0, nlevels):
         # Downsample (using ndimage.zoom to prevent sampling bias)
         if (level > 0):
-            img0 = scipy.ndimage.zoom(img0, 1/2)
-            img1 = scipy.ndimage.zoom(img1, 1/2)
+            img0 = ndimage.zoom(img0, 1/2)
+            img1 = ndimage.zoom(img1, 1/2)
 
-        mu0 = scipy.ndimage.gaussian_filter(img0, sigma)
-        mu1 = scipy.ndimage.gaussian_filter(img1, sigma)
+        mu0 = ndimage.gaussian_filter(img0, sigma)
+        mu1 = ndimage.gaussian_filter(img1, sigma)
 
-        sigma0_sq = scipy.ndimage.gaussian_filter((img0 - mu0)**2, sigma)
-        sigma1_sq = scipy.ndimage.gaussian_filter((img1 - mu1)**2, sigma)
-        sigma01 = scipy.ndimage.gaussian_filter((img0 - mu0) * (img1 - mu1),
+        sigma0_sq = ndimage.gaussian_filter((img0 - mu0)**2, sigma)
+        sigma1_sq = ndimage.gaussian_filter((img1 - mu1)**2, sigma)
+        sigma01 = ndimage.gaussian_filter((img0 - mu0) * (img1 - mu1),
                                                 sigma)
 
         g = sigma01 / (sigma0_sq + eps)
@@ -1060,12 +1062,12 @@ def _compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
         sigma = 1.2 * 2**level
 
         F = 2  # Downsample (using ndimage.zoom to prevent sampling bias)
-        Y1 = scipy.ndimage.zoom(Y1, 1/F)
-        Y2 = scipy.ndimage.zoom(Y2, 1/F)
+        Y1 = ndimage.zoom(Y1, 1/F)
+        Y2 = ndimage.zoom(Y2, 1/F)
 
         # Calculate the phase congruency maps
-        [PC1, Orient1, ft1, T1] = _phasecongmono(Y1, nscale=nwavelets)
-        [PC2, Orient2, ft2, T2] = _phasecongmono(Y2, nscale=nwavelets)
+        [PC1, Orient1, ft1, T1] = phase.phasecongmono(Y1, nscale=nwavelets)
+        [PC2, Orient2, ft2, T2] = phase.phasecongmono(Y2, nscale=nwavelets)
 
         # Calculate the gradient magnitude map using Scharr filters
         dx = np.array([[3., 0., -3.],
@@ -1075,12 +1077,12 @@ def _compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
                        [0., 0., 0.],
                        [-3., -10., -3.]]) / 16
 
-        IxY1 = scipy.ndimage.filters.convolve(Y1, dx)
-        IyY1 = scipy.ndimage.filters.convolve(Y1, dy)
+        IxY1 = ndimage.filters.convolve(Y1, dx)
+        IyY1 = ndimage.filters.convolve(Y1, dy)
         gradientMap1 = np.sqrt(IxY1**2 + IyY1**2)
 
-        IxY2 = scipy.ndimage.filters.convolve(Y2, dx)
-        IyY2 = scipy.ndimage.filters.convolve(Y2, dy)
+        IxY2 = ndimage.filters.convolve(Y2, dx)
+        IyY2 = ndimage.filters.convolve(Y2, dy)
         gradientMap2 = np.sqrt(IxY2**2 + IyY2**2)
 
         # Calculate the FSIM
@@ -1156,8 +1158,8 @@ def _compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
             break
 
         # Downsample (using ndimage.zoom to prevent sampling bias)
-        img0 = scipy.ndimage.zoom(img0, 0.5)
-        img1 = scipy.ndimage.zoom(img1, 0.5)
+        img0 = ndimage.zoom(img0, 0.5)
+        img1 = ndimage.zoom(img1, 0.5)
 
     return scales, mets, maps
 
@@ -1212,8 +1214,8 @@ def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     # Convert image matrices to double precision (like in the Matlab version)
 
     # Means obtained by Gaussian filtering of inputs
-    mu_1 = scipy.ndimage.filters.gaussian_filter(img1, sigma)
-    mu_2 = scipy.ndimage.filters.gaussian_filter(img2, sigma)
+    mu_1 = ndimage.filters.gaussian_filter(img1, sigma)
+    mu_2 = ndimage.filters.gaussian_filter(img2, sigma)
 
     # Squares of means
     mu_1_sq = mu_1**2
@@ -1226,11 +1228,11 @@ def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     im12 = img1 * img2
 
     # Variances obtained by Gaussian filtering of inputs' squares
-    sigma_1_sq = scipy.ndimage.filters.gaussian_filter(im1_sq, sigma)
-    sigma_2_sq = scipy.ndimage.filters.gaussian_filter(im2_sq, sigma)
+    sigma_1_sq = ndimage.filters.gaussian_filter(im1_sq, sigma)
+    sigma_2_sq = ndimage.filters.gaussian_filter(im2_sq, sigma)
 
     # Covariance
-    sigma_12 = scipy.ndimage.filters.gaussian_filter(im12, sigma)
+    sigma_12 = ndimage.filters.gaussian_filter(im12, sigma)
 
     # Centered squares of variances
     sigma_1_sq -= mu_1_sq
