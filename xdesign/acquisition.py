@@ -115,7 +115,6 @@ class Probe(Line):
         self.intensity = intensity
         self.energy = energy
         self.history = list()
-        # Construct the Polytope beam
         # determine the length, position, and shape of the beam
         radius = self.size / 2
         half_length = self.p1.distance(self.p2) / 2
@@ -129,8 +128,6 @@ class Probe(Line):
         u = Point([1] + [0]*(self.dim - 1))
         v = self.p2 - self.p1
         w = u.norm * v._x + v.norm * u._x
-        # rotate the polytope and translate to beam
-        p = p.translation(center)
 
     def __repr__(self):
         return "Probe({}, {}, size={}, intensity={}, energy={})".format(
