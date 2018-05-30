@@ -160,7 +160,12 @@ class Glyph(patches.Ellipse):
         trace_normal : float
             A scalar used to normalize the trace for coloring the glyph.
         """
-        values, orientation = np.linalg.eig(tensor)
+        try:
+            values, orientation = np.linalg.eig(tensor)
+        except np.linalg.LinAlgError:
+            logger.debug("GLYPH: nan tensor at {}".format(xy))
+            super(Glyph, self).__init__(xy, 0, 0)
+            return
         scale = np.sqrt(values.dot(values))
         if scale == 0:
             logger.info("GLYPH: zero tensor at {}".format(xy))
@@ -212,6 +217,7 @@ def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
     for ij in ijrange:
         glyph = Glyph(ij, coverage_map[ij[0], ij[1], :, :], **kwargs)
         axis.add_artist(glyph)
+
 
 
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=-1,
