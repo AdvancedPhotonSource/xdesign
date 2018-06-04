@@ -219,7 +219,6 @@ def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
         axis.add_artist(glyph)
 
 
-
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=-1,
                  z=0.0, t=0.0001):
     """Plot a :class:`.Phantom` to the given axis.
@@ -431,8 +430,8 @@ def plot_curve(curve, axis=None, alpha=None, c=None):
 
 
 def _make_axis():
-    """Make an :class:`matplotlib.axis.Axis` for plotting :mod:`.Phantom` module
-    classes."""
+    """Make an :class:`matplotlib.axis.Axis` for plotting :mod:`.Phantom
+    module classes."""
     fig = plt.figure(figsize=(8, 8), dpi=100)
     axis = fig.add_subplot(111, aspect='equal')
     plt.grid('on')
