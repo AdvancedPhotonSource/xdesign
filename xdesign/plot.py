@@ -490,7 +490,7 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
 
         # Make a grid to put store all of the discrete geometries
         image = np.zeros([size] * phantom.geometry.dim, dtype=float)
-        imin = [0] * phantom.geometry.dim
+        imin = [-0.5 // psize] * phantom.geometry.dim
 
         image = combine_grid(imin, image, pmin // psize, patch * value)
 
@@ -676,14 +676,16 @@ def sidebyside(p, size=100, labels=None, prop='mass_attenuation'):
     plot_phantom(p, axis=axis, labels=labels)
     plt.grid('on')
     axis.invert_yaxis()
-    axis.set_xticks(np.linspace(0, 1, 6, True))
-    axis.set_yticks(np.linspace(0, 1, 6, True))
+    axis.set_xticks(np.linspace(0, 1, 6, True) - 0.5)
+    axis.set_yticks(np.linspace(0, 1, 6, True) - 0.5)
+    plt.xlim([-.5, .5])
+    plt.ylim([-.5, .5])
 
     axis = plt.subplot(122)
     d = discrete_phantom(p, size, prop=prop)
-    plt.imshow(d, interpolation='none', cmap=plt.cm.inferno)
-    axis.set_xticks(np.linspace(0, size, 6, True))
-    axis.set_yticks(np.linspace(0, size, 6, True))
+    plt.imshow(d, interpolation='none', cmap=plt.cm.inferno, origin='lower')
+    # axis.set_xticks(np.linspace(0, size, 6, True))
+    # axis.set_yticks(np.linspace(0, size, 6, True))
 
     plt.tight_layout()
 
