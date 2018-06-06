@@ -65,7 +65,6 @@ import numpy as np
 from xdesign.geometry import *
 from xdesign.geometry import halfspacecirc
 import logging
-import polytope as pt
 from copy import deepcopy
 from cached_property import cached_property
 try:
@@ -87,7 +86,7 @@ __all__ = ['Probe',
            'raster_scan3D']
 
 
-class Probe(Line, pt.Polytope):
+class Probe(Line):
     """An x-ray beam for probing Phantoms.
 
     A Probe is initialized by two points and a size (diameter).
@@ -112,46 +111,23 @@ class Probe(Line, pt.Polytope):
     def __init__(self, p1, p2, size=0.0, intensity=1.0, energy=15.0,
                  circleapprox=32):
         super(Probe, self).__init__(p1, p2)
-
         self.size = size
         self.intensity = intensity
         self.energy = energy
-
         self.history = list()
-
-        # Construct the Polytope beam
         # determine the length, position, and shape of the beam
         radius = self.size / 2
         half_length = self.p1.distance(self.p2) / 2
         center = ((self.p2 + self.p1) / 2)._x
-
         # make a bounding box around axis 0
         hi = np.full(self.dim, radius)
         lo = -hi
         hi[0] = +half_length
         lo[0] = -half_length
-
-        # create the polytope
-        p = pt.Polytope.from_box(np.stack([lo, hi], axis=1))
-
-        # Rotate the polytope around axis 0 to create a cylinder
-        if self.dim > 2:
-            nrotations = circleapprox
-            angle = np.pi / (2 * (nrotations + 1))
-            for i in range(nrotations):
-                rotated = p.rotation(i=1, j=2, theta=angle)
-                p = pt.intersect(p, rotated)
-
         # find the vector which bisects the angle between [1,0,0] and the beam
         u = Point([1] + [0]*(self.dim - 1))
         v = self.p2 - self.p1
         w = u.norm * v._x + v.norm * u._x
-
-        # rotate the polytope and translate to beam
-        pt.polytope._rotate(p, u=u._x, v=w)
-        p = p.translation(center)
-
-        pt.Polytope.__init__(self, A=p.A, b=p.b, minrep=True)
 
     def __repr__(self):
         return "Probe({}, {}, size={}, intensity={}, energy={})".format(
@@ -175,7 +151,6 @@ class Probe(Line, pt.Polytope):
 
         self.p1.translate(vector)
         self.p2.translate(vector)
-        pt.polytope._translate(self, vector)
 
     def record(self):
         self.history.append(self.list)
@@ -196,10 +171,6 @@ class Probe(Line, pt.Polytope):
             d = 0
         else:
             d = point._x
-
-        pt.polytope._translate(self, -d)
-        pt.polytope._rotate(self, i=0, j=1, theta=theta)
-        pt.polytope._translate(self, d)
 
     def measure(self, phantom, perc=0.0, pool=None):
         """Return the probe measurement with optional Gaussian noise.
@@ -258,8 +229,6 @@ def beamintersect(beam, geometry):
         return beampoly(beam, geometry)
     elif isinstance(geometry, Circle):
         return beamcirc(beam, geometry)
-    elif isinstance(geometry, pt.Polytope):
-        return beamtope(beam, geometry)
     else:
         raise NotImplementedError
 
@@ -285,15 +254,6 @@ def beampoly(beam, poly):
         return 0
 
     return beam.intersect(poly.half_space).volume
-
-
-def beamtope(beam, tope):
-    """Intersection area of an infinite beam with a polytope"""
-    # if beam.distance(Point(tope.chebXc)) > tope.radius:
-    #     logger.debug("BEAMTOPE: skipped because of radius.")
-    #     return 0
-
-    return beam.intersect(tope).volume
 
 
 def beamcirc(beam, circle):

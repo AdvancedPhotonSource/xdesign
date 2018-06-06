@@ -60,7 +60,6 @@ import warnings
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from numbers import Number
-import polytope as pt
 from cached_property import cached_property
 import copy
 from math import sqrt, asin
@@ -79,9 +78,8 @@ __all__ = ['Entity',
            'Triangle',
            'Rectangle',
            'Square',
-           'Mesh',
-           'NOrthotope',
-           'NCube']
+           'Mesh'
+           ]
 
 
 class Entity(object):
@@ -988,7 +986,6 @@ class Polygon(Entity):
                 A[i, :] = -A[i, :]
                 B[i] = -B[i]
 
-        p = pt.Polytope(A, B)
         return p
 
     # Methods
@@ -1403,104 +1400,3 @@ def halfspacecirc(d, r):
         f = 0
 
     return f
-
-
-class NOrthotope(pt.Polytope):
-    """A rectangle in higher dimensions.
-
-    Attributes
-    ----------
-    center : :class:`Point`
-        The middle of the Parallelotope
-    side_lengths : N array
-        A vector defining the lengths of the edges of the NOrthotope.
-    """
-    def __init__(self, center, side_lengths):
-
-        self.radii = np.array(side_lengths) / 2
-        self.side_lengths = np.array(side_lengths)
-        self.radius = sqrt(self.radii.dot(self.radii))
-
-        lo = center._x - self.radii
-        hi = center._x + self.radii
-        intervals = np.stack([lo, hi], axis=1)
-
-        # Use code from Polytope.from_box()
-        if not isinstance(intervals, np.ndarray):
-            intervals = np.array(intervals)
-        if intervals.ndim != 2:
-            raise ValueError('Polytope.from_box: ' +
-                             'intervals must be 2 dimensional')
-        n = intervals.shape
-        if n[1] != 2:
-            raise ValueError('Polytope.from_box: ' +
-                             'intervals must have 2 columns')
-        n = n[0]
-        # a <= b for each interval ?
-        if (intervals[:, 0] > intervals[:, 1]).any():
-            msg = 'Polytope.from_box: '
-            msg += 'Invalid interval in from_box method.\n'
-            msg += 'First element of an interval must'
-            msg += ' not be larger than the second.'
-            raise ValueError(msg)
-        A = np.vstack([np.eye(n), -np.eye(n)])
-        b = np.hstack([intervals[:, 1], -intervals[:, 0]])
-
-        super(NOrthotope, self).__init__(A, b, minrep=True)
-
-    @property
-    def center(self):
-        """The Chebyshev ball center"""
-        return Point(self.chebXc)
-
-    # Methods
-    def translate(self, vector):
-        """Translate by a vector."""
-        pt.polytope._translate(self, vector)
-
-    def rotate(self, theta, point=None, axis=None):
-        """Rotate around an axis which passes through a point by
-        theta radians."""
-
-        if point is None:
-            d = 0
-        else:
-            d = point._x
-
-        pt.polytope._translate(self, -d)
-        pt.polytope._rotate(self, i=0, j=1, theta=theta)
-        pt.polytope._translate(self, d)
-
-    def contains(self, other):
-        """Return whether this Parallelotope contains the other."""
-        if isinstance(other, Point):
-            return other._x in self
-
-        elif isinstance(other, np.ndarray):
-            if other.ndim == 1:
-                other.shape = (other.size, 1)
-            else:
-                other = other.T
-
-            assert other.shape[0] == self.dim
-
-            test = self.A.dot(other) \
-                - self.b.reshape((self.b.size, 1)) < 1e-7
-
-            return np.all(test, axis=0)
-
-        elif isinstance(other, pt.Polytope):
-            return other <= self
-        else:
-            raise NotImplementedError
-
-
-class NCube(NOrthotope):
-    """A cube in higher dimensions."""
-    def __init__(self, center, side_length=None, radius=None):
-
-        if radius is not None:
-            side_length = radius * 2
-
-        side_lengths = [side_length] * center.dim
-        super(NCube, self).__init__(center, side_lengths)
