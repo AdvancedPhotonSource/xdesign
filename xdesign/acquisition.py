@@ -143,13 +143,7 @@ class Probe(Line):
         assert theta.size == h.size == v.size, "theta, h, v must be the" \
             "equal lengths"
         newdata = np.zeros(theta.size)
-        z = v
-        cos_p = np.cos(theta)
-        sin_p = np.sin(theta)
-        srcx = +RADIUS*cos_p - h*sin_p
-        srcy = +RADIUS*sin_p + h*cos_p
-        detx = -RADIUS*cos_p - h*sin_p
-        dety = -RADIUS*sin_p + h*cos_p
+        srcx, srcy, detx, dety, z = thv_to_zxy(theta, h, v)
         # Calculate measurement for each position
         for i in range(theta.size):
             self.p1 = Point([srcx[i], srcy[i]])
@@ -186,6 +180,17 @@ class Probe(Line):
         # return np.pi * self.size**2 / 4
 
 
+def thv_to_zxy(theta, h, v):
+    z = v
+    cos_p = np.cos(theta)
+    sin_p = np.sin(theta)
+    srcx = +RADIUS*cos_p - h*sin_p
+    srcy = +RADIUS*sin_p + h*cos_p
+    detx = -RADIUS*cos_p - h*sin_p
+    dety = -RADIUS*sin_p + h*cos_p
+    return srcx, srcy, detx, dety, z
+
+
 def beamintersect(beam, geometry):
     """Intersection area of infinite beam with a geometry"""
 
@@ -219,7 +224,7 @@ def beammesh(beam, mesh):
 
 def beampoly(beam, poly):
     """Intersection area of an infinite beam with a polygon"""
-    return 0
+    raise NotImplementedError
     if beam.distance(poly.center) > poly.radius:
         logger.debug("BEAMPOLY: skipped because of radius.")
         return 0
