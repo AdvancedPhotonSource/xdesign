@@ -1229,8 +1229,9 @@ class Mesh(Entity):
 
         for f in self.faces:
             fmin, fmax = f.bounding_box
-            xmin = np.fmin(xmin, fmin)
-            xmax = np.fmax(xmax, fmax)
+            with np.errstate(invalid='ignore'):
+                xmin = np.fmin(xmin, fmin)
+                xmax = np.fmax(xmax, fmax)
 
         return xmin, xmax
 
