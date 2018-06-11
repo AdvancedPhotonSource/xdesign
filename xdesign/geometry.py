@@ -986,7 +986,7 @@ class Polygon(Entity):
                 A[i, :] = -A[i, :]
                 B[i] = -B[i]
 
-        return p
+        return A, B
 
     # Methods
     def translate(self, vector):
@@ -1324,43 +1324,34 @@ class Mesh(Entity):
 
 
 def calc_standard(A):
-    """Returns the standard equation (c0*x = c1) coefficents for the hyper-plane
-    defined by the row-wise ND points in A. Uses single value decomposition
-    (SVD) to solve the coefficents for the homogenous equations.
+    """Return the standard equation (c_{0}*x + ... = c_{1}) coefficents for the
+    hyper-plane defined by the row-wise N-dimensional points A.
 
     Parameters
     ----------
-    points : 2Darray
-        Each row is an ND point.
+    A : :py:class:`np.array` (..., N, N)
+        Each row is an N-dimensional point on the plane.
 
     Returns
     ----------
-    c0 : 1Darray
+    c0 : :py:class:`np.array` (..., N)
         The first N coeffients for the hyper-plane
-    c1 : 1Darray
+    c1 : :py:class:`np.array` (..., 1)
         The last coefficient for the hyper-plane
     """
-    if not isinstance(A, np.ndarray):
-        raise TypeError("A must be np.ndarray")
-
-    if A.ndim == 1:  # Special case for 1D
-        return np.array([1]), A
-    if A.ndim != 2 or A.shape[0] != A.shape[1]:
-        raise ValueError("A must be 2D square.")
-
-    # Add coordinate for last coefficient
-    A = np.pad(A, ((0, 0), (0, 1)), 'constant', constant_values=1)
-
-    atol = 1e-16
-    rtol = 0
-    u, s, vh = np.linalg.svd(A)
-    tol = max(atol, rtol * s[0])
-    nnz = (s >= tol).sum()
-    ns = vh[nnz:].conj().T
-
-    c = ns.squeeze()
-
-    return c[0:-1], -c[-1]
+    b = np.ones(A.shape[0:-1])
+    x1 = np.atleast_1d(b[..., 0])
+    try:
+        x = np.linalg.solve(A, b)
+    except np.linalg.LinAlgError as e:
+        if str(e) != 'Singular matrix':
+            raise
+        else:
+            a = A[...,1,1] - A[...,0,1]
+            b = A[...,0,0] - A[...,1,0]
+            x1 = np.atleast_1d(a * A[...,0,0] + b * A[...,0,1])
+            x = np.stack([a, b], axis=-1)
+    return x, x1
 
 
 def halfspacecirc(d, r):
@@ -1400,3 +1391,66 @@ def halfspacecirc(d, r):
         f = 0
 
     return f
+
+
+def two_lines_intersect(l0A, l0b, l1A, l1b):
+    A = np.stack([l0A, l1A], axis=0)
+    b = np.stack([l0b, l1b], axis=0)
+    x = np.linalg.solve(A, b)
+    return x
+
+
+def half_space(self, center):
+    """Returns the half space polytope respresentation of the Line."""
+    A, B = self.standard
+    # test for positive or negative side of line
+    if not halfspace_has_point(A, B, center):
+        A = -A
+        B = -B
+
+    return A, B
+
+
+def halfspace_has_point(A, B, point):
+    return np.dot(A, point._x) <= B
+
+
+def clip_SH(clipEdges, polygon):
+    """Sutherland-Hodgeman algorithm for clipping a polygon
+
+    Parameters
+    ----------
+    clipEdges [[A, b], ...]
+        half-spaces defined by coefficients
+
+    polygon
+
+    """
+    outputList = polygon.vertices
+    for clipEdge in clipEdges:
+        # previous iteration output is this iteration input
+        inputList = outputList
+        outputList = list()
+        if len(inputList) == 0:
+            break
+        S = inputList[-1]
+
+        for E in inputList:
+
+            if halfspace_has_point(clipEdge[0], clipEdge[1], E):
+
+                if not halfspace_has_point(clipEdge[0], clipEdge[1], S):
+                    A, b = calc_standard(np.stack([S._x, E._x], axis=0))
+                    new_vert = two_lines_intersect(A, b,
+                                                   clipEdge[0], clipEdge[1])
+                    outputList.append(Point(new_vert))
+
+                outputList.append(E)
+
+            elif halfspace_has_point(clipEdge[0], clipEdge[1], S):
+                A, b = calc_standard(np.stack([S._x, E._x], axis=0))
+                new_vert = two_lines_intersect(A, b, clipEdge[0], clipEdge[1])
+                outputList.append(Point(new_vert))
+
+            S = E
+    return outputList

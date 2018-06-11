@@ -64,7 +64,7 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 from xdesign.constants import RADIUS, DEFAULT_ENERGY
 from xdesign.geometry import *
-from xdesign.geometry import halfspacecirc
+from xdesign.geometry import halfspacecirc, clip_SH
 import logging
 from copy import deepcopy
 from cached_property import cached_property
@@ -175,9 +175,30 @@ class Probe(Line):
 
     @cached_property
     def cross_section(self):
-        "Return the cross-sectional area of a square beam"
+        """Return the cross-sectional area of a square beam"""
         return self.size**2
         # return np.pi * self.size**2 / 4
+
+    def half_space(self):
+        """Returns the half space polytope respresentation of the probe."""
+        half_space = list()
+
+        for i in range(2):
+            edge = Line(self.p1 + self.normal * self.size / 2 * (-1)**i,
+                        self.p2 + self.normal * self.size / 2 * (-1)**i)
+            A, B = edge.standard
+
+            # test for positive or negative side of line
+            if np.dot(self.p1._x, A) > B:
+                A = -A
+                B = -B
+
+            half_space.append([A, B])
+
+        return half_space
+
+    def intersect(self, polygon):
+        return clip_SH(self.half_space(), polygon)
 
 
 def thv_to_zxy(theta, h, v):
@@ -224,12 +245,15 @@ def beammesh(beam, mesh):
 
 def beampoly(beam, poly):
     """Intersection area of an infinite beam with a polygon"""
-    raise NotImplementedError
     if beam.distance(poly.center) > poly.radius:
         logger.debug("BEAMPOLY: skipped because of radius.")
         return 0
 
-    return beam.intersect(poly.half_space).volume
+    intersection = beam.intersect(poly)
+    if len(intersection) > 0:
+        return Polygon(intersection).area
+    else:
+        return 0
 
 
 def beamcirc(beam, circle):
