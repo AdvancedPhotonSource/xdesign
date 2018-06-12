@@ -202,7 +202,7 @@ def sirt(gmin, gsize, data, theta, h, v, init, niter=10):
     for n in range(niter):
 
         update = np.zeros(init.shape)
-        sumdist = np.zeros(init.shape)
+        nupdate = np.zeros(init.shape, dtype=np.uint)
 
         update_progress(n/niter)
         for m in range(data.size):
@@ -224,9 +224,10 @@ def sirt(gmin, gsize, data, theta, h, v, init, niter=10):
                 sim = np.dot(dist[ind], init[ix[ind], iy[ind]])
                 upd = np.true_divide((data[m] - sim), dist2)
                 update[ix[ind], iy[ind]] += dist[ind] * upd
-                sumdist[ix[ind], iy[ind]] += dist[ind]
+                nupdate[ix[ind], iy[ind]] += 1
 
-        init += np.true_divide(update, sumdist * sy)
+        nupdate[nupdate == 0] = 1
+        init += np.true_divide(update, nupdate)
     update_progress(1)
     return init
 

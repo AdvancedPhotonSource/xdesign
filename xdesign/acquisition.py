@@ -176,7 +176,7 @@ class Probe(Line):
     @cached_property
     def cross_section(self):
         """Return the cross-sectional area of a square beam"""
-        return self.size**2
+        return self.size
         # return np.pi * self.size**2 / 4
 
     def half_space(self):
