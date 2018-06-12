@@ -149,7 +149,7 @@ def get_mids_and_lengths(x0, y0, x1, y1, gx, gy):
 
 
 def art(gmin, gsize, data, theta, h, v, init, niter=10):
-    """Reconstruct data using ART algorithm.
+    """Reconstruct data using ART algorithm. :cite:`Gordon1970`
     """
     assert data.size == theta.size == h.size == v.size, "theta, h, v must be" \
         "the equal lengths"
@@ -187,7 +187,7 @@ def art(gmin, gsize, data, theta, h, v, init, niter=10):
 
 
 def sirt(gmin, gsize, data, theta, h, v, init, niter=10):
-    """Reconstruct data using SIRT algorithm.
+    """Reconstruct data using SIRT algorithm. :cite:`Gilbert1972`
     """
     assert data.size == theta.size == h.size == v.size, "theta, h, v must be" \
         "the equal lengths"
