@@ -100,6 +100,7 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Glyph',
+           'StarGlyph',
            'plot_coverage_anisotropy',
            'plot_phantom',
            'plot_geometry',
@@ -182,6 +183,54 @@ class Glyph(patches.Ellipse):
                                     color=color,
                                     **kwargs)
 
+class StarGlyph(patches.Polygon):
+    """A 2D glyph for visualizing vectors.
+
+    The distances of the vertices to the center of the Glyph are values of the
+    vector divided by the largest value of the vector. The default color of the
+    Glyph is determined by the sum of the values divided by the trace_normal
+    and the :py:data:`plot.DEFAULT_COLOR_MAP`.
+
+    See Also
+    --------
+    :py:class:`matplotlib.patches.Polygon`,
+    :py:func:`.plot_coverage_anisotropy`
+    """
+    def __init__(self, xy, values, color='coverage', trace_normal=1, **kwargs):
+        """
+        Parameters
+        ----------
+        color : 'coverage' or 'other'
+            The coloring mode of the Glyph. If 'coverage', then the color is
+            determined by the sum of the `values`. Otherwise, the color is
+            the ratio between the mean value of the vector and the largest
+            value i.e. the anisotropy
+        trace_normal : float
+            A scalar used to normalize the trace for coloring the glyph.
+        """
+        if np.any(np.isnan(values)):
+            logger.debug("STARGLYPH: nan value at {}".format(xy))
+            super(StarGlyph, self).__init__(np.atleast_2d(xy))
+            return
+        if np.all(values == 0):
+            logger.info("STARGLYPH: zero value at {}".format(xy))
+            shape = values + 0.1
+        else:
+            shape = values / np.max(values)
+        if color is 'coverage':
+            color = DEFAULT_COLOR_MAP(np.sum(values) / trace_normal)
+        else:
+            color = plt.cm.inferno(np.mean(values) / np.max(values))
+        N = len(values)
+        mid_angles = np.linspace(0, np.pi, N, endpoint=False) + np.pi / 2 / N
+        x = np.cos(mid_angles)
+        y = np.sin(mid_angles)
+        verts = np.stack([shape * x, shape * y], axis=1)
+        verts = np.concatenate([verts, -verts], axis=0)/2
+        assert(np.all(np.abs(verts) <= 0.5))
+        verts = verts + xy
+        super(StarGlyph, self).__init__(verts, color=color, **kwargs)
+
 
 def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
     """Plot the coverage anisotropy using 2D glyphs.
@@ -214,7 +263,7 @@ def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
     ijrange = np.stack([irange, jrange], axis=1)
 
     for ij in ijrange:
-        glyph = Glyph(ij, coverage_map[ij[0], ij[1], :, :], **kwargs)
+        glyph = StarGlyph(ij, coverage_map[ij[0], ij[1], ...], **kwargs)
         axis.add_artist(glyph)
 
 
