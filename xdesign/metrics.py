@@ -65,8 +65,9 @@ from scipy import stats
 from copy import deepcopy
 
 from xdesign.phantom import HyperbolicConcentric, UnitCircle
-from xdesign.acquisition import beamintersect
+from xdesign.acquisition import beamintersect, thv_to_zxy
 from xdesign.geometry import Circle, Point, Line
+from xdesign.algorithms import get_mids_and_lengths
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,8 @@ def tensor_at_angle(angle, magnitude):
     return np.einsum('ij,...jk,lk->...il', R, tensor, R)
 
 
-def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
+def coverage_approx(gmin, gsize, ngrid, probe_size, theta, h, v, weights=None,
+                    anisotropy=1, num_rays=16):
     """Approximate procedure coverage with a Riemann sum.
 
     The intersection between the beam and each pixel is approximated by using a
@@ -131,95 +133,44 @@ def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
     --------
     :py:func:`.plot.plot_coverage_anisotropy`
     """
-    box = np.asanyarray(region)
+    if weights is None:
+        weights = np.ones(theta.shape)
+    assert weights.size == theta.size == h.size == v.size, "theta, h, v must be" \
+        "the equal lengths"
+    coverage_map = np.zeros(list(ngrid) + [anisotropy])
+    # split the probe up into bunches of rays
+    line_offsets = np.linspace(0, probe_size, num_rays) - probe_size / 2
+    theta = np.repeat(theta.flatten(), line_offsets.size)
+    h = h.reshape(h.size, 1) + line_offsets
+    h = h.flatten()
+    v = np.repeat(v.flatten(), line_offsets.size)
+    weights = np.repeat(weights.flatten(), line_offsets.size)
+    # Convert from theta,h,v to x,y,z
+    srcx, srcy, detx, dety, z = thv_to_zxy(theta, h, v)
+    # grid frame (gx, gy)
+    sx, sy = ngrid[0], ngrid[1]
+    gx = np.linspace(gmin[0], gmin[0] + gsize[0], sx + 1, endpoint=True)
+    gy = np.linspace(gmin[1], gmin[1] + gsize[1], sy + 1, endpoint=True)
 
-    # Define the locations of the grid lines (gx, gy)
-    gx = np.arange(box[0, 0], box[0, 1] + pixel_size, pixel_size)
-    gy = np.arange(box[1, 0], box[1, 1] + pixel_size, pixel_size)
+    for m in range(theta.size):
+        # get intersection locations and lengths
+        xm, ym, dist = get_mids_and_lengths(srcx[m], srcy[m],
+                                            detx[m], dety[m],
+                                            gx, gy)
+        if np.any(dist > 0):
+            # convert midpoints of line segments to indices
+            ix = np.floor(sx * (xm - gmin[0]) / gsize[0]).astype('int')
+            iy = np.floor(sy * (ym - gmin[1]) / gsize[1]).astype('int')
+            ia = np.floor((theta[m] / (np.pi / anisotropy)
+                          % anisotropy)).astype('int')
+            ind = (dist != 0) & (0 <= ix) & (ix < sx) \
+                & (0 <= iy) & (iy < sy)
+            # put the weights in the binn
+            coverage_map[ix[ind], iy[ind], ia] += dist[ind] * weights[m]
 
-    # the number of pixels = number of gridlines - 1
-    sx, sy = gx.size-1, gy.size-1
-
-    if anisotropy:
-        coverage_map = np.zeros((sx, sy, 2, 2))
-    else:
-        coverage_map = np.zeros((sx, sy))
-
-    for probe in procedure:
-
-        # Determine quantity and width of alpha lines
-        num_lines = max(1, n)
-        line_width = probe.size / num_lines
-
-        # Move the first alpha line to a starting position
-        aline = Line(deepcopy(probe.p1), deepcopy(probe.p2))
-        aline.translate(probe.normal._x * -(line_width + probe.size) / 2)
-
-        beam = probe.p2._x - probe.p1._x
-        beam_angle = np.arctan2(beam[1], beam[0])
-
-        for i in range(num_lines):
-
-            aline.translate(probe.normal._x * line_width)
-
-            x0, y0 = aline.p1.x, aline.p1.y
-            x1, y1 = aline.p2.x, aline.p2.y
-
-            # avoid upper-right boundary errors
-            if (x1 - x0) == 0:
-                x0 += 1e-12
-            if (y1 - y0) == 0:
-                y0 += 1e-12
-
-            # vector lengths (ax, ay)
-            ax = (gx - x0) / (x1 - x0)
-            ay = (gy - y0) / (y1 - y0)
-
-            # edges of alpha (a0, a1)
-            ax0 = min(ax[0], ax[-1])
-            ax1 = max(ax[0], ax[-1])
-            ay0 = min(ay[0], ay[-1])
-            ay1 = max(ay[0], ay[-1])
-            a0 = max(max(ax0, ay0), 0)
-            a1 = min(min(ax1, ay1), 1)
-
-            # sorted alpha vector
-            cx = (ax >= a0) & (ax <= a1)
-            cy = (ay >= a0) & (ay <= a1)
-            alpha = np.sort(np.r_[ax[cx], ay[cy]])
-
-            if len(alpha) > 0:
-
-                # lengths
-                xv = x0 + alpha * (x1 - x0)
-                yv = y0 + alpha * (y1 - y0)
-                lx = np.ediff1d(xv)
-                ly = np.ediff1d(yv)
-                dist = np.sqrt(lx**2 + ly**2)
-                dist2 = np.dot(dist, dist)
-                ind = dist != 0
-
-                # indexing
-                mid = alpha[:-1] + np.ediff1d(alpha) / 2.
-                xm = x0 + mid * (x1 - x0)
-                ym = y0 + mid * (y1 - y0)
-                ix = np.floor(np.true_divide(sx * (xm - box[0, 0]),
-                                             sx * pixel_size)).astype('int')
-                iy = np.floor(np.true_divide(sy * (ym - box[0, 1]),
-                                             sy * pixel_size)).astype('int')
-
-                try:
-                    magnitude = dist * line_width
-                    if anisotropy:
-                        tensor = tensor_at_angle(beam_angle, magnitude)
-                        coverage_map[ix, iy, :, :] += tensor
-                    else:
-                        coverage_map[ix, iy] += magnitude
-                except IndexError as e:
-                    warnings.warn("{}\nix is {}\niy is {}".format(e, ix, iy),
-                                  RuntimeWarning)
-
-    return coverage_map / pixel_size**2
+    pixel_area = np.prod(gsize) / np.prod(ngrid)
+    line_width = probe_size / num_rays
+    return coverage_map * line_width / pixel_area
 
 
 def compute_mtf(phantom, image):
