@@ -148,11 +148,13 @@ def get_mids_and_lengths(x0, y0, x1, y1, gx, gy):
     return xm, ym, dist
 
 
-def art(gmin, gsize, data, theta, h, v, init, niter=10):
+def art(gmin, gsize, data, theta, h, v, init, niter=10, weights=None):
     """Reconstruct data using ART algorithm. :cite:`Gordon1970`
     """
     assert data.size == theta.size == h.size == v.size, "theta, h, v must be" \
         "the equal lengths"
+    if weights is None:
+        weights = np.ones(data.shape)
     srcx, srcy, detx, dety, z = thv_to_zxy(theta, h, v)
 
     # grid frame (gx, gy)
@@ -178,7 +180,8 @@ def art(gmin, gsize, data, theta, h, v, init, niter=10):
             # simulate acquistion from initial guess
             dist2 = np.dot(dist, dist)
             if dist2 != 0:
-                ind = (dist != 0)
+                ind = (dist != 0) & (0 <= ix) & (ix < sx) \
+                    & (0 <= iy) & (iy < sy)
                 sim = np.dot(dist[ind], init[ix[ind], iy[ind]])
                 upd = np.true_divide((data[m] - sim), dist2)
                 init[ix[ind], iy[ind]] += dist[ind] * upd
@@ -186,11 +189,17 @@ def art(gmin, gsize, data, theta, h, v, init, niter=10):
     return init
 
 
-def sirt(gmin, gsize, data, theta, h, v, init, niter=10):
+def sirt(gmin, gsize, data, theta, h, v, init, niter=10, weights=None,
+         save_interval=None):
     """Reconstruct data using SIRT algorithm. :cite:`Gilbert1972`
     """
+    if save_interval is None:
+        save_interval = niter
+    archive = list()
     assert data.size == theta.size == h.size == v.size, "theta, h, v must be" \
         "the equal lengths"
+    if weights is None:
+        weights = np.ones(data.shape)
     srcx, srcy, detx, dety, z = thv_to_zxy(theta, h, v)
 
     # grid frame (gx, gy)
@@ -200,6 +209,8 @@ def sirt(gmin, gsize, data, theta, h, v, init, niter=10):
     midlengths = dict()  # cache the result of get_mids_and_lengths
 
     for n in range(niter):
+        if n % save_interval == 0:
+            archive.append(init.copy())
 
         update = np.zeros(init.shape)
         nupdate = np.zeros(init.shape, dtype=np.uint)
@@ -220,7 +231,8 @@ def sirt(gmin, gsize, data, theta, h, v, init, niter=10):
             # simulate acquistion from initial guess
             dist2 = np.dot(dist, dist)
             if dist2 != 0:
-                ind = (dist != 0)
+                ind = (dist != 0) & (0 <= ix) & (ix < sx) \
+                    & (0 <= iy) & (iy < sy)
                 sim = np.dot(dist[ind], init[ix[ind], iy[ind]])
                 upd = np.true_divide((data[m] - sim), dist2)
                 update[ix[ind], iy[ind]] += dist[ind] * upd
@@ -228,9 +240,13 @@ def sirt(gmin, gsize, data, theta, h, v, init, niter=10):
 
         nupdate[nupdate == 0] = 1
         init += np.true_divide(update, nupdate)
-    update_progress(1)
-    return init
 
+    archive.append(init.copy())
+    update_progress(1)
+    if save_interval == niter:
+        return init
+    else:
+        return archive
 
 def mlem(gmin, gsize, data, theta, h, v, init, niter=10):
     """Reconstruct data using MLEM algorithm.
