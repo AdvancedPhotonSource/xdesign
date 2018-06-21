@@ -143,7 +143,9 @@ class Probe(Line):
         assert theta.size == h.size == v.size, "theta, h, v must be the" \
             "equal lengths"
         newdata = np.zeros(theta.size)
-        srcx, srcy, detx, dety, z = thv_to_zxy(theta, h, v)
+        srcx, srcy, detx, dety, z = thv_to_zxy(theta.flatten(),
+                                               h.flatten(),
+                                               v.flatten())
         # Calculate measurement for each position
         for i in range(theta.size):
             self.p1 = Point([srcx[i], srcy[i]])
