@@ -392,7 +392,7 @@ def compute_mtf_lwkj(phantom, image):
 
     # convert from contrast as a function of radius to contrast as a function
     # of spatial frequency
-    frequency = phantom.ratio/pradii
+    frequency = phantom.ratio/pradii.flatten()
 
     return frequency, M
 

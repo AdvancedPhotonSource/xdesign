@@ -485,6 +485,7 @@ class XDesignDefault(Phantom):
                                       Phantom(geometry=m0,
                                               material=SimpleMaterial(0.5))]))
         self.append(Phantom(geometry=m1, material=SimpleMaterial(1.0)))
+        self.translate([-0.5, -0.5])
 
 
 class HyperbolicConcentric(Phantom):
@@ -512,7 +513,7 @@ class HyperbolicConcentric(Phantom):
         """
 
         super(HyperbolicConcentric, self).__init__()
-        center = Point([0.5, 0.5])
+        center = Point([0.0, 0.0])
         Nmax_rings = 512
 
         radii = [0]
@@ -580,6 +581,7 @@ class DynamicRange(Phantom):
                                      material=SimpleMaterial(colors[i])):
                     None
                     # TODO: ensure that all circles are placed
+        self.translate([-0.5, -0.5])
 
 
 class DogaCircles(Phantom):
@@ -661,6 +663,7 @@ class DogaCircles(Phantom):
         self.radii = radii
         self.x = _x
         self.y = _y
+        self.translate([-0.5, -0.5])
 
 
 class SlantedSquares(Phantom):
@@ -760,13 +763,14 @@ class SlantedSquares(Phantom):
         self.squares_per_level = squares_per_level
         self.radius_per_level = radius_per_level
         self.n_levels = n_levels
+        self.translate([-0.5, -0.5])
 
 
 class UnitCircle(Phantom):
     """Generates a phantom with a single circle in its center."""
 
     def __init__(self, radius=0.5, material=SimpleMaterial(1.0)):
-        super(UnitCircle, self).__init__(geometry=Circle(Point([0.5, 0.5]),
+        super(UnitCircle, self).__init__(geometry=Circle(Point([0.0, 0.0]),
                                                          radius),
                                          material=material)
 
@@ -883,7 +887,7 @@ class SiemensStar(Phantom):
         frequency, f, divide this ratio by some fraction of the maximum radius:
         f = ratio/radius_fraction
     """
-    def __init__(self, n_sectors=4, center=Point([0.5, 0.5]), radius=0.5):
+    def __init__(self, n_sectors=4, center=Point([0.0, 0.0]), radius=0.5):
         """
         Parameters
         ----------

@@ -1137,7 +1137,7 @@ class Rectangle(Polygon):
 
     def __repr__(self):
         return "Rectangle({}, {})".format(repr(self.center),
-                                          repr(self.side_lengths))
+                                          repr(self.side_lengths.tolist()))
 
     @cached_property
     def area(self):
