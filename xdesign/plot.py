@@ -84,6 +84,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.patheffects as PathEffects
+import matplotlib.collections as collections
 import scipy.ndimage
 from cycler import cycler
 from xdesign.phantom import Phantom
@@ -101,6 +102,7 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Glyph',
            'StarGlyph',
+           'PieGlyph',
            'plot_coverage_anisotropy',
            'plot_phantom',
            'plot_geometry',
@@ -212,25 +214,96 @@ class StarGlyph(patches.Polygon):
             logger.debug("STARGLYPH: nan value at {}".format(xy))
             super(StarGlyph, self).__init__(np.atleast_2d(xy))
             return
+        # Determine the color
+        if color == 'standard deviation':
+            color = plt.cm.inferno_r(np.std(values) / trace_normal)
+        elif color == 'Kullback-Leibler':
+            pk = values / np.sum(values)
+            entropy = np.sum(pk * np.log(pk * values.size))
+            color = plt.cm.inferno_r(entropy / trace_normal)
+        elif color == 'random':
+            color = DEFAULT_COLOR_MAP(np.random.rand())
+        else:
+            color = DEFAULT_COLOR_MAP(np.sum(values) / trace_normal)
+        # Determine the shape
         if np.all(values == 0):
-            logger.info("STARGLYPH: zero value at {}".format(xy))
+            logger.debug("STARGLYPH: zero value at {}".format(xy))
             shape = values + 0.1
         else:
-            shape = values / np.max(values)
-        if color is 'coverage':
-            color = DEFAULT_COLOR_MAP(np.sum(values) / trace_normal)
-        else:
-            color = plt.cm.inferno(np.mean(values) / np.max(values))
+            shape = values / np.max(values) / 2
         N = len(values)
         mid_angles = np.linspace(0, np.pi, N, endpoint=False) + np.pi / 2 / N
         x = np.cos(mid_angles)
         y = np.sin(mid_angles)
         verts = np.stack([shape * x, shape * y], axis=1)
-        verts = np.concatenate([verts, -verts], axis=0)/2
-        assert(np.all(np.abs(verts) <= 0.5))
+        verts = np.concatenate([verts, -verts], axis=0)
         verts = verts + xy
+
         super(StarGlyph, self).__init__(verts, color=color, **kwargs)
 
+class PieGlyph(collections.PatchCollection):
+    """A 2D glyph for visualizing vectors.
+
+    The areas of the pie sectors are proportional to the elements of the
+    vector that the glyph represents. The default color of the
+    Glyph is determined by the sum of the values divided by the trace_normal
+    and the :py:data:`plot.DEFAULT_COLOR_MAP`.
+
+    See Also
+    --------
+    :py:class:`matplotlib.patches.Polygon`,
+    :py:func:`.plot_coverage_anisotropy`
+    """
+    def __init__(self, xy, values, color='coverage', trace_normal=1, **kwargs):
+        """
+        Parameters
+        ----------
+        color : 'coverage' or 'other'
+            The coloring mode of the Glyph. If 'coverage', then the color is
+            determined by the sum of the `values`. Otherwise, the color is
+            the ratio between the mean value of the vector and the largest
+            value i.e. the anisotropy
+        trace_normal : float
+            A scalar used to normalize the trace for coloring the glyph.
+        """
+        if np.any(np.isnan(values)):
+            logger.debug("PieGlyph: nan value at {}".format(xy))
+            super(PieGlyph, self).__init__([], **kwargs)
+            return
+        # Determine color of glyph
+        if color == 'standard deviation':
+            color = plt.cm.inferno_r(np.std(values) / trace_normal)
+        elif color == 'Kullback-Leibler':
+            pk = values / np.sum(values)
+            entropy = np.sum(pk * np.log(pk * values.size))
+            color = plt.cm.inferno_r(entropy / trace_normal)
+        elif color == 'random':
+            color = DEFAULT_COLOR_MAP(np.random.rand())
+        else:
+            color = DEFAULT_COLOR_MAP(np.sum(values) / trace_normal)
+        # Determine radius of each pie sector
+        max_radius = 0.5
+        N = len(values)
+        if np.all(values == 0):
+            logger.debug("PieGlyph: zero value at {}".format(xy))
+            radii = values + 0.1
+        else:
+            f = values / np.max(values)
+            max_area = np.pi * max_radius * max_radius / N / 2
+            area = f * max_area
+            radii = np.sqrt(2 * N * area / np.pi)
+        # Create pie wedges
+        wedge_edges = np.linspace(0, 180, N+1, endpoint=True)
+        wedges = list()
+        for i in range(N):
+            wedges.append(patches.Wedge(xy, radii[i],
+                                        wedge_edges[i], wedge_edges[i+1]))
+            wedges.append(patches.Wedge(xy, radii[i],
+                                        wedge_edges[i] + 180,
+                                        wedge_edges[i+1] + 180,
+                                        ))
+
+        super(PieGlyph, self).__init__(wedges, color=color, **kwargs)
 
 def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
     """Plot the coverage anisotropy using 2D glyphs.
@@ -263,8 +336,11 @@ def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
     ijrange = np.stack([irange, jrange], axis=1)
 
     for ij in ijrange:
-        glyph = StarGlyph(ij, coverage_map[ij[0], ij[1], ...], **kwargs)
-        axis.add_artist(glyph)
+        # glyph = StarGlyph(ij, coverage_map[ij[0], ij[1], ...], snap=False, **kwargs)
+        # axis.add_artist(glyph)
+        glyph = PieGlyph(ij, coverage_map[ij[0], ij[1], ...],
+                         snap=False, **kwargs)
+        axis.add_collection(glyph)
 
 
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=-1,

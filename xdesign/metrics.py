@@ -1115,7 +1115,8 @@ def _compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
     return scales, mets, maps
 
 
-def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
+def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
+                  alpha=1.0, beta_gamma=1.0):
     """Return the Structural SIMilarity index (SSIM).
 
     A modified version of the Structural SIMilarity index (SSIM) based on an
@@ -1205,8 +1206,10 @@ def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
 
         index = (denominator1 * denominator2 > 0)
 
-        ssim_map[index] = ((numerator1[index] * numerator2[index]) /
-                           (denominator1[index] * denominator2[index]))
+        ssim_map[index] = ((numerator1[index] / denominator1[index])
+                            **alpha
+                         * (numerator2[index] / denominator2[index])
+                            **beta_gamma)
         index = (denominator1 != 0) & (denominator2 == 0)
         ssim_map[index] = (numerator1[index] / denominator1[index])**4
 
