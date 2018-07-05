@@ -100,9 +100,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Glyph',
-           'StarGlyph',
-           'PieGlyph',
+__all__ = ['get_pie_glyphs',
            'plot_coverage_anisotropy',
            'plot_phantom',
            'plot_geometry',
@@ -138,180 +136,89 @@ PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
                18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
 
 
-class Glyph(patches.Ellipse):
-    """A 2D glyph for visualizing tensors.
-
-    The width and height of the Glyph are the unit normalized eigenvalues of
-    the tensor. The orientation of the Glyph is determined by the eigenvectors
-    of the tensor. The default color of the Glyph is determined by the trace of
-    the tensor and the :py:data:`plot.DEFAULT_COLOR_MAP`.
-
-    See Also
-    --------
-    :py:class:`matplotlib.patches.Ellipse`,
-    :py:func:`.plot_coverage_anisotropy`
-    """
-    def __init__(self, xy, tensor, color='coverage', trace_normal=1, **kwargs):
-        """
-        Parameters
-        ----------
-        color : 'coverage' or 'other'
-            The coloring mode of the Glyph. If 'coverage', then the color is
-            determined by the trace of the `tensor`. Otherwise, the color is
-            the ratio between the width and height i.e. the anisotropy
-        trace_normal : float
-            A scalar used to normalize the trace for coloring the glyph.
-        """
-        try:
-            values, orientation = np.linalg.eig(tensor)
-        except np.linalg.LinAlgError:
-            logger.debug("GLYPH: nan tensor at {}".format(xy))
-            super(Glyph, self).__init__(xy, 0, 0)
-            return
-        scale = np.sqrt(values.dot(values))
-        if scale == 0:
-            logger.info("GLYPH: zero tensor at {}".format(xy))
-            width, height = 0.1, 0.1
-        else:
-            shape = values / scale
-            width, height = shape[0], shape[1]
-        degrees = np.arctan2(orientation[1, 0], orientation[1, 1]) \
-            * 180 / np.pi
-        if color is 'coverage':
-            color = DEFAULT_COLOR_MAP(tensor.trace() / trace_normal)
-        else:
-            color = plt.cm.inferno(min(width, height) / max(width, height))
-        super(Glyph, self).__init__(xy, width, height, angle=degrees,
-                                    color=color,
-                                    **kwargs)
-
-class StarGlyph(patches.Polygon):
-    """A 2D glyph for visualizing vectors.
-
-    The distances of the vertices to the center of the Glyph are values of the
-    vector divided by the largest value of the vector. The default color of the
-    Glyph is determined by the sum of the values divided by the trace_normal
-    and the :py:data:`plot.DEFAULT_COLOR_MAP`.
-
-    See Also
-    --------
-    :py:class:`matplotlib.patches.Polygon`,
-    :py:func:`.plot_coverage_anisotropy`
-    """
-    def __init__(self, xy, values, color='coverage', trace_normal=1, **kwargs):
-        """
-        Parameters
-        ----------
-        color : 'coverage' or 'other'
-            The coloring mode of the Glyph. If 'coverage', then the color is
-            determined by the sum of the `values`. Otherwise, the color is
-            the ratio between the mean value of the vector and the largest
-            value i.e. the anisotropy
-        trace_normal : float
-            A scalar used to normalize the trace for coloring the glyph.
-        """
-        if np.any(np.isnan(values)):
-            logger.debug("STARGLYPH: nan value at {}".format(xy))
-            super(StarGlyph, self).__init__(np.atleast_2d(xy))
-            return
-        # Determine the color
-        if color == 'standard deviation':
-            color = plt.cm.inferno_r(np.std(values) / trace_normal)
-        elif color == 'Kullback-Leibler':
-            pk = values / np.sum(values)
-            entropy = np.sum(pk * np.log(pk * values.size))
-            color = plt.cm.inferno_r(entropy / trace_normal)
-        elif color == 'random':
-            color = DEFAULT_COLOR_MAP(np.random.rand())
-        else:
-            color = DEFAULT_COLOR_MAP(np.sum(values) / trace_normal)
-        # Determine the shape
-        if np.all(values == 0):
-            logger.debug("STARGLYPH: zero value at {}".format(xy))
-            shape = values + 0.1
-        else:
-            shape = values / np.max(values) / 2
-        N = len(values)
-        mid_angles = np.linspace(0, np.pi, N, endpoint=False) + np.pi / 2 / N
-        x = np.cos(mid_angles)
-        y = np.sin(mid_angles)
-        verts = np.stack([shape * x, shape * y], axis=1)
-        verts = np.concatenate([verts, -verts], axis=0)
-        verts = verts + xy
-
-        super(StarGlyph, self).__init__(verts, color=color, **kwargs)
-
-class PieGlyph(collections.PatchCollection):
-    """A 2D glyph for visualizing vectors.
+def get_pie_glyphs(xy, values, color='coverage', trace_normal=1, **kwargs):
+    """Returns a list of pie glyphs at coordinates xy representing values
 
     The areas of the pie sectors are proportional to the elements of the
     vector that the glyph represents. The default color of the
     Glyph is determined by the sum of the values divided by the trace_normal
     and the :py:data:`plot.DEFAULT_COLOR_MAP`.
 
+    Parameters
+    ----------
+    xy : (M, 2) float
+        Locations of glyph centers
+    values : (M, N) float
+        Bin sizes for each glyph
+    color : 'coverage' or 'standard deviation' or 'Kullback-Leibler'
+            or 'random'
+        The coloring mode of the Glyph.
+        IF 'coverage', then the color is determined by the sum of the `values`.
+        IF 'standard deviation', the color is standard deviation of the bins
+        IF 'Kullback-Leibler', The color is the Kullback-Leibler devation
+        IF 'random', the color is randomly assigned from the
+            `DEFAULT_COLOR_MAP`.
+    trace_normal : float
+        A scalar used to normalize the trace for coloring the glyph.
+    kwargs : dict
+        Arguments passed to the patches constructor
+
     See Also
     --------
-    :py:class:`matplotlib.patches.Polygon`,
     :py:func:`.plot_coverage_anisotropy`
     """
-    def __init__(self, xy, values, color='coverage', trace_normal=1, **kwargs):
-        """
-        Parameters
-        ----------
-        color : 'coverage' or 'other'
-            The coloring mode of the Glyph. If 'coverage', then the color is
-            determined by the sum of the `values`. Otherwise, the color is
-            the ratio between the mean value of the vector and the largest
-            value i.e. the anisotropy
-        trace_normal : float
-            A scalar used to normalize the trace for coloring the glyph.
-        """
-        if np.any(np.isnan(values)):
-            logger.debug("PieGlyph: nan value at {}".format(xy))
-            super(PieGlyph, self).__init__([], **kwargs)
-            return
-        # Determine color of glyph
-        if color == 'standard deviation':
-            color = plt.cm.inferno_r(np.std(values) / trace_normal)
-        elif color == 'Kullback-Leibler':
-            pk = values / np.sum(values)
-            entropy = np.sum(pk * np.log(pk * values.size))
+    # Edit nan glyphs
+    nan_glyphs = np.any(np.isnan(values), axis=1)
+    logger.debug("PieGlyph: nan value at {}".format(xy[nan_glyphs]))
+    xy = xy[~nan_glyphs, ...]
+    values = values[~nan_glyphs, ...]
+    M, N = values.shape
+    # Determine color of glyph
+    if color == 'standard deviation':
+        color = plt.cm.inferno_r(np.std(values, axis=1) / trace_normal)
+    elif color == 'Kullback-Leibler':
+        with np.errstate(divide='ignore', invalid='ignore'):
+            # Some values may be zero which causes division by zeroself.
+            # These are handled later down as zero glyphs
+            pk = values / np.sum(values, axis=1, keepdims=True)
+            entropy = np.sum(pk * np.log(pk * N), axis=1)
             color = plt.cm.inferno_r(entropy / trace_normal)
-        elif color == 'random':
-            color = DEFAULT_COLOR_MAP(np.random.rand())
-        else:
-            color = DEFAULT_COLOR_MAP(np.sum(values) / trace_normal)
-        # Determine radius of each pie sector
-        max_radius = 0.5
-        N = len(values)
-        if np.all(values == 0):
-            logger.debug("PieGlyph: zero value at {}".format(xy))
-            radii = values + 0.1
-        else:
-            f = values / np.max(values)
-            max_area = np.pi * max_radius * max_radius / N / 2
-            area = f * max_area
-            radii = np.sqrt(2 * N * area / np.pi)
-        # Create pie wedges
-        wedge_edges = np.linspace(0, 180, N+1, endpoint=True)
-        wedges = list()
+    elif color == 'random':
+        color = DEFAULT_COLOR_MAP(np.random.rand(M))
+    else:
+        color = DEFAULT_COLOR_MAP(np.sum(values, axis=1) / trace_normal)
+    assert color.shape == (M, 4), "color is wrong shape, {}".format(color.shape)
+    # Edit zero radius glyphs
+    zero_glyphs = np.all(values == 0, axis=1)
+    logger.debug("PieGlyph: zero value at {}".format(xy[zero_glyphs]))
+    values[zero_glyphs, :] = 1
+    # Determine radius of each pie sector
+    max_radius = 0.5
+    f = values / np.amax(values, axis=1, keepdims=True)
+    max_area = np.pi * max_radius * max_radius / N / 2
+    area = f * max_area
+    radii = np.sqrt(2 * N * area / np.pi)
+    radii[zero_glyphs, :] = 0.1
+    # Create pie wedges
+    wedge_edges = np.linspace(0, 180, N+1, endpoint=True)
+    wedges = list()
+    for j in range(M):
         for i in range(N):
-            wedges.append(patches.Wedge(xy, radii[i],
-                                        wedge_edges[i], wedge_edges[i+1]))
-            wedges.append(patches.Wedge(xy, radii[i],
+            wedges.append(patches.Wedge(xy[j], radii[j, i],
+                                        wedge_edges[i], wedge_edges[i+1],
+                                        color=color[j], **kwargs))
+            wedges.append(patches.Wedge(xy[j], radii[j, i],
                                         wedge_edges[i] + 180,
                                         wedge_edges[i+1] + 180,
-                                        ))
+                                        color=color[j], **kwargs))
+    return wedges
 
-        super(PieGlyph, self).__init__(wedges, color=color, **kwargs)
 
-def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
+def plot_coverage_anisotropy(coverage_map, **kwargs):
     """Plot the coverage anisotropy using 2D glyphs.
 
     Parameters
     ----------
-    glyph_density : :py:class:`float`
-        The fraction of total glyphs to plot in the range `[0, 1]`.
     kwargs
         Keyword arguments for the Glyphs.
 
@@ -325,22 +232,17 @@ def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
     plt.xlim([-.5, x - 0.5])
     plt.ylim([-.5, y - 0.5])
     axis.invert_yaxis()
-
+    # Compute coordinates of glyphs
     irange, jrange = np.meshgrid(range(x), range(y))
-    sample = list(range(x*y))
-    shuffle(sample)
-    sample = sample[0:int(glyph_density*len(sample))]
-    irange = irange.flatten()[sample]
-    jrange = jrange.flatten()[sample]
-
-    ijrange = np.stack([irange, jrange], axis=1)
-
-    for ij in ijrange:
-        # glyph = StarGlyph(ij, coverage_map[ij[0], ij[1], ...], snap=False, **kwargs)
-        # axis.add_artist(glyph)
-        glyph = PieGlyph(ij, coverage_map[ij[0], ij[1], ...],
-                         snap=False, **kwargs)
-        axis.add_collection(glyph)
+    irange = irange.flatten()
+    jrange = jrange.flatten()
+    ij_size = irange.size
+    coords = np.stack([irange, jrange], axis=1)
+    # Reformat data for glyph making function
+    vectors = np.reshape(coverage_map, [ij_size, coverage_map.shape[-1]])
+    glyphs = get_pie_glyphs(coords, vectors, snap=False, **kwargs)
+    # Add glyphs to axis
+    axis.add_collection(collections.PatchCollection(glyphs, match_original=True))
 
 
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=-1,
