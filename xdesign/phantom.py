@@ -966,7 +966,7 @@ class Softwood(Phantom):
         cell_width, cell_height = 0.03, 0.03
         cell_thickness = 0.004
 
-        frame = np.array([[0.2, 0.2], [0.8, 0.8]])
+        frame = np.array([[-0.2, -0.2], [0.2, 0.2]])
 
         # -------------------
         def five_p():
