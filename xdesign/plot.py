@@ -663,12 +663,13 @@ def discrete_geometry(geometry, psize, ratio=9):
     return corner, patch
 
 
-def sidebyside(p, size=100, labels=None, prop='mass_attenuation'):
+def sidebyside(p, size=100, labels=None, prop='mass_attenuation',
+               figsize=(6, 3), dpi=100, **kwargs):
     '''Displays the geometry and the discrete property function of
     the given :class:`.Phantom` side by side.'''
     # plt.rcParams.update({'font.size': 6})
 
-    fig = plt.figure(figsize=(6, 3), dpi=100)
+    fig = plt.figure(figsize=figsize, dpi=dpi, **kwargs)
 
     axis = fig.add_subplot(121, aspect='equal')
     plot_phantom(p, axis=axis, labels=labels)
