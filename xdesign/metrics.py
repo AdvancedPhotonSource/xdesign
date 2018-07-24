@@ -75,8 +75,6 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['compute_PCC',
-           'compute_likeness',
-           'compute_background_ttest',
            'compute_mtf',
            'compute_mtf_ffst',
            'compute_mtf_lwkj',
@@ -699,67 +697,6 @@ def compute_PCC(A, B, masks=None):
         covariances.append(np.corrcoef(data))
 
     return covariances
-
-
-def compute_likeness(A, B, masks):
-    """Predict the likelihood that each pixel in B belongs to a phase based
-    on the histogram of A.
-
-    Parameters
-    ------------
-    A : ndarray
-    B : ndarray
-    masks : list of ndarrays
-
-    Returns
-    --------------
-    likelihoods : list of ndarrays
-    """
-    # generate the pdf or pmf for each of the phases
-    pdfs = []
-    for m in masks:
-        K, mu, std = stats.exponnorm.fit(np.ravel(A[m > 0]))
-        print((K, mu, std))
-        # for each reconstruciton, plot the likelihood that this phase
-        # generates that pixel
-        pdfs.append(stats.exponnorm.pdf(B, K, mu, std))
-
-    # determine the probability that it belongs to its correct phase
-    pdfs_total = sum(pdfs)
-    return pdfs / pdfs_total
-
-
-def compute_background_ttest(image, masks):
-    """Determine whether the background has significantly different luminance
-    than the other phases.
-
-    Parameters
-    -------------
-    image : ndarray
-
-    masks : list of ndarrays
-        Masks for the background and any other phases. Does not autogenerate
-        the non-background mask because maybe you want to compare only two
-        phases.
-
-    Returns
-    ----------
-    tstat : scalar
-    pvalue : scalar
-    """
-
-    # separate the background
-    background = image[masks[0] > 0]
-    # combine non-background masks
-    other = False
-    for i in range(1, len(masks)):
-        other = np.logical_or(other, masks[i] > 0)
-    other = image[other]
-
-    tstat, pvalue = stats.ttest_ind(background, other, axis=None, equal_var=False)
-    # print([tstat,pvalue])
-
-    return tstat, pvalue
 
 
 class ImageQuality(object):
