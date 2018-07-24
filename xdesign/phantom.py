@@ -87,10 +87,6 @@ __all__ = ['Phantom',
            'WetCircles',
            'SiemensStar',
            'Foam',
-           'Metal',
-           'SoftBiomaterial',
-           'Electronics',
-           'FiberComposite',
            'Softwood']
 
 
@@ -1062,27 +1058,3 @@ class WoodCell(Phantom):
         self.height = height
         self.width = width
         # self.append(center)
-
-
-class Metal(Phantom):
-
-    def __init__(self, shape='square'):
-        raise NotImplementedError
-
-
-class SoftBiomaterial(Phantom):
-
-    def __init__(self, shape='square'):
-        raise NotImplementedError
-
-
-class Electronics(Phantom):
-
-    def __init__(self, shape='square'):
-        raise NotImplementedError
-
-
-class FiberComposite(Phantom):
-
-    def __init__(self, shape='square'):
-        raise NotImplementedError
