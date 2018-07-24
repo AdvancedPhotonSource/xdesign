@@ -151,6 +151,13 @@ def get_mids_and_lengths(x0, y0, x1, y1, gx, gy):
 def art(gmin, gsize, data, theta, h, v, init, niter=10, weights=None):
     """Reconstruct data using ART algorithm. :cite:`Gordon1970`
     """
+    if save_interval is None:
+        save_interval = niter
+    archive = list()
+    data = data.flatten()
+    theta = theta.flatten()
+    h = h.flatten()
+    v = v.flatten()
     assert data.size == theta.size == h.size == v.size, "theta, h, v must be" \
         "the equal lengths"
     if weights is None:
@@ -164,6 +171,12 @@ def art(gmin, gsize, data, theta, h, v, init, niter=10, weights=None):
     midlengths = dict()  # cache the result of get_mids_and_lengths
 
     for n in range(niter):
+        if n % save_interval == 0:
+            archive.append(init.copy())
+
+        update = np.zeros(init.shape)
+        nupdate = np.zeros(init.shape, dtype=np.uint)
+
         update_progress(n/niter)
         for m in range(data.size):
             # get intersection locations and lengths
@@ -185,8 +198,13 @@ def art(gmin, gsize, data, theta, h, v, init, niter=10, weights=None):
                 sim = np.dot(dist[ind], init[ix[ind], iy[ind]])
                 upd = np.true_divide((data[m] - sim), dist2)
                 init[ix[ind], iy[ind]] += dist[ind] * upd
+
+    archive.append(init.copy())
     update_progress(1)
-    return init
+    if save_interval == niter:
+        return init
+    else:
+        return archive
 
 
 def sirt(gmin, gsize, data, theta, h, v, init, niter=10, weights=None,
@@ -196,6 +214,10 @@ def sirt(gmin, gsize, data, theta, h, v, init, niter=10, weights=None,
     if save_interval is None:
         save_interval = niter
     archive = list()
+    data = data.flatten()
+    theta = theta.flatten()
+    h = h.flatten()
+    v = v.flatten()
     assert data.size == theta.size == h.size == v.size, "theta, h, v must be" \
         "the equal lengths"
     if weights is None:
@@ -247,6 +269,7 @@ def sirt(gmin, gsize, data, theta, h, v, init, niter=10, weights=None,
         return init
     else:
         return archive
+
 
 def mlem(gmin, gsize, data, theta, h, v, init, niter=10):
     """Reconstruct data using MLEM algorithm.
