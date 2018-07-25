@@ -81,6 +81,8 @@ __all__ = ['compute_PCC',
            'compute_nps_ffst',
            'compute_neq_d',
            'ImageQuality',
+           'compute_ssim',
+           'compute_msssim',
            'coverage_approx']
 
 
@@ -739,7 +741,7 @@ class ImageQuality(object):
             representations and 2^bitdepth for integer representations.
         """
 
-        dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim,
+        dictionary = {"SSIM": compute_ssim, "MSSSIM": compute_msssim,
                       "VIFp": _compute_vifp, "FSIM": _compute_fsim}
         try:
             method_func = dictionary[method]
@@ -864,8 +866,7 @@ def _compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
 
         sigma0_sq = ndimage.gaussian_filter((img0 - mu0)**2, sigma)
         sigma1_sq = ndimage.gaussian_filter((img1 - mu1)**2, sigma)
-        sigma01 = ndimage.gaussian_filter((img0 - mu0) * (img1 - mu1),
-                                                sigma)
+        sigma01 = ndimage.gaussian_filter((img0 - mu0) * (img1 - mu1), sigma)
 
         g = sigma01 / (sigma0_sq + eps)
         sigmav_sq = sigma1_sq - g * sigma01
@@ -990,7 +991,8 @@ def _compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
     return scales, mets, maps
 
 
-def _compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
+def compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1.0, K=(0.01, 0.03),
+                   alpha=4, beta_gamma=None):
     """Multi-Scale Structural SIMilarity index (MS-SSIM).
 
     Parameters
@@ -1008,6 +1010,11 @@ def _compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
         representations and 2^bitdepth for integer representations.
     K : 2-tuple
         A list of two constants which help prevent division by zero.
+    alpha : float
+        The exponent which weights the contribution of the luminance term.
+    beta_gamma : list
+        The exponent which weights the contribution of the contrast and
+        structure terms at each level.
 
     Returns
     -------
@@ -1025,35 +1032,36 @@ def _compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
     Conference on Signals, Systems and Computers, Nov. 2003
     """
     _full_reference_input_check(img0, img1, sigma, nlevels, L)
-
     # The relative imporance of each level as determined by human experiment
-    # weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
-
+    if beta_gamma is None:
+        beta_gamma = np.array([0.0448, 0.2856, 0.3001, 0.2363, 0.1333]) * 4
+    assert nlevels < 6, "Not enough beta_gamma weights for more than 5 levels"
     scales = np.zeros(nlevels)
-    mets = np.zeros(nlevels)
     maps = [None] * nlevels
-
+    scale, luminance, ssim = compute_ssim(img0, img1, sigma=sigma, L=L,
+                                          K=K, scale=sigma,
+                                          alpha=alpha, beta_gamma=0)
     for level in range(0, nlevels):
-
-        scale, SIM, SIMmap = _compute_ssim(img0, img1, sigma=sigma, L=L,
-                                           K=K, scale=sigma * 2**level)
-
+        scale, mean_ssim, ssim = compute_ssim(img0, img1, sigma=sigma, L=L,
+                                              K=K, scale=sigma,
+                                              alpha=0,
+                                              beta_gamma=beta_gamma[level])
         scales[level] = scale
-        mets[level] = SIM
-        maps[level] = SIMmap
-
+        maps[level] = ndimage.zoom(ssim, 2**level, prefilter=False, order=0)
         if level == nlevels - 1:
             break
-
         # Downsample (using ndimage.zoom to prevent sampling bias)
+        # Images become half the size
         img0 = ndimage.zoom(img0, 0.5)
         img1 = ndimage.zoom(img1, 0.5)
 
-    return scales, mets, maps
+    map = luminance * np.nanprod(maps, axis=0)
+    mean_ms_ssim = np.nanmean(map)
+    return scales, mean_ms_ssim, map
 
 
-def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
-                  alpha=1.0, beta_gamma=1.0):
+def compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
+                 alpha=4, beta_gamma=4):
     """Return the Structural SIMilarity index (SSIM).
 
     A modified version of the Structural SIMilarity index (SSIM) based on an
@@ -1066,11 +1074,19 @@ def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
     img1 : array
     img2 : array
         Two images for comparison.
+    sigma : float
+        Sets the standard deviation of the gaussian filter. This setting
+        determines the minimum scale at which quality is assessed.
     L : scalar
         The dynamic range of the data. This value is 1 for float
         representations and 2^bitdepth for integer representations.
-    sigma : list, optional
-        The standard deviation of the gaussian filter.
+    K : 2-tuple
+        A list of two constants which help prevent division by zero.
+    alpha : float
+        The exponent which weights the contribution of the luminance term.
+    beta_gamma : list
+        The exponent which weights the contribution of the contrast and
+        structure terms at each level.
 
     Returns
     -------
@@ -1089,71 +1105,50 @@ def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
     Z. Wang and A. C. Bovik. Mean squared error: Love it or leave it? - A new
     look at signal fidelity measures. IEEE Signal Processing Magazine,
     26(1):98--117, 2009.
+
+    Silvestre-Blanes, J., & Pérez-Lloréns, R. (2011, September). SSIM and their
+    dynamic range for image quality assessment. In ELMAR, 2011 Proceedings
+    (pp. 93-96). IEEE.
     """
     _full_reference_input_check(img1, img2, sigma, 1, L)
     if scale is not None and scale <= 0:
         raise ValueError("Scale cannot be negative or zero.")
-
-    if scale is None:
-        scale = sigma
-
+    assert L > 0, "L, the dynamic range must be larger than 0."
     c_1 = (K[0] * L)**2
     c_2 = (K[1] * L)**2
-
-    # Convert image matrices to double precision (like in the Matlab version)
-
     # Means obtained by Gaussian filtering of inputs
     mu_1 = ndimage.filters.gaussian_filter(img1, sigma)
     mu_2 = ndimage.filters.gaussian_filter(img2, sigma)
-
     # Squares of means
     mu_1_sq = mu_1**2
     mu_2_sq = mu_2**2
     mu_1_mu_2 = mu_1 * mu_2
-
-    # Squares of input matrices
-    im1_sq = img1**2
-    im2_sq = img2**2
-    im12 = img1 * img2
-
     # Variances obtained by Gaussian filtering of inputs' squares
-    sigma_1_sq = ndimage.filters.gaussian_filter(im1_sq, sigma)
-    sigma_2_sq = ndimage.filters.gaussian_filter(im2_sq, sigma)
-
+    sigma_1_sq = ndimage.filters.gaussian_filter(img1**2, sigma) - mu_1_sq
+    sigma_2_sq = ndimage.filters.gaussian_filter(img2**2, sigma) - mu_2_sq
     # Covariance
-    sigma_12 = ndimage.filters.gaussian_filter(im12, sigma)
+    sigma_12 = ndimage.filters.gaussian_filter(img1 * img2, sigma) - mu_1_mu_2
+    # Division by zero is prevented by adding c_1 and c_2
+    numerator1 = 2 * mu_1_mu_2 + c_1
+    denominator1 = mu_1_sq + mu_2_sq + c_1
+    numerator2 = 2 * sigma_12 + c_2
+    denominator2 = sigma_1_sq + sigma_2_sq + c_2
 
-    # Centered squares of variances
-    sigma_1_sq -= mu_1_sq
-    sigma_2_sq -= mu_2_sq
-    sigma_12 -= mu_1_mu_2
-
-    if (c_1 > 0) & (c_2 > 0):
-        ssim_map = (((2 * mu_1_mu_2 + c_1) * (2 * sigma_12 + c_2)) /
-                    ((mu_1_sq + mu_2_sq + c_1) *
-                     (sigma_1_sq + sigma_2_sq + c_2)))
+    if (c_1 > 0) and (c_2 > 0):
+        ssim_map = ((numerator1 / denominator1)**alpha *
+                    (numerator2 / denominator2)**beta_gamma)
     else:
-        numerator1 = 2 * mu_1_mu_2 + c_1
-        numerator2 = 2 * sigma_12 + c_2
-
-        denominator1 = mu_1_sq + mu_2_sq + c_1
-        denominator2 = sigma_1_sq + sigma_2_sq + c_2
-
-        ssim_map = np.ones(mu_1.size)
-
+        ssim_map = np.ones(numerator1.shape)
         index = (denominator1 * denominator2 > 0)
-
-        ssim_map[index] = ((numerator1[index] / denominator1[index])
-                            **alpha
-                         * (numerator2[index] / denominator2[index])
-                            **beta_gamma)
-        index = (denominator1 != 0) & (denominator2 == 0)
-        ssim_map[index] = (numerator1[index] / denominator1[index])**4
-
-    # return SSIM
-    index = np.mean(ssim_map)
-
-    return scale, index, ssim_map
+        ssim_map[index] = ((numerator1[index]/denominator1[index])**alpha *
+                           (numerator2[index]/denominator2[index])**beta_gamma)
+    # Sometimes c_1 and c_2 don't do their job of stabilizing the result
+    ssim_map[ssim_map > 1] = 1
+    ssim_map[ssim_map < -1] = -1
+    mean_ssim = np.nanmean(ssim_map)
+    if scale is None:
+        scale = sigma
+    return scale, mean_ssim, ssim_map
 
 
 def _full_reference_input_check(img0, img1, sigma, nlevels, L):
