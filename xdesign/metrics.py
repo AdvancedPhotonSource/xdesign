@@ -83,6 +83,8 @@ __all__ = ['compute_PCC',
            'ImageQuality',
            'compute_ssim',
            'compute_msssim',
+           'compute_fsim',
+           'compute_vifp',
            'coverage_approx']
 
 
@@ -742,7 +744,7 @@ class ImageQuality(object):
         """
 
         dictionary = {"SSIM": compute_ssim, "MSSSIM": compute_msssim,
-                      "VIFp": _compute_vifp, "FSIM": _compute_fsim}
+                      "VIFp": compute_vifp, "FSIM": compute_fsim}
         try:
             method_func = dictionary[method]
         except KeyError:
@@ -799,7 +801,7 @@ def _join_metrics(A, B):
     return A
 
 
-def _compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
+def compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
     """Calculate the Visual Information Fidelity (VIFp) between two images in
     in a multiscale pixel domain with scalar.
 
@@ -889,7 +891,7 @@ def _compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
     return scales, mets, maps
 
 
-def _compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
+def compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
     """FSIM Index with automatic downsampling, Version 1.0
 
     An implementation of the algorithm for calculating the Feature SIMilarity
