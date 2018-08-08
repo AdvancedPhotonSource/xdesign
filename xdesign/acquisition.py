@@ -49,10 +49,8 @@
 """
 Defines objects and methods for simulated data acquisition.
 
-The acquistion module contains the objects and procedures necessary to simulate
-the operation of equipment used to collect tomographic data. This not only
-includes physical things like Probes, detectors, turntables, and lenses, but
-also non-physical things such as scanning patterns and programs.
+This not only includes physical things like :py:class:`.Probe`, detectors,
+turntables, and lenses, but non-physical things such as scanning patterns.
 
 .. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
@@ -61,18 +59,12 @@ also non-physical things such as scanning patterns and programs.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import logging
 import numpy as np
+from cached_property import cached_property
 from xdesign.constants import RADIUS, DEFAULT_ENERGY
 from xdesign.geometry import *
 from xdesign.geometry import halfspacecirc, clip_SH
-import logging
-from copy import deepcopy
-from cached_property import cached_property
-try:
-    import queue
-except ImportError:
-    import Queue as queue
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -82,30 +74,29 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Probe',
            'raster_scan2D',
-           'raster_scan3D']
+           ]
 
 
 class Probe(Line):
     """A square cross-section x-ray beam for probing Phantoms.
 
-    A Probe is initialized by two points and a size (diameter).
-
     Attributes
     ----------
-    p1 : Point
-    p2 : Point
+    p1, p2 : :py:class:`xdesign.geometry.Point`
+        Two points which define the initial position of the probe.
+        .. deprecated:: 0.4
+            Measure now uses theta, h, v coordinates instead.
     size : float, cm (default: 0.0 cm)
         The size of probe in centimeters.
     intensity : float, cd (default: 1.0 cd)
         The intensity of the beam in candela.
-    energy : float, eV (defauly: 15 eV)
+    energy : float, eV (default: 15 eV)
         The energy of the probe in eV.
 
 
     .. todo::
         Implement additional attributes for Probe such as wavelength,
         etc.
-
     """
     def __init__(self, p1=None, p2=None, size=0.0, intensity=1.0,
                  energy=DEFAULT_ENERGY):
@@ -132,16 +123,20 @@ class Probe(Line):
         return dx - self.size / 2
 
     def measure(self, phantom, theta, h, v, perc=0.0):
-        """Return the probe measurement with optional Gaussian noise.
+        """Measure the phantom at from the given position.
 
         Parameters
         ----------
-        perc : float >= 0
-            Percentage of Gaussian noise.
+        theta, h, v
+            The coordinates of the Probe.
         """
         # Convert probe coordinates to cartesian coordinates
         assert theta.size == h.size == v.size, "theta, h, v must be the" \
             "equal lengths"
+        if perc != 0.0:
+            raise DeprecationWarning("Noise during acquisition is deprecated. "
+                                     "Use post-processing to add noise "
+                                     "instead.")
         newdata = np.zeros(theta.size)
         srcx, srcy, detx, dety, z = thv_to_zxy(theta.flatten(),
                                                h.flatten(),
@@ -175,7 +170,6 @@ class Probe(Line):
 
         return attenuation
 
-    @cached_property
     def cross_section(self):
         """Return the cross-sectional area of a square beam"""
         return self.size
@@ -200,10 +194,12 @@ class Probe(Line):
         return half_space
 
     def intersect(self, polygon):
+        """Return the intersection with polygon"""
         return clip_SH(self.half_space(), polygon)
 
 
 def thv_to_zxy(theta, h, v):
+    """Convert coordinates from (theta, h, v) to (z, x, y) space"""
     z = v
     cos_p = np.cos(theta)
     sin_p = np.sin(theta)
@@ -303,29 +299,9 @@ def beamcirc(beam, circle):
     return a
 
 
-def raster_scan3D(sz, sa, st, zstart=None):
-    """A Probe iterator for raster-scanning in 3D.
-
-    The size of the probe is 1 / st.
-
-    Parameters
-    ----------
-    sz : int
-        The number of vertical slices.
-    sa : int
-        The number of rotation angles over PI/2
-    st : int
-        The number of detection pixels (or sample translations).
-
-    Yields
-    ------
-    p : Probe
-    """
-    raise NotImplementedError
-
-
 def raster_scan2D(sa, st, meta=False):
-    """
+    """Return the coordinates of a 2D raster scan.
+
     Parameters
     ----------
     sa : int

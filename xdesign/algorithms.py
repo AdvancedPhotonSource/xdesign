@@ -54,7 +54,7 @@ for custom reconstruction methods or as an easy way to access reconstruction
 algorithms for developing other methods such as noise correction.
 
 .. note::
-    Using `tomopy <https://github.com/tomopy/tomopy>` is recommended instead
+    Using `tomopy <https://github.com/tomopy/tomopy>`_ is recommended instead
     of these functions for heavy computation.
 
 .. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
