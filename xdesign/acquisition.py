@@ -122,35 +122,31 @@ class Probe(Line):
         dx = super(Probe, self).distance(other)
         return dx - self.size / 2
 
-    def measure(self, phantom, theta, h, v, perc=0.0):
-        """Measure the phantom at from the given position.
+    def measure(self, phantom, theta, h, perc=None):
+        """Measure the phantom from the given position.
 
         Parameters
         ----------
-        theta, h, v
+        theta, h
             The coordinates of the Probe.
         """
-        # Convert probe coordinates to cartesian coordinates
-        assert theta.size == h.size == v.size, "theta, h, v must be the" \
-            "equal lengths"
-        if perc != 0.0:
-            raise DeprecationWarning("Noise during acquisition is deprecated. "
-                                     "Use post-processing to add noise "
-                                     "instead.")
+        if perc is not None:
+            raise UserWarning("Noise during acquisition has been removed. "
+                              "Use post-processing to add noise "
+                              "instead.")
+        assert theta.shape == h.shape, "theta, h, must be the same shape"
+        original_shape = theta.shape
         newdata = np.zeros(theta.size)
-        srcx, srcy, detx, dety, z = thv_to_zxy(theta.flatten(),
-                                               h.flatten(),
-                                               v.flatten())
+        # Convert probe coordinates to cartesian coordinates
+        srcx, srcy, detx, dety = thv_to_zxy(theta.ravel(), h.ravel())
         # Calculate measurement for each position
         for i in range(theta.size):
             self.p1 = Point([srcx[i], srcy[i]])
             self.p2 = Point([detx[i], dety[i]])
             newdata[i] = (self.intensity
                           * np.exp(-self._get_attenuation(phantom)))
-            if perc > 0:
-                newdata[i] += newdata[i] * perc * np.random.normal(scale=1)
         logger.debug("Probe.measure: {}".format(newdata))
-        return newdata
+        return newdata.reshape(original_shape)
 
     def _get_attenuation(self, phantom):
         """Return the beam intensity attenuation due to the phantom."""
@@ -170,6 +166,7 @@ class Probe(Line):
 
         return attenuation
 
+    @property
     def cross_section(self):
         """Return the cross-sectional area of a square beam"""
         return self.size
@@ -198,16 +195,15 @@ class Probe(Line):
         return clip_SH(self.half_space(), polygon)
 
 
-def thv_to_zxy(theta, h, v):
+def thv_to_zxy(theta, h):
     """Convert coordinates from (theta, h, v) to (z, x, y) space"""
-    z = v
     cos_p = np.cos(theta)
     sin_p = np.sin(theta)
     srcx = +RADIUS*cos_p - h*sin_p
     srcy = +RADIUS*sin_p + h*cos_p
     detx = -RADIUS*cos_p - h*sin_p
     dety = -RADIUS*sin_p + h*cos_p
-    return srcx, srcy, detx, dety, z
+    return srcx, srcy, detx, dety
 
 
 def beamintersect(beam, geometry):

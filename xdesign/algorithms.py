@@ -148,22 +148,22 @@ def get_mids_and_lengths(x0, y0, x1, y1, gx, gy):
     return xm, ym, dist
 
 
-def art(gmin, gsize, data, theta, h, v, init, niter=10, weights=None):
+def art(gmin, gsize, data, theta, h, init, niter=10, weights=None,
+        save_interval=None):
     """Reconstruct data using ART algorithm. :cite:`Gordon1970`
     """
+    assert data.size == theta.size == h.size, "theta, h, must be" \
+        "the equal lengths"
+    data = data.ravel()
+    theta = theta.ravel()
+    h = h.ravel()
+    if weights is None:
+        weights = np.ones(data.shape)
     if save_interval is None:
         save_interval = niter
     archive = list()
-    data = data.flatten()
-    theta = theta.flatten()
-    h = h.flatten()
-    v = v.flatten()
-    assert data.size == theta.size == h.size == v.size, "theta, h, v must be" \
-        "the equal lengths"
-    if weights is None:
-        weights = np.ones(data.shape)
-    srcx, srcy, detx, dety, z = thv_to_zxy(theta, h, v)
-
+    # Convert from probe to global coords
+    srcx, srcy, detx, dety = thv_to_zxy(theta, h)
     # grid frame (gx, gy)
     sx, sy = init.shape
     gx = np.linspace(gmin[0], gmin[0] + gsize[0], sx + 1, endpoint=True)
@@ -174,8 +174,8 @@ def art(gmin, gsize, data, theta, h, v, init, niter=10, weights=None):
         if n % save_interval == 0:
             archive.append(init.copy())
 
-        update = np.zeros(init.shape)
-        nupdate = np.zeros(init.shape, dtype=np.uint)
+        # update = np.zeros(init.shape)
+        # nupdate = np.zeros(init.shape, dtype=np.uint)
 
         update_progress(n/niter)
         for m in range(data.size):
@@ -207,23 +207,22 @@ def art(gmin, gsize, data, theta, h, v, init, niter=10, weights=None):
         return archive
 
 
-def sirt(gmin, gsize, data, theta, h, v, init, niter=10, weights=None,
+def sirt(gmin, gsize, data, theta, h, init, niter=10, weights=None,
          save_interval=None):
     """Reconstruct data using SIRT algorithm. :cite:`Gilbert1972`
     """
+    assert data.size == theta.size == h.size, "theta, h, must be" \
+        "the equal lengths"
+    data = data.ravel()
+    theta = theta.ravel()
+    h = h.ravel()
+    if weights is None:
+        weights = np.ones(data.shape)
     if save_interval is None:
         save_interval = niter
     archive = list()
-    data = data.flatten()
-    theta = theta.flatten()
-    h = h.flatten()
-    v = v.flatten()
-    assert data.size == theta.size == h.size == v.size, "theta, h, v must be" \
-        "the equal lengths"
-    if weights is None:
-        weights = np.ones(data.shape)
-    srcx, srcy, detx, dety, z = thv_to_zxy(theta, h, v)
-
+    # Convert from probe to global coords
+    srcx, srcy, detx, dety = thv_to_zxy(theta, h)
     # grid frame (gx, gy)
     sx, sy = init.shape
     gx = np.linspace(gmin[0], gmin[0] + gsize[0], sx + 1, endpoint=True)
@@ -271,13 +270,21 @@ def sirt(gmin, gsize, data, theta, h, v, init, niter=10, weights=None,
         return archive
 
 
-def mlem(gmin, gsize, data, theta, h, v, init, niter=10):
+def mlem(gmin, gsize, data, theta, h, init, niter=10):
     """Reconstruct data using MLEM algorithm.
     """
-    assert data.size == theta.size == h.size == v.size, "theta, h, v must be" \
+    assert data.size == theta.size == h.size, "theta, h, must be" \
         "the equal lengths"
-    srcx, srcy, detx, dety, z = thv_to_zxy(theta, h, v)
-
+    data = data.ravel()
+    theta = theta.ravel()
+    h = h.ravel()
+    # if weights is None:
+    #     weights = np.ones(data.shape)
+    # if save_interval is None:
+    #     save_interval = niter
+    # archive = list()
+    # Convert from probe to global coords
+    srcx, srcy, detx, dety = thv_to_zxy(theta, h)
     # grid frame (gx, gy)
     sx, sy = init.shape
     gx = np.linspace(gmin[0], gmin[0] + gsize[0], sx + 1, endpoint=True)
