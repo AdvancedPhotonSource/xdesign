@@ -655,10 +655,6 @@ def discrete_geometry(geometry, psize, ratio=9):
     # Check that the resulting image is the expected size
     assert np.all(patch.shape == final_shape // ratio)
 
-    if geometry.dim > 1:
-        patch = np.swapaxes(patch, 0, 1)
-        corner[0], corner[1] = corner[1], corner[0]
-
     # Return the image and its min corner
     return corner, patch
 

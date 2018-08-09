@@ -761,7 +761,7 @@ class Circle(Curve):
     @property
     def patch(self):
         """Returns a matplotlib patch."""
-        return plt.Circle((self.center.x, self.center.y), self.radius)
+        return plt.Circle((self.center.y, self.center.x), self.radius)
 
     @property
     def bounding_box(self):
@@ -898,7 +898,11 @@ class Polygon(Entity):
     @property
     def patch(self):
         """Returns a matplotlib patch."""
-        return plt.Polygon(self.numpy)
+        points = self.vertices
+        a = np.zeros((len(points), points[0].dim))
+        for i in range(len(points)):
+            a[i] = np.flip(points[i]._x, 0)
+        return plt.Polygon(a)
 
     # Cached Properties
     @property
