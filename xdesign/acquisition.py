@@ -316,7 +316,4 @@ def raster_scan2D(sa, st, meta=False):
     theta = np.linspace(0, np.pi*2, sa, endpoint=False)
     h = np.linspace(0, 1, st, endpoint=False) - 0.5
     theta, h = np.meshgrid(theta, h)
-    theta = theta.flatten()
-    h = h.flatten()
-    v = np.zeros(h.shape)
-    return theta, h, v
+    return theta, h

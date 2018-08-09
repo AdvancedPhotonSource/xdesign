@@ -1,40 +1,40 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import numpy as np
-import logging
 import os.path
-from numpy.testing import assert_allclose
-
-from xdesign.acquisition import *
-from xdesign.phantom import *
-from xdesign.plot import *
+import numpy as np
 import matplotlib.pyplot as plt
+import xdesign as xd
+import logging
 
-SIZE = 64
+SIZE = 32
 
 
 def test_sinogram():
-    theta, h, v = raster_scan2D(SIZE, SIZE)
-    prb = Probe(size=1/SIZE)
-    phan = XDesignDefault()
-    phan.translate([-.5, -.5])
-    sidebyside(phan, SIZE)
-
-    sino = prb.measure(phan, theta, h, v)
-    sino = -np.log(sino)
-
+    """Compare sinogram of XDesignDefault with a reference."""
+    # Create the phantom
+    phan = xd.XDesignDefault()
+    # Plot it for debugging purposes
     plt.figure()
-    plt.imshow(sino.reshape(SIZE, SIZE), origin='lower')
-
-    # ref_file = 'tests/test_sinogram.npy'
-    # if not os.path.isfile(ref_file):
-    #     ImportError('sinogram reference not found; use test_sinogram.ipynb' +
-    #                 'to generate it')
-    #
-    # sino_reference = np.load(ref_file)
-    #
-    # assert_allclose(sino, sino_reference, atol=1e-2)
+    xd.sidebyside(phan, SIZE)
+    # Generate the scanning trajectory
+    theta, h = xd.raster_scan2D(SIZE, SIZE)
+    # Create a probe
+    prb = xd.Probe(size=1/SIZE)
+    # Meausure the phantom with the probe
+    sino = prb.measure(phan, theta, h)
+    sino = -np.log(sino)
+    # Plot the sinogram for debugging
+    plt.figure()
+    plt.imshow(sino, origin='lower')
+    # Load the reference from file
+    ref_file = 'tests/test_sinogram.npy'
+    if not os.path.isfile(ref_file):
+        ImportError('sinogram reference not found; use test_sinogram.ipynb' +
+                    'to generate it')
+    sino_reference = np.load(ref_file)
+    # assert that they are equal
+    np.testing.assert_equal(sino, sino_reference)
 
 
 if __name__ == '__main__':
