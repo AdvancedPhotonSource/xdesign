@@ -4,7 +4,5 @@ six
 numpy
 scipy
 matplotlib
-phasepack
-cached-property
 requests
-pyfftw
+phasepack
