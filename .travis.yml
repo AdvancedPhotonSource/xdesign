@@ -28,11 +28,11 @@ before_install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update conda
   - conda install anaconda-client
-  - conda install python=$TRAVIS_PYTHON_VERSION python-coveralls setuptools
 
 install:
-  - conda install nose six numpy scipy matplotlib requests
-  - pip install pyfftw phasepack
+  - conda install python=$TRAVIS_PYTHON_VERSION python-coveralls setuptools
+  - conda install nose six numpy scipy matplotlib requests cached-property
+  - pip install phasepack
   - conda info -a
   - python setup.py build_ext --inplace
 

@@ -6,3 +6,4 @@ scipy
 matplotlib
 requests
 phasepack
+cached-property
