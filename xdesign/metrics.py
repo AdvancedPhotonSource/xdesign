@@ -1169,5 +1169,3 @@ def _full_reference_input_check(img0, img1, sigma, nlevels, L):
     if img0.shape != img1.shape:
         raise ValueError("original and reconstruction should be the " +
                          "same shape")
-    if img0.ndim != 2:
-        raise ValueError("This function only support 2D images.")
