@@ -16,5 +16,4 @@
 
   .. autosummary::
 
-    sinogram
-    raster_scan
+    raster_scan2D

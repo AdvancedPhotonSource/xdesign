@@ -336,7 +336,7 @@ class Mock(MagicMock):
 MOCK_MODULES = ['numpy',
                 'matplotlib', 'matplotlib.pyplot', 'matplotlib.patches',
                 'matplotlib.path', 'matplotlib.patheffects', 'matplotlib.axis',
-                'polytope',
+                'matplotlib.collections',
                 'cached_property',
                 'scipy', 'scipy.stats', 'scipy.ndimage', 'scipy.spatial',
                 'cycler',

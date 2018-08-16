@@ -4,7 +4,6 @@ six
 numpy
 scipy
 matplotlib
+requests
 phasepack
 cached-property
-polytope >= 0.1.4
-requests

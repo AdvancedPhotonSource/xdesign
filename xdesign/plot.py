@@ -84,6 +84,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.patheffects as PathEffects
+import matplotlib.collections as collections
 import scipy.ndimage
 from cycler import cycler
 from xdesign.phantom import Phantom
@@ -92,7 +93,6 @@ from matplotlib.axis import Axis
 from itertools import product
 from six import string_types
 from random import shuffle
-import polytope as pt
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ logger = logging.getLogger(__name__)
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Glyph',
+__all__ = ['get_pie_glyphs',
            'plot_coverage_anisotropy',
            'plot_phantom',
            'plot_geometry',
@@ -136,61 +136,89 @@ PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
                18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
 
 
-class Glyph(patches.Ellipse):
-    """A 2D glyph for visualizing tensors.
+def get_pie_glyphs(xy, values, color='coverage', trace_normal=1, **kwargs):
+    """Returns a list of pie glyphs at coordinates xy representing values
 
-    The width and height of the Glyph are the unit normalized eigenvalues of
-    the tensor. The orientation of the Glyph is determined by the eigenvectors
-    of the tensor. The default color of the Glyph is determined by the trace of
-    the tensor and the :py:data:`plot.DEFAULT_COLOR_MAP`.
+    The areas of the pie sectors are proportional to the elements of the
+    vector that the glyph represents. The default color of the
+    Glyph is determined by the sum of the values divided by the trace_normal
+    and the :py:data:`plot.DEFAULT_COLOR_MAP`.
+
+    Parameters
+    ----------
+    xy : (M, 2) float
+        Locations of glyph centers
+    values : (M, N) float
+        Bin sizes for each glyph
+    color : 'coverage' or 'standard deviation' or 'Kullback-Leibler'
+            or 'random'
+        The coloring mode of the Glyph.
+        IF 'coverage', then the color is determined by the sum of the `values`.
+        IF 'standard deviation', the color is standard deviation of the bins
+        IF 'Kullback-Leibler', The color is the Kullback-Leibler devation
+        IF 'random', the color is randomly assigned from the
+            `DEFAULT_COLOR_MAP`.
+    trace_normal : float
+        A scalar used to normalize the trace for coloring the glyph.
+    kwargs : dict
+        Arguments passed to the patches constructor
 
     See Also
     --------
-    :py:class:`matplotlib.patches.Ellipse`,
     :py:func:`.plot_coverage_anisotropy`
     """
-    def __init__(self, xy, tensor, color='coverage', trace_normal=1, **kwargs):
-        """
-        Parameters
-        ----------
-        color : 'coverage' or 'other'
-            The coloring mode of the Glyph. If 'coverage', then the color is
-            determined by the trace of the `tensor`. Otherwise, the color is
-            the ratio between the width and height i.e. the anisotropy
-        trace_normal : float
-            A scalar used to normalize the trace for coloring the glyph.
-        """
-        try:
-            values, orientation = np.linalg.eig(tensor)
-        except np.linalg.LinAlgError:
-            logger.debug("GLYPH: nan tensor at {}".format(xy))
-            super(Glyph, self).__init__(xy, 0, 0)
-            return
-        scale = np.sqrt(values.dot(values))
-        if scale == 0:
-            logger.info("GLYPH: zero tensor at {}".format(xy))
-            width, height = 0.1, 0.1
-        else:
-            shape = values / scale
-            width, height = shape[0], shape[1]
-        degrees = np.arctan2(orientation[1, 0], orientation[1, 1]) \
-            * 180 / np.pi
-        if color is 'coverage':
-            color = DEFAULT_COLOR_MAP(tensor.trace() / trace_normal)
-        else:
-            color = plt.cm.inferno(min(width, height) / max(width, height))
-        super(Glyph, self).__init__(xy, width, height, angle=degrees,
-                                    color=color,
-                                    **kwargs)
+    # Edit nan glyphs
+    nan_glyphs = np.any(np.isnan(values), axis=1)
+    logger.debug("PieGlyph: nan value at {}".format(xy[nan_glyphs]))
+    xy = xy[~nan_glyphs, ...]
+    values = values[~nan_glyphs, ...]
+    M, N = values.shape
+    # Determine color of glyph
+    if color == 'standard deviation':
+        color = plt.cm.inferno_r(np.std(values, axis=1) / trace_normal)
+    elif color == 'Kullback-Leibler':
+        with np.errstate(divide='ignore', invalid='ignore'):
+            # Some values may be zero which causes division by zeroself.
+            # These are handled later down as zero glyphs
+            pk = values / np.sum(values, axis=1, keepdims=True)
+            entropy = np.sum(pk * np.log(pk * N), axis=1)
+            color = plt.cm.inferno_r(entropy / trace_normal)
+    elif color == 'random':
+        color = DEFAULT_COLOR_MAP(np.random.rand(M))
+    else:
+        color = DEFAULT_COLOR_MAP(np.sum(values, axis=1) / trace_normal)
+    assert color.shape == (M, 4), "color is wrong shape, {}".format(color.shape)
+    # Edit zero radius glyphs
+    zero_glyphs = np.all(values == 0, axis=1)
+    logger.debug("PieGlyph: zero value at {}".format(xy[zero_glyphs]))
+    values[zero_glyphs, :] = 1
+    # Determine radius of each pie sector
+    max_radius = 0.5
+    f = values / np.amax(values, axis=1, keepdims=True)
+    max_area = np.pi * max_radius * max_radius / N / 2
+    area = f * max_area
+    radii = np.sqrt(2 * N * area / np.pi)
+    radii[zero_glyphs, :] = 0.1
+    # Create pie wedges
+    wedge_edges = np.linspace(0, 180, N+1, endpoint=True)
+    wedges = list()
+    for j in range(M):
+        for i in range(N):
+            wedges.append(patches.Wedge(xy[j], radii[j, i],
+                                        wedge_edges[i], wedge_edges[i+1],
+                                        color=color[j], **kwargs))
+            wedges.append(patches.Wedge(xy[j], radii[j, i],
+                                        wedge_edges[i] + 180,
+                                        wedge_edges[i+1] + 180,
+                                        color=color[j], **kwargs))
+    return wedges
 
 
-def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
+def plot_coverage_anisotropy(coverage_map, **kwargs):
     """Plot the coverage anisotropy using 2D glyphs.
 
     Parameters
     ----------
-    glyph_density : :py:class:`float`
-        The fraction of total glyphs to plot in the range `[0, 1]`.
     kwargs
         Keyword arguments for the Glyphs.
 
@@ -204,19 +232,17 @@ def plot_coverage_anisotropy(coverage_map, glyph_density=1.0, **kwargs):
     plt.xlim([-.5, x - 0.5])
     plt.ylim([-.5, y - 0.5])
     axis.invert_yaxis()
-
+    # Compute coordinates of glyphs
     irange, jrange = np.meshgrid(range(x), range(y))
-    sample = list(range(x*y))
-    shuffle(sample)
-    sample = sample[0:int(glyph_density*len(sample))]
-    irange = irange.flatten()[sample]
-    jrange = jrange.flatten()[sample]
-
-    ijrange = np.stack([irange, jrange], axis=1)
-
-    for ij in ijrange:
-        glyph = Glyph(ij, coverage_map[ij[0], ij[1], :, :], **kwargs)
-        axis.add_artist(glyph)
+    irange = irange.flatten()
+    jrange = jrange.flatten()
+    ij_size = irange.size
+    coords = np.stack([irange, jrange], axis=1)
+    # Reformat data for glyph making function
+    vectors = np.reshape(coverage_map, [ij_size, coverage_map.shape[-1]])
+    glyphs = get_pie_glyphs(coords, vectors, snap=False, **kwargs)
+    # Add glyphs to axis
+    axis.add_collection(collections.PatchCollection(glyphs, match_original=True))
 
 
 def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=-1,
@@ -311,8 +337,6 @@ def plot_geometry(geometry, axis=None, alpha=None, c=None, z=0.0, t=0.0001):
         return plot_curve(geometry, axis, alpha, c)
     elif isinstance(geometry, Polygon):
         return plot_polygon(geometry, axis, alpha, c)
-    elif isinstance(geometry, pt.Polytope):
-        return plot_polytope(geometry, axis, alpha, c, z, t)
     else:
         raise NotImplemented('geometry is not Mesh, Curve or Polygon.')
 
@@ -370,32 +394,6 @@ def plot_polygon(polygon, axis=None, alpha=None, c=None):
     p.set_edgecolor(POLY_EDGE_COLOR)
     p.set_linewidth(POLY_LINEWIDTH)
     axis.add_patch(p)
-
-
-def plot_polytope(polytope, axis=None, alpha=None, c=None, z=0.0, t=0.0001):
-    """Project and plot a polytope into the plane"""
-    if c is None:
-        c = POLY_COLOR
-
-    box_zmin = polytope.bounding_box[0][2]
-    box_zmax = polytope.bounding_box[1][2]
-
-    if (box_zmin < z and box_zmax < z
-            or z + t < box_zmin and z + t < box_zmax):
-        return False
-
-    lo = [0, 0, z]
-    hi = [1, 1, z + t]
-
-    plane = pt.Polytope.from_box(np.stack([lo, hi], axis=1))
-
-    projection = plane.intersect(polytope).project([1, 2])
-
-    if projection.dim > 0:
-        projection.plot(ax=axis, alpha=alpha, color=c)
-        return True
-
-    return False
 
 
 def plot_curve(curve, axis=None, alpha=None, c=None):
@@ -490,7 +488,7 @@ def discrete_phantom(phantom, size, ratio=9, uniform=True,
 
         # Make a grid to put store all of the discrete geometries
         image = np.zeros([size] * phantom.geometry.dim, dtype=float)
-        imin = [0] * phantom.geometry.dim
+        imin = [-0.5 // psize] * phantom.geometry.dim
 
         image = combine_grid(imin, image, pmin // psize, patch * value)
 
@@ -657,33 +655,32 @@ def discrete_geometry(geometry, psize, ratio=9):
     # Check that the resulting image is the expected size
     assert np.all(patch.shape == final_shape // ratio)
 
-    if geometry.dim > 1:
-        patch = np.swapaxes(patch, 0, 1)
-        corner[0], corner[1] = corner[1], corner[0]
-
     # Return the image and its min corner
     return corner, patch
 
 
-def sidebyside(p, size=100, labels=None, prop='mass_attenuation'):
+def sidebyside(p, size=100, labels=None, prop='mass_attenuation',
+               figsize=(6, 3), dpi=100, **kwargs):
     '''Displays the geometry and the discrete property function of
     the given :class:`.Phantom` side by side.'''
     # plt.rcParams.update({'font.size': 6})
 
-    fig = plt.figure(figsize=(6, 3), dpi=100)
+    fig = plt.figure(figsize=figsize, dpi=dpi, **kwargs)
 
     axis = fig.add_subplot(121, aspect='equal')
     plot_phantom(p, axis=axis, labels=labels)
     plt.grid('on')
     axis.invert_yaxis()
-    axis.set_xticks(np.linspace(0, 1, 6, True))
-    axis.set_yticks(np.linspace(0, 1, 6, True))
+    axis.set_xticks(np.linspace(0, 1, 6, True) - 0.5)
+    axis.set_yticks(np.linspace(0, 1, 6, True) - 0.5)
+    plt.xlim([-.5, .5])
+    plt.ylim([-.5, .5])
 
     axis = plt.subplot(122)
     d = discrete_phantom(p, size, prop=prop)
-    plt.imshow(d, interpolation='none', cmap=plt.cm.inferno)
-    axis.set_xticks(np.linspace(0, size, 6, True))
-    axis.set_yticks(np.linspace(0, size, 6, True))
+    plt.imshow(d, interpolation='none', cmap=plt.cm.inferno, origin='lower')
+    # axis.set_xticks(np.linspace(0, size, 6, True))
+    # axis.set_yticks(np.linspace(0, size, 6, True))
 
     plt.tight_layout()
 

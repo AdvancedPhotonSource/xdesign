@@ -60,7 +60,6 @@ import warnings
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from numbers import Number
-import polytope as pt
 from cached_property import cached_property
 import copy
 from math import sqrt, asin
@@ -79,9 +78,8 @@ __all__ = ['Entity',
            'Triangle',
            'Rectangle',
            'Square',
-           'Mesh',
-           'NOrthotope',
-           'NCube']
+           'Mesh'
+           ]
 
 
 class Entity(object):
@@ -763,7 +761,7 @@ class Circle(Curve):
     @property
     def patch(self):
         """Returns a matplotlib patch."""
-        return plt.Circle((self.center.x, self.center.y), self.radius)
+        return plt.Circle((self.center.y, self.center.x), self.radius)
 
     @property
     def bounding_box(self):
@@ -900,7 +898,11 @@ class Polygon(Entity):
     @property
     def patch(self):
         """Returns a matplotlib patch."""
-        return plt.Polygon(self.numpy)
+        points = self.vertices
+        a = np.zeros((len(points), points[0].dim))
+        for i in range(len(points)):
+            a[i] = np.flip(points[i]._x, 0)
+        return plt.Polygon(a)
 
     # Cached Properties
     @property
@@ -988,8 +990,7 @@ class Polygon(Entity):
                 A[i, :] = -A[i, :]
                 B[i] = -B[i]
 
-        p = pt.Polytope(A, B)
-        return p
+        return A, B
 
     # Methods
     def translate(self, vector):
@@ -1140,7 +1141,7 @@ class Rectangle(Polygon):
 
     def __repr__(self):
         return "Rectangle({}, {})".format(repr(self.center),
-                                          repr(self.side_lengths))
+                                          repr(self.side_lengths.tolist()))
 
     @cached_property
     def area(self):
@@ -1232,8 +1233,9 @@ class Mesh(Entity):
 
         for f in self.faces:
             fmin, fmax = f.bounding_box
-            xmin = np.fmin(xmin, fmin)
-            xmax = np.fmax(xmax, fmax)
+            with np.errstate(invalid='ignore'):
+                xmin = np.fmin(xmin, fmin)
+                xmax = np.fmax(xmax, fmax)
 
         return xmin, xmax
 
@@ -1327,43 +1329,34 @@ class Mesh(Entity):
 
 
 def calc_standard(A):
-    """Returns the standard equation (c0*x = c1) coefficents for the hyper-plane
-    defined by the row-wise ND points in A. Uses single value decomposition
-    (SVD) to solve the coefficents for the homogenous equations.
+    """Return the standard equation (c_{0}*x + ... = c_{1}) coefficents for the
+    hyper-plane defined by the row-wise N-dimensional points A.
 
     Parameters
     ----------
-    points : 2Darray
-        Each row is an ND point.
+    A : :py:class:`np.array` (..., N, N)
+        Each row is an N-dimensional point on the plane.
 
     Returns
     ----------
-    c0 : 1Darray
+    c0 : :py:class:`np.array` (..., N)
         The first N coeffients for the hyper-plane
-    c1 : 1Darray
+    c1 : :py:class:`np.array` (..., 1)
         The last coefficient for the hyper-plane
     """
-    if not isinstance(A, np.ndarray):
-        raise TypeError("A must be np.ndarray")
-
-    if A.ndim == 1:  # Special case for 1D
-        return np.array([1]), A
-    if A.ndim != 2 or A.shape[0] != A.shape[1]:
-        raise ValueError("A must be 2D square.")
-
-    # Add coordinate for last coefficient
-    A = np.pad(A, ((0, 0), (0, 1)), 'constant', constant_values=1)
-
-    atol = 1e-16
-    rtol = 0
-    u, s, vh = np.linalg.svd(A)
-    tol = max(atol, rtol * s[0])
-    nnz = (s >= tol).sum()
-    ns = vh[nnz:].conj().T
-
-    c = ns.squeeze()
-
-    return c[0:-1], -c[-1]
+    b = np.ones(A.shape[0:-1])
+    x1 = np.atleast_1d(b[..., 0])
+    try:
+        x = np.linalg.solve(A, b)
+    except np.linalg.LinAlgError as e:
+        if str(e) != 'Singular matrix':
+            raise
+        else:
+            a = A[...,1,1] - A[...,0,1]
+            b = A[...,0,0] - A[...,1,0]
+            x1 = np.atleast_1d(a * A[...,0,0] + b * A[...,0,1])
+            x = np.stack([a, b], axis=-1)
+    return x, x1
 
 
 def halfspacecirc(d, r):
@@ -1405,102 +1398,64 @@ def halfspacecirc(d, r):
     return f
 
 
-class NOrthotope(pt.Polytope):
-    """A rectangle in higher dimensions.
+def two_lines_intersect(l0A, l0b, l1A, l1b):
+    A = np.stack([l0A, l1A], axis=0)
+    b = np.stack([l0b, l1b], axis=0)
+    x = np.linalg.solve(A, b)
+    return x
 
-    Attributes
+
+def half_space(self, center):
+    """Returns the half space polytope respresentation of the Line."""
+    A, B = self.standard
+    # test for positive or negative side of line
+    if not halfspace_has_point(A, B, center):
+        A = -A
+        B = -B
+
+    return A, B
+
+
+def halfspace_has_point(A, B, point):
+    return np.dot(A, point._x) <= B
+
+
+def clip_SH(clipEdges, polygon):
+    """Sutherland-Hodgeman algorithm for clipping a polygon
+
+    Parameters
     ----------
-    center : :class:`Point`
-        The middle of the Parallelotope
-    side_lengths : N array
-        A vector defining the lengths of the edges of the NOrthotope.
+    clipEdges [[A, b], ...]
+        half-spaces defined by coefficients
+
+    polygon
+
     """
-    def __init__(self, center, side_lengths):
+    outputList = polygon.vertices
+    for clipEdge in clipEdges:
+        # previous iteration output is this iteration input
+        inputList = outputList
+        outputList = list()
+        if len(inputList) == 0:
+            break
+        S = inputList[-1]
 
-        self.radii = np.array(side_lengths) / 2
-        self.side_lengths = np.array(side_lengths)
-        self.radius = sqrt(self.radii.dot(self.radii))
+        for E in inputList:
 
-        lo = center._x - self.radii
-        hi = center._x + self.radii
-        intervals = np.stack([lo, hi], axis=1)
+            if halfspace_has_point(clipEdge[0], clipEdge[1], E):
 
-        # Use code from Polytope.from_box()
-        if not isinstance(intervals, np.ndarray):
-            intervals = np.array(intervals)
-        if intervals.ndim != 2:
-            raise ValueError('Polytope.from_box: ' +
-                             'intervals must be 2 dimensional')
-        n = intervals.shape
-        if n[1] != 2:
-            raise ValueError('Polytope.from_box: ' +
-                             'intervals must have 2 columns')
-        n = n[0]
-        # a <= b for each interval ?
-        if (intervals[:, 0] > intervals[:, 1]).any():
-            msg = 'Polytope.from_box: '
-            msg += 'Invalid interval in from_box method.\n'
-            msg += 'First element of an interval must'
-            msg += ' not be larger than the second.'
-            raise ValueError(msg)
-        A = np.vstack([np.eye(n), -np.eye(n)])
-        b = np.hstack([intervals[:, 1], -intervals[:, 0]])
+                if not halfspace_has_point(clipEdge[0], clipEdge[1], S):
+                    A, b = calc_standard(np.stack([S._x, E._x], axis=0))
+                    new_vert = two_lines_intersect(A, b,
+                                                   clipEdge[0], clipEdge[1])
+                    outputList.append(Point(new_vert))
 
-        super(NOrthotope, self).__init__(A, b, minrep=True)
+                outputList.append(E)
 
-    @property
-    def center(self):
-        """The Chebyshev ball center"""
-        return Point(self.chebXc)
+            elif halfspace_has_point(clipEdge[0], clipEdge[1], S):
+                A, b = calc_standard(np.stack([S._x, E._x], axis=0))
+                new_vert = two_lines_intersect(A, b, clipEdge[0], clipEdge[1])
+                outputList.append(Point(new_vert))
 
-    # Methods
-    def translate(self, vector):
-        """Translate by a vector."""
-        pt.polytope._translate(self, vector)
-
-    def rotate(self, theta, point=None, axis=None):
-        """Rotate around an axis which passes through a point by
-        theta radians."""
-
-        if point is None:
-            d = 0
-        else:
-            d = point._x
-
-        pt.polytope._translate(self, -d)
-        pt.polytope._rotate(self, i=0, j=1, theta=theta)
-        pt.polytope._translate(self, d)
-
-    def contains(self, other):
-        """Return whether this Parallelotope contains the other."""
-        if isinstance(other, Point):
-            return other._x in self
-
-        elif isinstance(other, np.ndarray):
-            if other.ndim == 1:
-                other.shape = (other.size, 1)
-            else:
-                other = other.T
-
-            assert other.shape[0] == self.dim
-
-            test = self.A.dot(other) \
-                - self.b.reshape((self.b.size, 1)) < 1e-7
-
-            return np.all(test, axis=0)
-
-        elif isinstance(other, pt.Polytope):
-            return other <= self
-        else:
-            raise NotImplementedError
-
-
-class NCube(NOrthotope):
-    """A cube in higher dimensions."""
-    def __init__(self, center, side_length=None, radius=None):
-
-        if radius is not None:
-            side_length = radius * 2
-
-        side_lengths = [side_length] * center.dim
-        super(NCube, self).__init__(center, side_lengths)
+            S = E
+    return outputList

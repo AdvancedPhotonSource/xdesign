@@ -2,8 +2,8 @@ language: python
 
 python:
   - "2.7"
-  - "3.4"
   - "3.5"
+  - "3.6"
 
 os:
   - linux
@@ -30,13 +30,18 @@ before_install:
   - conda install anaconda-client
 
 install:
-  - conda install python=$TRAVIS_PYTHON_VERSION nose six numpy scipy matplotlib python-coveralls pillow cached-property setuptools
-  - pip install phasepack polytope
+  - conda install python=$TRAVIS_PYTHON_VERSION setuptools
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
+      conda install python-coveralls;
+    fi
+  - conda install nose six numpy scipy matplotlib requests cached-property
+  - pip install phasepack
   - conda info -a
   - python setup.py build_ext --inplace
-
 script:
-  - nosetests tests --with-coverage
+  - nosetests tests -vs --with-coverage
 
 after_success:
-  - coveralls
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
+      coveralls;
+    fi
