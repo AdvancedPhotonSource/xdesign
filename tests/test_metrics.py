@@ -75,21 +75,22 @@ def test_MSSSIM_same_image_is_unity():
                             err_msg="MSSSIM maps are not unity.")
 
 
-def test_VIFp_same_image_is_unity():
-    scales, mets, maps = xd.compute_vifp(img1, img1,
-                                         nlevels=5, sigma=1.2, L=256)
-    np.testing.assert_equal(mets, np.ones(mets.shape),
-                            err_msg="Mean is not unity.")
-    np.testing.assert_equal(maps, np.ones(img1.shape),
-                            err_msg="VIFp maps are not unity.")
+# def test_VIFp_same_image_is_unity():
+#     scales, mets, maps = xd.compute_vifp(img1, img1,
+#                                          nlevels=5, sigma=1.2, L=256)
+#     np.testing.assert_equal(mets, np.ones(mets.shape),
+#                             err_msg="Mean is not unity.")
+#     np.testing.assert_equal(maps, np.ones(img1.shape),
+#                             err_msg="VIFp maps are not unity.")
 
 
 def test_FSIM_same_image_is_unity():
     scales, mets, maps = xd.compute_fsim(img1, img1,
                                          nlevels=5, nwavelets=16, L=None)
     np.testing.assert_equal(mets, 1., err_msg="Mean is not unity.")
-    np.testing.assert_equal(maps, np.ones(img1.shape),
-                            err_msg="FSIM maps are not unity.")
+    for map in maps:
+        np.testing.assert_equal(map, 1.,
+                                err_msg="FSIM maps are not unity.")
 
 
 if __name__ == '__main__':

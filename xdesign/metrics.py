@@ -84,7 +84,6 @@ __all__ = ['compute_PCC',
            'compute_ssim',
            'compute_msssim',
            'compute_fsim',
-           'compute_vifp',
            'coverage_approx']
 
 
