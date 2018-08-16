@@ -30,14 +30,18 @@ before_install:
   - conda install anaconda-client
 
 install:
-  - conda install python=$TRAVIS_PYTHON_VERSION python-coveralls setuptools
+  - conda install python=$TRAVIS_PYTHON_VERSION setuptools
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
+      conda install python-coveralls
+    fi
   - conda install nose six numpy scipy matplotlib requests cached-property
   - pip install phasepack
   - conda info -a
   - python setup.py build_ext --inplace
-
 script:
-  - nosetests tests --with-coverage
+  - nosetests tests -vs --with-coverage
 
 after_success:
-  - coveralls
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
+      coveralls
+    fi

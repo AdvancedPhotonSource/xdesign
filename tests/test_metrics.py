@@ -49,13 +49,13 @@
 import scipy
 import numpy as np
 import xdesign as xd
+import matplotlib.pyplot as plt
 
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 
-img1 = scipy.ndimage.imread("tests/cameraman.png")
-img4 = scipy.ndimage.imread("tests/cameraman_mixed1.png")
+img1 = plt.imread("tests/cameraman.png")
 
 
 def test_SSIM_same_image_is_unity():
