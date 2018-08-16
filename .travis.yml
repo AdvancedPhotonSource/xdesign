@@ -32,7 +32,7 @@ before_install:
 install:
   - conda install python=$TRAVIS_PYTHON_VERSION setuptools
   - if [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
-      conda install python-coveralls
+      conda install python-coveralls;
     fi
   - conda install nose six numpy scipy matplotlib requests cached-property
   - pip install phasepack
@@ -43,5 +43,5 @@ script:
 
 after_success:
   - if [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
-      coveralls
+      coveralls;
     fi
