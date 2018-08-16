@@ -30,8 +30,8 @@ before_install:
   - conda install anaconda-client
 
 install:
-  - conda install python=$TRAVIS_PYTHON_VERSION nose six numpy scipy matplotlib python-coveralls pillow cached-property setuptools
-  - pip install phasepack polytope
+  - conda install python=$TRAVIS_PYTHON_VERSION nose six numpy scipy matplotlib python-coveralls pillow cached-property setuptools pyfftw
+  - pip install phasepack
   - conda info -a
   - python setup.py build_ext --inplace
 

@@ -34,7 +34,7 @@ def test_sinogram():
                     'to generate it')
     sino_reference = np.load(ref_file)
     # assert that they are equal
-    np.testing.assert_equal(sino, sino_reference)
+    np.testing.assert_allclose(sino, sino_reference)
 
 
 if __name__ == '__main__':
