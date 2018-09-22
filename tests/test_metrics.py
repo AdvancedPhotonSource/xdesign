@@ -46,57 +46,55 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-from numpy.testing import assert_equal, assert_almost_equal
-import numpy as np
 import scipy
-
-from xdesign.plot import plot_metrics
-from xdesign.metrics import (_compute_ssim, _compute_vifp, _compute_fsim,
-                             ImageQuality)
-
+import numpy as np
+import xdesign as xd
+import matplotlib.pyplot as plt
 
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 
-img1 = scipy.ndimage.imread("tests/cameraman.png")
-img4 = scipy.ndimage.imread("tests/cameraman_mixed1.png")
+img1 = plt.imread("tests/cameraman.png")
 
 
 def test_SSIM_same_image_is_unity():
-    scales, mets, maps = _compute_ssim(img1, img1)
-    assert_equal(mets, 1, err_msg="Mean is not unity.")
-    assert_equal(maps, np.ones(img1.shape),
-                 err_msg="local metrics are not unity.")
-    assert_equal(img1.shape, maps.shape,
-                 err_msg="SSIMs map not the same size as input")
+    scales, mets, maps = xd.compute_ssim(img1, img1,
+                                         sigma=1.2, L=256)
+    np.testing.assert_equal(mets, 1., err_msg="Mean is not unity.")
+    np.testing.assert_equal(maps, np.ones(img1.shape),
+                            err_msg="SSIM maps are not unity.")
 
 
-def test_VIFp_same_image_is_unity():
-    scales, mets, maps = _compute_vifp(img1, img1)
-    assert_almost_equal(mets, 1, err_msg="Mean is not unity.")
-    # assert_equal(IQ.maps,1,err_msg="local metrics are not unity.")
+def test_MSSSIM_same_image_is_unity():
+    scales, mets, maps = xd.compute_msssim(img1, img1,
+                                           nlevels=5, sigma=1.2, L=256)
+    np.testing.assert_equal(mets, np.ones(mets.shape),
+                            err_msg="Mean is not unity.")
+    np.testing.assert_equal(maps, np.ones(img1.shape),
+                            err_msg="MSSSIM maps are not unity.")
+
+
+# def test_VIFp_same_image_is_unity():
+#     scales, mets, maps = xd.compute_vifp(img1, img1,
+#                                          nlevels=5, sigma=1.2, L=256)
+#     np.testing.assert_equal(mets, np.ones(mets.shape),
+#                             err_msg="Mean is not unity.")
+#     np.testing.assert_equal(maps, np.ones(img1.shape),
+#                             err_msg="VIFp maps are not unity.")
 
 
 def test_FSIM_same_image_is_unity():
-    scales, mets, maps = _compute_fsim(img1, img1)
-    assert_almost_equal(mets, 1., err_msg="Mean is not unity.")
-    # assert_almost_equal(IQ.maps, np.ones(len(IQ.maps)),
-    #                     err_msg="local metrics are not unity.")
-
-
-def test_compute_quality_cameraman():
-    IQ = ImageQuality(img1, img4)
-    IQ.compute_quality(method="VIFp", L=256)
-    plot_metrics(IQ)
-    IQ.compute_quality(method="FSIM", L=256)
-    plot_metrics(IQ)
-    IQ.compute_quality(method="MSSSIM", L=256)
-    plot_metrics(IQ)
+    scales, mets, maps = xd.compute_fsim(img1, img1,
+                                         nlevels=5, nwavelets=16, L=None)
+    np.testing.assert_equal(mets, 1., err_msg="Mean is not unity.")
+    for map in maps:
+        np.testing.assert_equal(map, 1.,
+                                err_msg="FSIM maps are not unity.")
 
 
 if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-
-    test_compute_quality_cameraman()
-    plt.show(block=True)
+    test_SSIM_same_image_is_unity()
+    test_MSSSIM_same_image_is_unity()
+    test_VIFp_same_image_is_unity()
+    test_FSIM_same_image_is_unity()

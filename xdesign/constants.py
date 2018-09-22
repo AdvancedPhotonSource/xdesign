@@ -89,6 +89,10 @@ SPEED_OF_LIGHT = 299792458e+2
 THOMPSON_CROSS_SECTION = 6.652458734e-25
 PI = 3.14159265359
 
+RADIUS = 10
+
+DEFAULT_ENERGY = 15.0
+
 
 def wavelength(energy):
     """Return wavelength [cm] of light given energy [keV]."""

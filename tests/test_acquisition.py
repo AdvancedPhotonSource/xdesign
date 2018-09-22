@@ -1,45 +1,44 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import numpy as np
 import os.path
-from numpy.testing import assert_allclose
-
-from xdesign.acquisition import *
-from xdesign.phantom import XDesignDefault
-
-from multiprocessing import Pool
+import numpy as np
 import matplotlib.pyplot as plt
+import xdesign as xd
+import logging
 
-
-def test_raster_scan():
-    positions = [p.numpy.flatten() for p in raster_scan(2, 2)]
-    positions = np.hstack(np.hstack(positions))
-
-    correct = np.array([0.25, -10, 0.25, 10,
-                        0.75, -10, 0.75, 10,
-                        0.75,  11, 0.75, -9,
-                        0.25,  11, 0.25, -9])
-
-    assert_allclose(positions, correct)
+SIZE = 32
 
 
 def test_sinogram():
-    p = XDesignDefault()
-
-    pool = Pool()
-    sino, _ = sinogram(32, 32, p, pool=pool)
-    pool.close()
-
+    """Compare sinogram of XDesignDefault with a reference."""
+    # Create the phantom
+    phan = xd.XDesignDefault()
+    # Plot it for debugging purposes
+    plt.figure()
+    xd.sidebyside(phan, SIZE)
+    # Generate the scanning trajectory
+    theta, h = xd.raster_scan2D(SIZE, SIZE)
+    # Create a probe
+    prb = xd.Probe(size=1/SIZE)
+    # Meausure the phantom with the probe
+    sino = prb.measure(phan, theta, h)
+    sino = -np.log(sino)
+    # Plot the sinogram for debugging
+    plt.figure()
+    plt.imshow(sino, origin='lower')
+    # Load the reference from file
     ref_file = 'tests/test_sinogram.npy'
+    if not os.path.isfile(ref_file):
+        ImportError('sinogram reference not found; use test_sinogram.ipynb' +
+                    'to generate it')
+    sino_reference = np.load(ref_file)
+    # assert that they are equal
+    np.testing.assert_allclose(sino, sino_reference)
 
-    # plt.imshow(sino)
-    # plt.show(block=True)
 
-    # if not os.path.isfile(ref_file):
-    #     ImportError('sinogram reference not found; use test_sinogram.ipynb' +
-    #                 'to generate it')
-    #
-    # sino_reference = np.load(ref_file)
-    #
-    # assert_allclose(sino, sino_reference, atol=1e-2)
+if __name__ == '__main__':
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    test_sinogram()
+    plt.show()

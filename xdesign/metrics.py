@@ -65,8 +65,9 @@ from scipy import stats
 from copy import deepcopy
 
 from xdesign.phantom import HyperbolicConcentric, UnitCircle
-from xdesign.acquisition import beamintersect
+from xdesign.acquisition import beamintersect, thv_to_zxy
 from xdesign.geometry import Circle, Point, Line
+from xdesign.algorithms import get_mids_and_lengths
 
 logger = logging.getLogger(__name__)
 
@@ -74,14 +75,15 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['compute_PCC',
-           'compute_likeness',
-           'compute_background_ttest',
            'compute_mtf',
            'compute_mtf_ffst',
            'compute_mtf_lwkj',
            'compute_nps_ffst',
            'compute_neq_d',
            'ImageQuality',
+           'compute_ssim',
+           'compute_msssim',
+           'compute_fsim',
            'coverage_approx']
 
 
@@ -94,7 +96,8 @@ def tensor_at_angle(angle, magnitude):
     return np.einsum('ij,...jk,lk->...il', R, tensor, R)
 
 
-def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
+def coverage_approx(gmin, gsize, ngrid, probe_size, theta, h, v, weights=None,
+                    anisotropy=1, num_rays=16):
     """Approximate procedure coverage with a Riemann sum.
 
     The intersection between the beam and each pixel is approximated by using a
@@ -131,95 +134,44 @@ def coverage_approx(procedure, region, pixel_size, n=1, anisotropy=False):
     --------
     :py:func:`.plot.plot_coverage_anisotropy`
     """
-    box = np.asanyarray(region)
+    if weights is None:
+        weights = np.ones(theta.shape)
+    assert weights.size == theta.size == h.size == v.size, "theta, h, v must be" \
+        "the equal lengths"
+    coverage_map = np.zeros(list(ngrid) + [anisotropy])
+    # split the probe up into bunches of rays
+    line_offsets = np.linspace(0, probe_size, num_rays) - probe_size / 2
+    theta = np.repeat(theta.flatten(), line_offsets.size)
+    h = h.reshape(h.size, 1) + line_offsets
+    h = h.flatten()
+    v = np.repeat(v.flatten(), line_offsets.size)
+    weights = np.repeat(weights.flatten(), line_offsets.size)
+    # Convert from theta,h,v to x,y,z
+    srcx, srcy, detx, dety, z = thv_to_zxy(theta, h, v)
+    # grid frame (gx, gy)
+    sx, sy = ngrid[0], ngrid[1]
+    gx = np.linspace(gmin[0], gmin[0] + gsize[0], sx + 1, endpoint=True)
+    gy = np.linspace(gmin[1], gmin[1] + gsize[1], sy + 1, endpoint=True)
 
-    # Define the locations of the grid lines (gx, gy)
-    gx = np.arange(box[0, 0], box[0, 1] + pixel_size, pixel_size)
-    gy = np.arange(box[1, 0], box[1, 1] + pixel_size, pixel_size)
+    for m in range(theta.size):
+        # get intersection locations and lengths
+        xm, ym, dist = get_mids_and_lengths(srcx[m], srcy[m],
+                                            detx[m], dety[m],
+                                            gx, gy)
+        if np.any(dist > 0):
+            # convert midpoints of line segments to indices
+            ix = np.floor(sx * (xm - gmin[0]) / gsize[0]).astype('int')
+            iy = np.floor(sy * (ym - gmin[1]) / gsize[1]).astype('int')
+            ia = np.floor((theta[m] / (np.pi / anisotropy)
+                          % anisotropy)).astype('int')
+            ind = (dist != 0) & (0 <= ix) & (ix < sx) \
+                & (0 <= iy) & (iy < sy)
+            # put the weights in the binn
+            coverage_map[ix[ind], iy[ind], ia] += dist[ind] * weights[m]
 
-    # the number of pixels = number of gridlines - 1
-    sx, sy = gx.size-1, gy.size-1
-
-    if anisotropy:
-        coverage_map = np.zeros((sx, sy, 2, 2))
-    else:
-        coverage_map = np.zeros((sx, sy))
-
-    for probe in procedure:
-
-        # Determine quantity and width of alpha lines
-        num_lines = max(1, n)
-        line_width = probe.size / num_lines
-
-        # Move the first alpha line to a starting position
-        aline = Line(deepcopy(probe.p1), deepcopy(probe.p2))
-        aline.translate(probe.normal._x * -(line_width + probe.size) / 2)
-
-        beam = probe.p2._x - probe.p1._x
-        beam_angle = np.arctan2(beam[1], beam[0])
-
-        for i in range(num_lines):
-
-            aline.translate(probe.normal._x * line_width)
-
-            x0, y0 = aline.p1.x, aline.p1.y
-            x1, y1 = aline.p2.x, aline.p2.y
-
-            # avoid upper-right boundary errors
-            if (x1 - x0) == 0:
-                x0 += 1e-12
-            if (y1 - y0) == 0:
-                y0 += 1e-12
-
-            # vector lengths (ax, ay)
-            ax = (gx - x0) / (x1 - x0)
-            ay = (gy - y0) / (y1 - y0)
-
-            # edges of alpha (a0, a1)
-            ax0 = min(ax[0], ax[-1])
-            ax1 = max(ax[0], ax[-1])
-            ay0 = min(ay[0], ay[-1])
-            ay1 = max(ay[0], ay[-1])
-            a0 = max(max(ax0, ay0), 0)
-            a1 = min(min(ax1, ay1), 1)
-
-            # sorted alpha vector
-            cx = (ax >= a0) & (ax <= a1)
-            cy = (ay >= a0) & (ay <= a1)
-            alpha = np.sort(np.r_[ax[cx], ay[cy]])
-
-            if len(alpha) > 0:
-
-                # lengths
-                xv = x0 + alpha * (x1 - x0)
-                yv = y0 + alpha * (y1 - y0)
-                lx = np.ediff1d(xv)
-                ly = np.ediff1d(yv)
-                dist = np.sqrt(lx**2 + ly**2)
-                dist2 = np.dot(dist, dist)
-                ind = dist != 0
-
-                # indexing
-                mid = alpha[:-1] + np.ediff1d(alpha) / 2.
-                xm = x0 + mid * (x1 - x0)
-                ym = y0 + mid * (y1 - y0)
-                ix = np.floor(np.true_divide(sx * (xm - box[0, 0]),
-                                             sx * pixel_size)).astype('int')
-                iy = np.floor(np.true_divide(sy * (ym - box[0, 1]),
-                                             sy * pixel_size)).astype('int')
-
-                try:
-                    magnitude = dist * line_width
-                    if anisotropy:
-                        tensor = tensor_at_angle(beam_angle, magnitude)
-                        coverage_map[ix, iy, :, :] += tensor
-                    else:
-                        coverage_map[ix, iy] += magnitude
-                except IndexError as e:
-                    warnings.warn("{}\nix is {}\niy is {}".format(e, ix, iy),
-                                  RuntimeWarning)
-
-    return coverage_map / pixel_size**2
+    pixel_area = np.prod(gsize) / np.prod(ngrid)
+    line_width = probe_size / num_rays
+    return coverage_map * line_width / pixel_area
 
 
 def compute_mtf(phantom, image):
@@ -441,7 +393,7 @@ def compute_mtf_lwkj(phantom, image):
 
     # convert from contrast as a function of radius to contrast as a function
     # of spatial frequency
-    frequency = phantom.ratio/pradii
+    frequency = phantom.ratio/pradii.flatten()
 
     return frequency, M
 
@@ -750,67 +702,6 @@ def compute_PCC(A, B, masks=None):
     return covariances
 
 
-def compute_likeness(A, B, masks):
-    """Predict the likelihood that each pixel in B belongs to a phase based
-    on the histogram of A.
-
-    Parameters
-    ------------
-    A : ndarray
-    B : ndarray
-    masks : list of ndarrays
-
-    Returns
-    --------------
-    likelihoods : list of ndarrays
-    """
-    # generate the pdf or pmf for each of the phases
-    pdfs = []
-    for m in masks:
-        K, mu, std = stats.exponnorm.fit(np.ravel(A[m > 0]))
-        print((K, mu, std))
-        # for each reconstruciton, plot the likelihood that this phase
-        # generates that pixel
-        pdfs.append(stats.exponnorm.pdf(B, K, mu, std))
-
-    # determine the probability that it belongs to its correct phase
-    pdfs_total = sum(pdfs)
-    return pdfs / pdfs_total
-
-
-def compute_background_ttest(image, masks):
-    """Determine whether the background has significantly different luminance
-    than the other phases.
-
-    Parameters
-    -------------
-    image : ndarray
-
-    masks : list of ndarrays
-        Masks for the background and any other phases. Does not autogenerate
-        the non-background mask because maybe you want to compare only two
-        phases.
-
-    Returns
-    ----------
-    tstat : scalar
-    pvalue : scalar
-    """
-
-    # separate the background
-    background = image[masks[0] > 0]
-    # combine non-background masks
-    other = False
-    for i in range(1, len(masks)):
-        other = np.logical_or(other, masks[i] > 0)
-    other = image[other]
-
-    tstat, pvalue = stats.ttest_ind(background, other, axis=None, equal_var=False)
-    # print([tstat,pvalue])
-
-    return tstat, pvalue
-
-
 class ImageQuality(object):
     """Store information about image quality.
 
@@ -851,8 +742,8 @@ class ImageQuality(object):
             representations and 2^bitdepth for integer representations.
         """
 
-        dictionary = {"SSIM": _compute_ssim, "MSSSIM": _compute_msssim,
-                      "VIFp": _compute_vifp, "FSIM": _compute_fsim}
+        dictionary = {"SSIM": compute_ssim, "MSSSIM": compute_msssim,
+                      "VIFp": compute_vifp, "FSIM": compute_fsim}
         try:
             method_func = dictionary[method]
         except KeyError:
@@ -909,7 +800,7 @@ def _join_metrics(A, B):
     return A
 
 
-def _compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
+def compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
     """Calculate the Visual Information Fidelity (VIFp) between two images in
     in a multiscale pixel domain with scalar.
 
@@ -976,8 +867,7 @@ def _compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
 
         sigma0_sq = ndimage.gaussian_filter((img0 - mu0)**2, sigma)
         sigma1_sq = ndimage.gaussian_filter((img1 - mu1)**2, sigma)
-        sigma01 = ndimage.gaussian_filter((img0 - mu0) * (img1 - mu1),
-                                                sigma)
+        sigma01 = ndimage.gaussian_filter((img0 - mu0) * (img1 - mu1), sigma)
 
         g = sigma01 / (sigma0_sq + eps)
         sigmav_sq = sigma1_sq - g * sigma01
@@ -1000,7 +890,7 @@ def _compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
     return scales, mets, maps
 
 
-def _compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
+def compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
     """FSIM Index with automatic downsampling, Version 1.0
 
     An implementation of the algorithm for calculating the Feature SIMilarity
@@ -1102,7 +992,8 @@ def _compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
     return scales, mets, maps
 
 
-def _compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
+def compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1.0, K=(0.01, 0.03),
+                   alpha=4, beta_gamma=None):
     """Multi-Scale Structural SIMilarity index (MS-SSIM).
 
     Parameters
@@ -1120,6 +1011,11 @@ def _compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
         representations and 2^bitdepth for integer representations.
     K : 2-tuple
         A list of two constants which help prevent division by zero.
+    alpha : float
+        The exponent which weights the contribution of the luminance term.
+    beta_gamma : list
+        The exponent which weights the contribution of the contrast and
+        structure terms at each level.
 
     Returns
     -------
@@ -1137,34 +1033,36 @@ def _compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1, K=(0.01, 0.03)):
     Conference on Signals, Systems and Computers, Nov. 2003
     """
     _full_reference_input_check(img0, img1, sigma, nlevels, L)
-
     # The relative imporance of each level as determined by human experiment
-    # weight = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
-
+    if beta_gamma is None:
+        beta_gamma = np.array([0.0448, 0.2856, 0.3001, 0.2363, 0.1333]) * 4
+    assert nlevels < 6, "Not enough beta_gamma weights for more than 5 levels"
     scales = np.zeros(nlevels)
-    mets = np.zeros(nlevels)
     maps = [None] * nlevels
-
+    scale, luminance, ssim = compute_ssim(img0, img1, sigma=sigma, L=L,
+                                          K=K, scale=sigma,
+                                          alpha=alpha, beta_gamma=0)
     for level in range(0, nlevels):
-
-        scale, SIM, SIMmap = _compute_ssim(img0, img1, sigma=sigma, L=L,
-                                           K=K, scale=sigma * 2**level)
-
+        scale, mean_ssim, ssim = compute_ssim(img0, img1, sigma=sigma, L=L,
+                                              K=K, scale=sigma,
+                                              alpha=0,
+                                              beta_gamma=beta_gamma[level])
         scales[level] = scale
-        mets[level] = SIM
-        maps[level] = SIMmap
-
+        maps[level] = ndimage.zoom(ssim, 2**level, prefilter=False, order=0)
         if level == nlevels - 1:
             break
-
         # Downsample (using ndimage.zoom to prevent sampling bias)
+        # Images become half the size
         img0 = ndimage.zoom(img0, 0.5)
         img1 = ndimage.zoom(img1, 0.5)
 
-    return scales, mets, maps
+    map = luminance * np.nanprod(maps, axis=0)
+    mean_ms_ssim = np.nanmean(map)
+    return scales, mean_ms_ssim, map
 
 
-def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
+def compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
+                 alpha=4, beta_gamma=4):
     """Return the Structural SIMilarity index (SSIM).
 
     A modified version of the Structural SIMilarity index (SSIM) based on an
@@ -1177,11 +1075,19 @@ def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     img1 : array
     img2 : array
         Two images for comparison.
+    sigma : float
+        Sets the standard deviation of the gaussian filter. This setting
+        determines the minimum scale at which quality is assessed.
     L : scalar
         The dynamic range of the data. This value is 1 for float
         representations and 2^bitdepth for integer representations.
-    sigma : list, optional
-        The standard deviation of the gaussian filter.
+    K : 2-tuple
+        A list of two constants which help prevent division by zero.
+    alpha : float
+        The exponent which weights the contribution of the luminance term.
+    beta_gamma : list
+        The exponent which weights the contribution of the contrast and
+        structure terms at each level.
 
     Returns
     -------
@@ -1200,69 +1106,50 @@ def _compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None):
     Z. Wang and A. C. Bovik. Mean squared error: Love it or leave it? - A new
     look at signal fidelity measures. IEEE Signal Processing Magazine,
     26(1):98--117, 2009.
+
+    Silvestre-Blanes, J., & Pérez-Lloréns, R. (2011, September). SSIM and their
+    dynamic range for image quality assessment. In ELMAR, 2011 Proceedings
+    (pp. 93-96). IEEE.
     """
     _full_reference_input_check(img1, img2, sigma, 1, L)
     if scale is not None and scale <= 0:
         raise ValueError("Scale cannot be negative or zero.")
-
-    if scale is None:
-        scale = sigma
-
+    assert L > 0, "L, the dynamic range must be larger than 0."
     c_1 = (K[0] * L)**2
     c_2 = (K[1] * L)**2
-
-    # Convert image matrices to double precision (like in the Matlab version)
-
     # Means obtained by Gaussian filtering of inputs
     mu_1 = ndimage.filters.gaussian_filter(img1, sigma)
     mu_2 = ndimage.filters.gaussian_filter(img2, sigma)
-
     # Squares of means
     mu_1_sq = mu_1**2
     mu_2_sq = mu_2**2
     mu_1_mu_2 = mu_1 * mu_2
-
-    # Squares of input matrices
-    im1_sq = img1**2
-    im2_sq = img2**2
-    im12 = img1 * img2
-
     # Variances obtained by Gaussian filtering of inputs' squares
-    sigma_1_sq = ndimage.filters.gaussian_filter(im1_sq, sigma)
-    sigma_2_sq = ndimage.filters.gaussian_filter(im2_sq, sigma)
-
+    sigma_1_sq = ndimage.filters.gaussian_filter(img1**2, sigma) - mu_1_sq
+    sigma_2_sq = ndimage.filters.gaussian_filter(img2**2, sigma) - mu_2_sq
     # Covariance
-    sigma_12 = ndimage.filters.gaussian_filter(im12, sigma)
+    sigma_12 = ndimage.filters.gaussian_filter(img1 * img2, sigma) - mu_1_mu_2
+    # Division by zero is prevented by adding c_1 and c_2
+    numerator1 = 2 * mu_1_mu_2 + c_1
+    denominator1 = mu_1_sq + mu_2_sq + c_1
+    numerator2 = 2 * sigma_12 + c_2
+    denominator2 = sigma_1_sq + sigma_2_sq + c_2
 
-    # Centered squares of variances
-    sigma_1_sq -= mu_1_sq
-    sigma_2_sq -= mu_2_sq
-    sigma_12 -= mu_1_mu_2
-
-    if (c_1 > 0) & (c_2 > 0):
-        ssim_map = (((2 * mu_1_mu_2 + c_1) * (2 * sigma_12 + c_2)) /
-                    ((mu_1_sq + mu_2_sq + c_1) *
-                     (sigma_1_sq + sigma_2_sq + c_2)))
+    if (c_1 > 0) and (c_2 > 0):
+        ssim_map = ((numerator1 / denominator1)**alpha *
+                    (numerator2 / denominator2)**beta_gamma)
     else:
-        numerator1 = 2 * mu_1_mu_2 + c_1
-        numerator2 = 2 * sigma_12 + c_2
-
-        denominator1 = mu_1_sq + mu_2_sq + c_1
-        denominator2 = sigma_1_sq + sigma_2_sq + c_2
-
-        ssim_map = np.ones(mu_1.size)
-
+        ssim_map = np.ones(numerator1.shape)
         index = (denominator1 * denominator2 > 0)
-
-        ssim_map[index] = ((numerator1[index] * numerator2[index]) /
-                           (denominator1[index] * denominator2[index]))
-        index = (denominator1 != 0) & (denominator2 == 0)
-        ssim_map[index] = (numerator1[index] / denominator1[index])**4
-
-    # return SSIM
-    index = np.mean(ssim_map)
-
-    return scale, index, ssim_map
+        ssim_map[index] = ((numerator1[index]/denominator1[index])**alpha *
+                           (numerator2[index]/denominator2[index])**beta_gamma)
+    # Sometimes c_1 and c_2 don't do their job of stabilizing the result
+    ssim_map[ssim_map > 1] = 1
+    ssim_map[ssim_map < -1] = -1
+    mean_ssim = np.nanmean(ssim_map)
+    if scale is None:
+        scale = sigma
+    return scale, mean_ssim, ssim_map
 
 
 def _full_reference_input_check(img0, img1, sigma, nlevels, L):
@@ -1281,5 +1168,3 @@ def _full_reference_input_check(img0, img1, sigma, nlevels, L):
     if img0.shape != img1.shape:
         raise ValueError("original and reconstruction should be the " +
                          "same shape")
-    if img0.ndim != 2:
-        raise ValueError("This function only support 2D images.")
