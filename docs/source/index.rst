@@ -30,9 +30,9 @@ Contribute
 ==========
 
 * Issue Tracker: https://github.com/tomography/xdesign/issues
-* Documentation: https://github.com/tomography/xdesign/tree/master/doc
+* Documentation: https://github.com/tomography/xdesign/tree/master/docs
 * Source Code: https://github.com/tomography/xdesign/tree/master/xdesign
-* Tests: https://github.com/tomography/xdesign/tree/master/test
+* Tests: https://github.com/tomography/xdesign/tree/master/tests
 
 
 License
