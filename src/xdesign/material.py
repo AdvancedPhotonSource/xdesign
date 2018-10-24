@@ -64,9 +64,6 @@ try:
 except ImportError:
     warnings.warn("xraylib is requried for XraylibMaterial", ImportWarning)
 
-from xdesign.formats import get_NIST_table
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -74,7 +71,6 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['SimpleMaterial',
-           'NISTMaterial',
            'XraylibMaterial']
 
 
@@ -191,6 +187,7 @@ class NISTMaterial(Material):
     """
 
     def __init__(self, name, density=None):
+        raise NotImplementedError()
         super(NISTMaterial, self).__init__()
 
         self.name = name
