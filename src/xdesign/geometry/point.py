@@ -18,7 +18,51 @@ __docformat__ = 'restructuredtext en'
 __all__ = [
            'Point',
            'calc_standard',
+           'dim',
+           'rotated',
+           'distance',
+           'norm',
            ]
+
+
+def dim(self):
+    """Return the dimensionality of the ambient space."""
+    return self.shape[-1]
+
+
+def rotated(self, theta, center=None, axis=None):
+    """Rotates theta radians around an axis."""
+    if center is None:
+        center = np.zeros(dim(self))
+    if axis is not None:
+        raise NotImplementedError("Rotation about axis besides [0 0 1] are"
+                                  " not implemented.")
+    self = self.copy()
+    # shift rotation center to origin
+    self -= center
+    # do rotation
+    R = np.eye(dim(self))
+    R[0, 0] = np.cos(theta)
+    R[0, 1] = -np.sin(theta)
+    R[1, 0] = np.sin(theta)
+    R[1, 1] = np.cos(theta)
+    self = np.dot(R, self)
+    # shift rotation center back
+    self += center
+    return self
+
+
+def distance(self, other):
+    """Return the closest distance this and the other."""
+    d = self - other
+    return np.sqrt(d.dot(d))
+
+
+def norm(self):
+    """Euclidian (L2) norm of the vector."""
+    # See http://stackoverflow.com/a/23576322 for a discussion of the
+    # quickest way to calculate the norm of a vector.
+    return np.sqrt(self.dot(self))
 
 
 def calc_standard(A):

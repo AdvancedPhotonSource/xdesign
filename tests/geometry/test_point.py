@@ -59,55 +59,50 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 
 
-# Transformations
+def test_dim():
+    P = np.zeros(9)
+    assert dim(P) == 9
 
-def rotate_around_self():
-    P0 = Point([0, 0])
+
+def test_rotate():
+    P0 = np.array([0., 0])
     origin = P0
-    P1 = rotate(P0, np.pi/2, origin)
-    assert_allclose([P1.x, P1.y], [0, 0])
+    P1 = rotated(P0, np.pi/2, origin)
+    assert_allclose(P1, [0, 0])
+
+    origin = np.array([1, 0])
+    P1 = rotated(P0, np.pi/2, origin)
+    assert_allclose(P1, [1, -1])
+
+    origin = np.array([0, 1])
+    P1 = rotated(P0, np.pi/2, origin)
+    assert_allclose(P1, [1, 1])
+
+    origin = np.array([-1, 0])
+    P1 = rotated(P0, np.pi/2, origin)
+    assert_allclose(P1, [-1, 1])
+
+    origin = np.array([-1, -1])
+    P1 = rotated(P0, np.pi/2, origin)
+    assert_allclose(P1, [-2, 0])
 
 
-def rotate_around_other():
-    P0 = Point([0, 0])
-    origin = Point([1, 0])
-    P1 = rotate(P0, np.pi/2, origin)
-    assert_allclose([P1.x, P1.y], [1, -1])
+def test_distance():
+    P0 = np.array([0, 0])
+    assert distance(P0, P0) == 0
+    P1 = np.array([3, 4])
+    assert distance(P0, P1) == 5
 
 
-def test_Point_rotate_around_self():
-    P0 = Point([0, 0])
-    origin = P0
-    P0.rotate(np.pi/2, origin)
-    assert_allclose([P0.x, P0.y], [0, 0])
-
-
-def test_Point_rotate_around_other():
-    P0 = Point([0, 0])
-    origin = Point([1, 0])
-    P0.rotate(np.pi/2, origin)
-    assert_allclose([P0.x, P0.y], [1, -1])
-
-    P0 = Point([0, 0])
-    origin = Point([0, 1])
-    P0.rotate(np.pi/2, origin)
-    assert_allclose([P0.x, P0.y], [1, 1])
-
-    P0 = Point([0, 0])
-    origin = Point([-1, 0])
-    P0.rotate(np.pi/2, origin)
-    assert_allclose([P0.x, P0.y], [-1, 1])
-
-    P0 = Point([0, 0])
-    origin = Point([-1, -1])
-    P0.rotate(np.pi/2, origin)
-    assert_allclose([P0.x, P0.y], [-2, 0])
+def test_norm():
+    P1 = np.array([3, 4])
+    assert norm(P1) == 5
 
 
 def test_translate():
-    P0 = Point([0, 0])
-    P0.translate([2.3, 4.5])
-    assert_equal([P0.x, P0.y], [2.3, 4.5])
+    P0 = np.array([0., 0.])
+    P0 += [2.3, 4.5]
+    assert_equal(P0, [2.3, 4.5])
 
 
 if __name__ == '__main__':
