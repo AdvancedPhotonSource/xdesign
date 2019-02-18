@@ -39,3 +39,14 @@ License
 =======
 The project is licensed under the
 `BSD-3 <https://github.com/tomography/xdesign/blob/master/LICENSE.txt>`_ license.
+
+Install
+=======
+
+First, install `xdesign`'s dependencies using `pip`.
+
+```
+$ pip install -r requirements.txt
+```
+
+Then install `xdesign` in the usual way. Using `pip` or by running `setup.py`.
