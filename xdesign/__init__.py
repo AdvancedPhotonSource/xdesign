@@ -48,6 +48,12 @@
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+from pkg_resources import get_distribution, DistributionNotFound
+try:
+    __version__ = get_distribution(__name__).version
+except DistributionNotFound:
+    # package is not installed
+    pass
 
 from xdesign.geometry import *
 from xdesign.phantom import *
@@ -59,9 +65,3 @@ from xdesign.material import *
 
 import logging
 logging.basicConfig()
-
-try:
-    import pkg_resources
-    __version__ = pkg_resources.working_set.require("xdesign")[0].version
-except:
-    pass

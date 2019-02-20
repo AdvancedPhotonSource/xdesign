@@ -47,16 +47,12 @@
 # #########################################################################
 
 import setuptools
-from version_hashtag import retrieve_version_from_git
-
-version = retrieve_version_from_git()
-with open('VERSION', 'w') as f:
-    f.write(version)
 
 setuptools.setup(
     name='xdesign',
     packages=['xdesign'],
-    version=version,
+    setup_requires=['setuptools_scm'],
+    use_scm_version=True,
     author='Daniel Ching, Doga Gursoy',
     description='Benchmarking and optimization tools for tomography.',
     include_package_data=True,
