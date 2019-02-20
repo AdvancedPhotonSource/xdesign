@@ -55,12 +55,11 @@ with open('VERSION', 'w') as f:
 
 setuptools.setup(
     name='xdesign',
+    packages=['xdesign'],
     version=version,
     author='Daniel Ching, Doga Gursoy',
     description='Benchmarking and optimization tools for tomography.',
-    packages=setuptools.find_packages(exclude=['docs']),
     include_package_data=True,
-#    install_requires=['six', 'numpy'],
     url='http://github.com/tomography/xdesign.git',
     keywords=['xdesign', 'tomography'],
     license='BSD-3',
@@ -68,9 +67,8 @@ setuptools.setup(
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: BSD License',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Operating System :: OS Independent',
         'Topic :: Scientific/Engineering :: Physics',
         'Topic :: Scientific/Engineering :: Chemistry',
