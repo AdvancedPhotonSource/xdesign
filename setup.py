@@ -51,6 +51,7 @@ import setuptools
 setuptools.setup(
     name='xdesign',
     packages=['xdesign'],
+    package_dir={"": "src"},
     setup_requires=['setuptools_scm'],
     use_scm_version=True,
     author='Daniel Ching, Doga Gursoy',

@@ -75,7 +75,7 @@ def _plot_both(ref, target):
 
 def _save_and_load(phantom_class, args=[]):
     """Test whether the saved and loaded phantoms match."""
-    saved_phantom = 'tests/{}{}.txt'.format(phantom_class.__name__, args)
+    saved_phantom = '{}{}.txt'.format(phantom_class.__name__, args)
 
     np.random.seed(0)
     p0 = phantom_class(*args)
