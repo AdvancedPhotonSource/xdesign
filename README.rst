@@ -43,10 +43,10 @@ The project is licensed under the
 Install
 =======
 
-First, install `xdesign`'s dependencies using `pip`.
+First, install XDesign's dependencies using pip. Then install XDesign
+in the usual way. Using pip or by running setup.py.
 
-```
-$ pip install -r requirements.txt
-```
+.. code-block:: bash
 
-Then install `xdesign` in the usual way. Using `pip` or by running `setup.py`.
+  $ pip install -r requirements.txt
+  $ pip install .
