@@ -47,20 +47,16 @@
 # #########################################################################
 
 import setuptools
-from version_hashtag import retrieve_version_from_git
-
-version = retrieve_version_from_git()
-with open('VERSION', 'w') as f:
-    f.write(version)
 
 setuptools.setup(
     name='xdesign',
-    version=version,
+    packages=['xdesign'],
+    package_dir={"": "src"},
+    setup_requires=['setuptools_scm'],
+    use_scm_version=True,
     author='Daniel Ching, Doga Gursoy',
     description='Benchmarking and optimization tools for tomography.',
-    packages=setuptools.find_packages(exclude=['docs']),
     include_package_data=True,
-#    install_requires=['six', 'numpy'],
     url='http://github.com/tomography/xdesign.git',
     keywords=['xdesign', 'tomography'],
     license='BSD-3',
@@ -68,9 +64,8 @@ setuptools.setup(
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: BSD License',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Operating System :: OS Independent',
         'Topic :: Scientific/Engineering :: Physics',
         'Topic :: Scientific/Engineering :: Chemistry',

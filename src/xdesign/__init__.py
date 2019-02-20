@@ -48,3 +48,20 @@
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+from pkg_resources import get_distribution, DistributionNotFound
+try:
+    __version__ = get_distribution(__name__).version
+except DistributionNotFound:
+    # package is not installed
+    pass
+
+from xdesign.geometry import *
+from xdesign.phantom import *
+from xdesign.acquisition import *
+from xdesign.algorithms import *
+from xdesign.metrics import *
+from xdesign.plot import *
+from xdesign.material import *
+
+import logging
+logging.basicConfig()

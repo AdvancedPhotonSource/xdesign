@@ -28,7 +28,7 @@ def test_sinogram():
     plt.figure()
     plt.imshow(sino, origin='lower')
     # Load the reference from file
-    ref_file = 'tests/test_sinogram.npy'
+    ref_file = 'test_sinogram.npy'
     if not os.path.isfile(ref_file):
         ImportError('sinogram reference not found; use test_sinogram.ipynb' +
                     'to generate it')

@@ -1,47 +1,19 @@
-language: python
-
-python:
-  - "2.7"
-  - "3.5"
-  - "3.6"
-
-os:
-  - linux
-
-dist: trusty
+dist: xenial
 sudo: false
 
-before_script:
-  - "export DISPLAY=:99.0"
-  - "sh -e /etc/init.d/xvfb start"
-  - sleep 3 # give xvfb some time to start
-
-before_install:
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
-    else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-    fi
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - conda config --add channels dgursoy
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update conda
-  - conda install anaconda-client
+language: python
+python:
+  - "3.6"
+  - "3.7"
 
 install:
-  - conda install python=$TRAVIS_PYTHON_VERSION setuptools
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
-      conda install python-coveralls;
-    fi
-  - conda install nose six numpy scipy matplotlib requests cached-property
-  - pip install phasepack
-  - conda info -a
-  - python setup.py build_ext --inplace
+  - pip install -r requirements.txt nose python-coveralls
+  - pip install .
+
 script:
-  - nosetests tests -vs --with-coverage
+  - xvfb-run -a nosetests
 
 after_success:
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
       coveralls;
     fi
