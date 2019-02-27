@@ -13,14 +13,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import warnings
-import itertools
 import numpy as np
-import matplotlib.pyplot as plt
-
 from scipy import optimize
-from scipy import stats
-from copy import deepcopy
-
 from xdesign.phantom import HyperbolicConcentric, UnitCircle
 from xdesign.geometry import Circle, Point, Line
 
@@ -75,10 +69,6 @@ def compute_mtf(phantom, image):
     radii = np.array(phantom.radii) * image.shape[0]
     widths = np.array(phantom.widths) * image.shape[0]
 
-    # plt.figure()
-    # plt.plot(image[int(center),:])
-    # plt.show(block=True)
-
     MTF = []
     for i in range(1, len(widths) - 1):
         # Locate the edge between rings in the discrete reconstruction.
@@ -95,10 +85,6 @@ def compute_mtf(phantom, image):
         hi = np.sum(image[center, lef:mid])
         lo = np.sum(image[center, mid:rig])
         MTF.append(abs(hi - lo) / (hi + lo))
-
-        # plt.figure()
-        # plt.plot(image[int(center),int(lef):int(rig)])
-        # plt.show(block=True)
 
     wavelength = phantom.widths[1:-1]
     return wavelength, MTF
@@ -191,12 +177,6 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
     while np.sum(np.isnan(ESF)):  # smooth over empty bins
         ESF[np.isnan(ESF)] = ESF[np.roll(np.isnan(ESF), -1)]
 
-    # plt.figure()
-    # for i in range(0,ESF.shape[0]):
-    #    plt.plot(ESF[i,:])
-    # plt.xlabel('radius');
-    # plt.title('ESF')
-
     LSF = -np.diff(ESF, axis=1)
 
     # trim the LSF so that the edge is in the center of the data
@@ -206,13 +186,6 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
     LSF = LSF[:, edge_center - pad:edge_center + pad + 1]
     # print(LSF)
     LSF_weighted = LSF * np.hanning(LSF.shape[1])
-
-    # plt.figure()
-    # for i in range(0,LSF.shape[0]):
-    #    plt.plot(LSF[i,:])
-    # plt.xlabel('radius');
-    # plt.title('LSF')
-    # plt.show(block=True)
 
     # Calculate the MTF
     T = np.fft.fftshift(np.fft.fft(LSF_weighted))
@@ -351,11 +324,6 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
         p1, success = optimize.leastsq(errorfunc, p0[:],
                                        args=(x, value[:, radius]))
 
-        # print(success)
-        # plt.figure()
-        # plt.plot(angle, value[:, radius], "ro",
-        #          time, periodic_function(p1, f*time), "r-")
-
         MTFR[:, radius] = np.sqrt(p1[1]**2 + p1[2]**2)/p1[0]
 
     # cap the MTF at unity
@@ -438,11 +406,6 @@ def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
     image = A
     if B is not None:
         image = image - B
-
-    # plt.figure()
-    # plt.imshow(image, cmap='inferno',interpolation="none")
-    # plt.colorbar()
-    # plt.show(block=True)
 
     resolution = image.shape[0]  # [pixels/length]
     # cut out uniform region (square circumscribed by unit circle)
