@@ -59,7 +59,7 @@ img1 = plt.imread("cameraman.png")
 
 
 def test_SSIM_same_image_is_unity():
-    scales, mets, maps = xd.compute_ssim(img1, img1,
+    scales, mets, maps = xd.ssim(img1, img1,
                                          sigma=1.2, L=256)
     np.testing.assert_equal(mets, 1., err_msg="Mean is not unity.")
     np.testing.assert_equal(maps, np.ones(img1.shape),
@@ -67,7 +67,7 @@ def test_SSIM_same_image_is_unity():
 
 
 def test_MSSSIM_same_image_is_unity():
-    scales, mets, maps = xd.compute_msssim(img1, img1,
+    scales, mets, maps = xd.msssim(img1, img1,
                                            nlevels=5, sigma=1.2, L=256)
     np.testing.assert_equal(mets, np.ones(mets.shape),
                             err_msg="Mean is not unity.")
@@ -76,7 +76,7 @@ def test_MSSSIM_same_image_is_unity():
 
 
 # def test_VIFp_same_image_is_unity():
-#     scales, mets, maps = xd.compute_vifp(img1, img1,
+#     scales, mets, maps = xd.vifp(img1, img1,
 #                                          nlevels=5, sigma=1.2, L=256)
 #     np.testing.assert_equal(mets, np.ones(mets.shape),
 #                             err_msg="Mean is not unity.")
@@ -85,7 +85,7 @@ def test_MSSSIM_same_image_is_unity():
 
 
 def test_FSIM_same_image_is_unity():
-    scales, mets, maps = xd.compute_fsim(img1, img1,
+    scales, mets, maps = xd.fsim(img1, img1,
                                          nlevels=5, nwavelets=16, L=None)
     np.testing.assert_equal(mets, 1., err_msg="Mean is not unity.")
     for map in maps:

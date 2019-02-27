@@ -444,11 +444,10 @@ def _random_point(geometry, margin=0.0):
 class XDesignDefault(Phantom):
     """Generates a Phantom for internal testing of XDesign.
 
-    The default phantom is:
-    nested, it contains phantoms within phantoms;
-    geometrically simple, the sinogram can be verified visually; and
-    representative, it contains the three main geometric elements: circle,
-        polygon, and mesh.
+    The default phantom is: (1) nested, it contains phantoms within phantoms;
+    (2) geometrically simple, the sinogram can be verified visually;
+    and (3) representative, it contains the three main geometric elements:
+    circle, polygon, and mesh.
     """
 
     def __init__(self):

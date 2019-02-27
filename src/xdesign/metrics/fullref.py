@@ -20,20 +20,20 @@ __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = [
-           'compute_PCC',
+           'pcc',
            'ImageQuality',
-           'compute_ssim',
-           'compute_msssim',
-           'compute_fsim',
+           'ssim',
+           'msssim',
+           'fsim',
            ]
 
 
-def compute_PCC(A, B, masks=None):
-    """Compute the Pearson product-moment correlation coefficients (PCC).
+def pcc(A, B, masks=None):
+    """Return the Pearson product-moment correlation coefficients (PCC).
 
     Parameters
     -------------
-    A,B : ndarray
+    A, B : ndarray
         The two images to be compared
     masks : list of ndarrays, optional
         If supplied, the data under each mask is computed separately.
@@ -84,7 +84,7 @@ class ImageQuality(object):
         self.maps = None
         self.method = ''
 
-    def compute_quality(self, method="MSSSIM", L=1.0, **kwargs):
+    def quality(self, method="MSSSIM", L=1.0, **kwargs):
         """Compute the full-reference image quality of each image pair.
 
         Available methods include SSIM :cite:`wang:02`, MSSSIM :cite:`wang:03`,
@@ -100,8 +100,8 @@ class ImageQuality(object):
             representations and 2^bitdepth for integer representations.
 
         """
-        dictionary = {"SSIM": compute_ssim, "MSSSIM": compute_msssim,
-                      "VIFp": compute_vifp, "FSIM": compute_fsim}
+        dictionary = {"SSIM": ssim, "MSSSIM": msssim,
+                      "VIFp": vifp, "FSIM": fsim}
         try:
             method_func = dictionary[method]
         except KeyError:
@@ -157,8 +157,9 @@ def _join_metrics(A, B):
     return A
 
 
-def compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
-    """Calculate the Visual Information Fidelity (VIFp) between two images in
+def vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
+    """Return the Visual Information Fidelity (VIFp) of two images.
+
     in a multiscale pixel domain with scalar.
 
     Parameters
@@ -178,10 +179,9 @@ def compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
         ``metric[scale] = (mean_quality, quality_map)``
         The valid range for VIFp is (0, 1].
 
-
     .. centered:: COPYRIGHT NOTICE
-    Copyright (c) 2005 The University of Texas at Austin
-    All rights reserved.
+
+    Copyright (c) 2005 The University of Texas at Austin. All rights reserved.
 
     Permission is hereby granted, without written agreement and without license
     or royalty fees, to use, copy, modify, and distribute this code (the source
@@ -202,6 +202,7 @@ def compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
     AND FITNESS FOR A PARTICULAR PURPOSE. THE DATABASE PROVIDED HEREUNDER IS ON
     AN "AS IS" BASIS, AND THE UNIVERSITY OF TEXAS AT AUSTIN HAS NO OBLIGATION
     TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+
     .. centered:: END COPYRIGHT NOTICE
     """
     _full_reference_input_check(img0, img1, sigma, nlevels, L)
@@ -247,7 +248,7 @@ def compute_vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
     return scales, mets, maps
 
 
-def compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
+def fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
     """FSIM Index with automatic downsampling, Version 1.0
 
     An implementation of the algorithm for calculating the Feature SIMilarity
@@ -273,10 +274,17 @@ def compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
         The valid range for FSIM is (0, 1].
 
 
+    References
+    ----------
+    Lin Zhang, Lei Zhang, Xuanqin Mou, and David Zhang,"FSIM: a feature
+    similarity index for image qualtiy assessment", IEEE Transactions on Image
+    Processing, vol. 20, no. 8, pp. 2378-2386, 2011.
+
     .. centered:: COPYRIGHT NOTICE
-    Copyright(c) 2010 Lin ZHANG, Lei Zhang, Xuanqin Mou and David Zhang
+
+    Copyright (c) 2010 Lin ZHANG, Lei Zhang, Xuanqin Mou and David Zhang.
     All Rights Reserved.
-    ----------------------------------------------------------------------
+
     Permission to use, copy, or modify this software and its documentation
     for educational and research purposes only and without fee is here
     granted, provided that this copyright notice and the original authors'
@@ -286,10 +294,7 @@ def compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
     authors. The authors make no representations about the suitability of
     this software for any purpose. It is provided "as is" without express
     or implied warranty.
-    ----------------------------------------------------------------------
-    Lin Zhang, Lei Zhang, Xuanqin Mou, and David Zhang,"FSIM: a feature
-    similarity index for image qualtiy assessment", IEEE Transactions on Image
-    Processing, vol. 20, no. 8, pp. 2378-2386, 2011.
+
     .. centered:: END COPYRIGHT NOTICE
     """
     _full_reference_input_check(img0, img1, 1.2, nlevels, L)
@@ -349,8 +354,8 @@ def compute_fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
     return scales, mets, maps
 
 
-def compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1.0, K=(0.01, 0.03),
-                   alpha=4, beta_gamma=None):
+def msssim(img0, img1, nlevels=5, sigma=1.2, L=1.0, K=(0.01, 0.03),
+           alpha=4, beta_gamma=None):
     """Multi-Scale Structural SIMilarity index (MS-SSIM).
 
     Parameters
@@ -396,16 +401,17 @@ def compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1.0, K=(0.01, 0.03),
     assert nlevels < 6, "Not enough beta_gamma weights for more than 5 levels"
     scales = np.zeros(nlevels)
     maps = [None] * nlevels
-    scale, luminance, ssim = compute_ssim(img0, img1, sigma=sigma, L=L,
-                                          K=K, scale=sigma,
-                                          alpha=alpha, beta_gamma=0)
+    scale, luminance, ssim_map = ssim(img0, img1, sigma=sigma, L=L,
+                                      K=K, scale=sigma,
+                                      alpha=alpha, beta_gamma=0)
     for level in range(0, nlevels):
-        scale, mean_ssim, ssim = compute_ssim(img0, img1, sigma=sigma, L=L,
-                                              K=K, scale=sigma,
-                                              alpha=0,
-                                              beta_gamma=beta_gamma[level])
+        scale, ssim_mean, ssim_map = ssim(img0, img1, sigma=sigma, L=L,
+                                          K=K, scale=sigma,
+                                          alpha=0,
+                                          beta_gamma=beta_gamma[level])
         scales[level] = scale
-        maps[level] = ndimage.zoom(ssim, 2**level, prefilter=False, order=0)
+        maps[level] = ndimage.zoom(ssim_map, 2**level, prefilter=False,
+                                   order=0)
         if level == nlevels - 1:
             break
         # Downsample (using ndimage.zoom to prevent sampling bias)
@@ -414,13 +420,13 @@ def compute_msssim(img0, img1, nlevels=5, sigma=1.2, L=1.0, K=(0.01, 0.03),
         img1 = ndimage.zoom(img1, 0.5)
 
     map = luminance * np.nanprod(maps, axis=0)
-    mean_ms_ssim = np.nanmean(map)
-    return scales, mean_ms_ssim, map
+    ms_ssim_mean = np.nanmean(map)
+    return scales, ms_ssim_mean, map
 
 
-def compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
-                 alpha=4, beta_gamma=4):
-    """Return the Structural SIMilarity index (SSIM).
+def ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
+         alpha=4, beta_gamma=4):
+    """Return the Structural SIMilarity index (SSIM) of two images.
 
     A modified version of the Structural SIMilarity index (SSIM) based on an
     implementation by Helder C. R. de Oliveira, based on the implementation by
@@ -436,8 +442,9 @@ def compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
         Sets the standard deviation of the gaussian filter. This setting
         determines the minimum scale at which quality is assessed.
     L : scalar
-        The dynamic range of the data. This value is 1 for float
-        representations and 2^bitdepth for integer representations.
+        The dynamic range of the data. The difference between the
+        minimum and maximum of the data: 2^bitdepth for integer
+        representations.
     K : 2-tuple
         A list of two constants which help prevent division by zero.
     alpha : float
@@ -503,10 +510,10 @@ def compute_ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
     # Sometimes c_1 and c_2 don't do their job of stabilizing the result
     ssim_map[ssim_map > 1] = 1
     ssim_map[ssim_map < -1] = -1
-    mean_ssim = np.nanmean(ssim_map)
+    ssim_mean = np.nanmean(ssim_map)
     if scale is None:
         scale = sigma
-    return scale, mean_ssim, ssim_map
+    return scale, ssim_mean, ssim_map
 
 
 def _full_reference_input_check(img0, img1, sigma, nlevels, L):

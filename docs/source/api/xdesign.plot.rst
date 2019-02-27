@@ -10,7 +10,6 @@
 
    .. autosummary::
 
-      Glyph
 
    .. rubric:: **Phantom Plotting Functions:**
 
@@ -32,3 +31,4 @@
       plot_mtf
       plot_nps
       plot_neq
+      get_pie_glyphs

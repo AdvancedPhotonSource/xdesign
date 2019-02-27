@@ -150,14 +150,17 @@ def get_pie_glyphs(xy, values, color='coverage', trace_normal=1, **kwargs):
         Locations of glyph centers
     values : (M, N) float
         Bin sizes for each glyph
-    color : 'coverage' or 'standard deviation' or 'Kullback-Leibler'
-            or 'random'
-        The coloring mode of the Glyph.
-        IF 'coverage', then the color is determined by the sum of the `values`.
-        IF 'standard deviation', the color is standard deviation of the bins
-        IF 'Kullback-Leibler', The color is the Kullback-Leibler devation
-        IF 'random', the color is randomly assigned from the
-            `DEFAULT_COLOR_MAP`.
+    color : string
+
+            coverage
+                The color is determined by the sum of the `values`.
+            standard deviation
+                The color is standard deviation of the bins
+            Kullback-Leibler
+                The color is the Kullback-Leibler devation
+            random
+                The color is randomly assigned from the `DEFAULT_COLOR_MAP`.
+
     trace_normal : float
         A scalar used to normalize the trace for coloring the glyph.
     kwargs : dict

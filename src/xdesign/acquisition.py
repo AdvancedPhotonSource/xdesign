@@ -82,7 +82,6 @@ class Probe(Line):
     Attributes
     ----------
     p1, p2 : :py:class:`xdesign.geometry.Point`
-        Two points which define the initial position of the probe.
         .. deprecated:: 0.4
             Measure now uses theta, h, v coordinates instead.
     size : float, cm (default: 0.0 cm)
