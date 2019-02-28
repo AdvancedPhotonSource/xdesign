@@ -7,9 +7,6 @@
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from xdesign.geometry.algorithms import *
 from xdesign.geometry.area import *
 from xdesign.geometry.entity import *

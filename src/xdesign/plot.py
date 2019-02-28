@@ -73,9 +73,6 @@ PLOT_STYLES :
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import logging
 import types
 import time
@@ -91,7 +88,6 @@ from xdesign.phantom import Phantom
 from xdesign.geometry import Curve, Polygon, Mesh
 from matplotlib.axis import Axis
 from itertools import product
-from six import string_types
 from random import shuffle
 
 logger = logging.getLogger(__name__)

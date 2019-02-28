@@ -51,8 +51,6 @@ These methods are based on the scanning trajectory only.
 
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import logging
 

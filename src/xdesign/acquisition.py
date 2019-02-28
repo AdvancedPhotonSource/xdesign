@@ -55,9 +55,6 @@ turntables, and lenses, but non-physical things such as scanning patterns.
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import logging
 import numpy as np
 from cached_property import cached_property

@@ -9,9 +9,6 @@ standard object such as a siemens star or a zone plate.
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import warnings
 import numpy as np
 from scipy import optimize

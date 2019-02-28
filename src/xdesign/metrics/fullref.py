@@ -8,9 +8,6 @@ These methods require a ground truth in order to make a quality assessment.
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import numpy as np
 from scipy import ndimage
 import phasepack as phase
