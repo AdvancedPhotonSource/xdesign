@@ -10,8 +10,6 @@ These methods require a ground truth in order to make a quality assessment.
 
 import numpy as np
 from scipy import ndimage
-import phasepack as phase
-
 
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -21,7 +19,6 @@ __all__ = [
            'ImageQuality',
            'ssim',
            'msssim',
-           'fsim',
            ]
 
 
@@ -245,110 +242,110 @@ def vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
     return scales, mets, maps
 
 
-def fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
-    """FSIM Index with automatic downsampling, Version 1.0
-
-    An implementation of the algorithm for calculating the Feature SIMilarity
-    (FSIM) index was ported to Python. This implementation only considers the
-    luminance component of images. For multichannel images, convert to
-    grayscale first. Dynamic range should be 0-255.
-
-    Parameters
-    ----------
-    img0 : array
-    img1 : array
-        Two images for comparison.
-    nlevels : scalar
-        The number of levels to measure quality.
-    nwavelets : scalar
-        The number of wavelets to use in the phase congruency calculation.
-
-    Returns
-    -------
-    metrics : dict
-        A dictionary with image quality information organized by scale.
-        ``metric[scale] = (mean_quality, quality_map)``
-        The valid range for FSIM is (0, 1].
-
-
-    References
-    ----------
-    Lin Zhang, Lei Zhang, Xuanqin Mou, and David Zhang,"FSIM: a feature
-    similarity index for image qualtiy assessment", IEEE Transactions on Image
-    Processing, vol. 20, no. 8, pp. 2378-2386, 2011.
-
-    .. centered:: COPYRIGHT NOTICE
-
-    Copyright (c) 2010 Lin ZHANG, Lei Zhang, Xuanqin Mou and David Zhang.
-    All Rights Reserved.
-
-    Permission to use, copy, or modify this software and its documentation
-    for educational and research purposes only and without fee is here
-    granted, provided that this copyright notice and the original authors'
-    names appear on all copies and supporting documentation. This program
-    shall not be used, rewritten, or adapted as the basis of a commercial
-    software or hardware product without first obtaining permission of the
-    authors. The authors make no representations about the suitability of
-    this software for any purpose. It is provided "as is" without express
-    or implied warranty.
-
-    .. centered:: END COPYRIGHT NOTICE
-    """
-    _full_reference_input_check(img0, img1, 1.2, nlevels, L)
-    if nwavelets < 1:
-        raise ValueError('There must be at least one wavelet level.')
-
-    Y1 = img0
-    Y2 = img1
-
-    scales = np.zeros(nlevels)
-    mets = np.zeros(nlevels)
-    maps = [None] * nlevels
-
-    for level in range(0, nlevels):
-        # sigma = 1.2 is approximately correct because the width of the scharr
-        # and min wavelet filter (phase congruency filter) is 3.
-        sigma = 1.2 * 2**level
-
-        F = 2  # Downsample (using ndimage.zoom to prevent sampling bias)
-        Y1 = ndimage.zoom(Y1, 1/F)
-        Y2 = ndimage.zoom(Y2, 1/F)
-
-        # Calculate the phase congruency maps
-        [PC1, Orient1, ft1, T1] = phase.phasecongmono(Y1, nscale=nwavelets)
-        [PC2, Orient2, ft2, T2] = phase.phasecongmono(Y2, nscale=nwavelets)
-
-        # Calculate the gradient magnitude map using Scharr filters
-        dx = np.array([[3., 0., -3.],
-                       [10., 0., -10.],
-                       [3., 0., -3.]]) / 16
-        dy = np.array([[3., 10., 3.],
-                       [0., 0., 0.],
-                       [-3., -10., -3.]]) / 16
-
-        IxY1 = ndimage.filters.convolve(Y1, dx)
-        IyY1 = ndimage.filters.convolve(Y1, dy)
-        gradientMap1 = np.sqrt(IxY1**2 + IyY1**2)
-
-        IxY2 = ndimage.filters.convolve(Y2, dx)
-        IyY2 = ndimage.filters.convolve(Y2, dy)
-        gradientMap2 = np.sqrt(IxY2**2 + IyY2**2)
-
-        # Calculate the FSIM
-        T1 = 0.85   # fixed and depends on dynamic range of PC values
-        T2 = 160    # fixed and depends on dynamic range of GM values
-        PCSimMatrix = (2 * PC1 * PC2 + T1) / (PC1**2 + PC2**2 + T1)
-        gradientSimMatrix = ((2 * gradientMap1 * gradientMap2 + T2) /
-                             (gradientMap1**2 + gradientMap2**2 + T2))
-        PCm = np.maximum(PC1, PC2)
-        FSIMmap = gradientSimMatrix * PCSimMatrix
-        FSIM = np.sum(FSIMmap * PCm) / np.sum(PCm)
-
-        scales[level] = sigma
-        mets[level] = FSIM
-        maps[level] = FSIMmap
-
-    return scales, mets, maps
+# def fsim(img0, img1, nlevels=5, nwavelets=16, L=None):
+#     """FSIM Index with automatic downsampling, Version 1.0
+#
+#     An implementation of the algorithm for calculating the Feature SIMilarity
+#     (FSIM) index was ported to Python. This implementation only considers the
+#     luminance component of images. For multichannel images, convert to
+#     grayscale first. Dynamic range should be 0-255.
+#
+#     Parameters
+#     ----------
+#     img0 : array
+#     img1 : array
+#         Two images for comparison.
+#     nlevels : scalar
+#         The number of levels to measure quality.
+#     nwavelets : scalar
+#         The number of wavelets to use in the phase congruency calculation.
+#
+#     Returns
+#     -------
+#     metrics : dict
+#         A dictionary with image quality information organized by scale.
+#         ``metric[scale] = (mean_quality, quality_map)``
+#         The valid range for FSIM is (0, 1].
+#
+#
+#     References
+#     ----------
+#     Lin Zhang, Lei Zhang, Xuanqin Mou, and David Zhang,"FSIM: a feature
+#     similarity index for image qualtiy assessment", IEEE Transactions on Image
+#     Processing, vol. 20, no. 8, pp. 2378-2386, 2011.
+#
+#     .. centered:: COPYRIGHT NOTICE
+#
+#     Copyright (c) 2010 Lin ZHANG, Lei Zhang, Xuanqin Mou and David Zhang.
+#     All Rights Reserved.
+#
+#     Permission to use, copy, or modify this software and its documentation
+#     for educational and research purposes only and without fee is here
+#     granted, provided that this copyright notice and the original authors'
+#     names appear on all copies and supporting documentation. This program
+#     shall not be used, rewritten, or adapted as the basis of a commercial
+#     software or hardware product without first obtaining permission of the
+#     authors. The authors make no representations about the suitability of
+#     this software for any purpose. It is provided "as is" without express
+#     or implied warranty.
+#
+#     .. centered:: END COPYRIGHT NOTICE
+#     """
+#     _full_reference_input_check(img0, img1, 1.2, nlevels, L)
+#     if nwavelets < 1:
+#         raise ValueError('There must be at least one wavelet level.')
+#
+#     Y1 = img0
+#     Y2 = img1
+#
+#     scales = np.zeros(nlevels)
+#     mets = np.zeros(nlevels)
+#     maps = [None] * nlevels
+#
+#     for level in range(0, nlevels):
+#         # sigma = 1.2 is approximately correct because the width of the scharr
+#         # and min wavelet filter (phase congruency filter) is 3.
+#         sigma = 1.2 * 2**level
+#
+#         F = 2  # Downsample (using ndimage.zoom to prevent sampling bias)
+#         Y1 = ndimage.zoom(Y1, 1/F)
+#         Y2 = ndimage.zoom(Y2, 1/F)
+#
+#         # Calculate the phase congruency maps
+#         [PC1, Orient1, ft1, T1] = phase.phasecongmono(Y1, nscale=nwavelets)
+#         [PC2, Orient2, ft2, T2] = phase.phasecongmono(Y2, nscale=nwavelets)
+#
+#         # Calculate the gradient magnitude map using Scharr filters
+#         dx = np.array([[3., 0., -3.],
+#                        [10., 0., -10.],
+#                        [3., 0., -3.]]) / 16
+#         dy = np.array([[3., 10., 3.],
+#                        [0., 0., 0.],
+#                        [-3., -10., -3.]]) / 16
+#
+#         IxY1 = ndimage.filters.convolve(Y1, dx)
+#         IyY1 = ndimage.filters.convolve(Y1, dy)
+#         gradientMap1 = np.sqrt(IxY1**2 + IyY1**2)
+#
+#         IxY2 = ndimage.filters.convolve(Y2, dx)
+#         IyY2 = ndimage.filters.convolve(Y2, dy)
+#         gradientMap2 = np.sqrt(IxY2**2 + IyY2**2)
+#
+#         # Calculate the FSIM
+#         T1 = 0.85   # fixed and depends on dynamic range of PC values
+#         T2 = 160    # fixed and depends on dynamic range of GM values
+#         PCSimMatrix = (2 * PC1 * PC2 + T1) / (PC1**2 + PC2**2 + T1)
+#         gradientSimMatrix = ((2 * gradientMap1 * gradientMap2 + T2) /
+#                              (gradientMap1**2 + gradientMap2**2 + T2))
+#         PCm = np.maximum(PC1, PC2)
+#         FSIMmap = gradientSimMatrix * PCSimMatrix
+#         FSIM = np.sum(FSIMmap * PCm) / np.sum(PCm)
+#
+#         scales[level] = sigma
+#         mets[level] = FSIM
+#         maps[level] = FSIMmap
+#
+#     return scales, mets, maps
 
 
 def msssim(img0, img1, nlevels=5, sigma=1.2, L=1.0, K=(0.01, 0.03),
