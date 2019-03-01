@@ -46,56 +46,65 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-import os.path
-import scipy
-import numpy as np
-import xdesign as xd
-import matplotlib.pyplot as plt
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-__author__ = "Daniel Ching"
+from xdesign.geometry.point import *
+from numpy.testing import assert_allclose, assert_equal
+import numpy as np
+
+
+__author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 
-img1 = plt.imread(os.path.join(os.path.dirname(__file__), "cameraman.png"))
+
+def test_dim():
+    P = np.zeros(9)
+    assert dim(P) == 9
 
 
-def test_SSIM_same_image_is_unity():
-    scales, mets, maps = xd.ssim(img1, img1,
-                                         sigma=1.2, L=256)
-    np.testing.assert_equal(mets, 1., err_msg="Mean is not unity.")
-    np.testing.assert_equal(maps, np.ones(img1.shape),
-                            err_msg="SSIM maps are not unity.")
+def test_rotate():
+    P0 = np.array([0., 0])
+    origin = P0
+    P1 = rotated(P0, np.pi/2, origin)
+    assert_allclose(P1, [0, 0])
+
+    origin = np.array([1, 0])
+    P1 = rotated(P0, np.pi/2, origin)
+    assert_allclose(P1, [1, -1])
+
+    origin = np.array([0, 1])
+    P1 = rotated(P0, np.pi/2, origin)
+    assert_allclose(P1, [1, 1])
+
+    origin = np.array([-1, 0])
+    P1 = rotated(P0, np.pi/2, origin)
+    assert_allclose(P1, [-1, 1])
+
+    origin = np.array([-1, -1])
+    P1 = rotated(P0, np.pi/2, origin)
+    assert_allclose(P1, [-2, 0])
 
 
-def test_MSSSIM_same_image_is_unity():
-    scales, mets, maps = xd.msssim(img1, img1,
-                                           nlevels=5, sigma=1.2, L=256)
-    np.testing.assert_equal(mets, np.ones(mets.shape),
-                            err_msg="Mean is not unity.")
-    np.testing.assert_equal(maps, np.ones(img1.shape),
-                            err_msg="MSSSIM maps are not unity.")
+def test_distance():
+    P0 = np.array([0, 0])
+    assert distance(P0, P0) == 0
+    P1 = np.array([3, 4])
+    assert distance(P0, P1) == 5
 
 
-# def test_VIFp_same_image_is_unity():
-#     scales, mets, maps = xd.vifp(img1, img1,
-#                                          nlevels=5, sigma=1.2, L=256)
-#     np.testing.assert_equal(mets, np.ones(mets.shape),
-#                             err_msg="Mean is not unity.")
-#     np.testing.assert_equal(maps, np.ones(img1.shape),
-#                             err_msg="VIFp maps are not unity.")
+def test_norm():
+    P1 = np.array([3, 4])
+    assert norm(P1) == 5
 
 
-# def test_FSIM_same_image_is_unity():
-#     scales, mets, maps = xd.fsim(img1, img1,
-#                                          nlevels=5, nwavelets=16, L=None)
-#     np.testing.assert_equal(mets, 1., err_msg="Mean is not unity.")
-#     for map in maps:
-#         np.testing.assert_equal(map, 1.,
-#                                 err_msg="FSIM maps are not unity.")
+def test_translate():
+    P0 = np.array([0., 0.])
+    P0 += [2.3, 4.5]
+    assert_equal(P0, [2.3, 4.5])
 
 
 if __name__ == '__main__':
-    test_SSIM_same_image_is_unity()
-    test_MSSSIM_same_image_is_unity()
-    # test_VIFp_same_image_is_unity()
-    # test_FSIM_same_image_is_unity()
+    import nose
+    nose.runmodule(exit=False)

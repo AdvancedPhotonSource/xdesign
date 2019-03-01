@@ -13,5 +13,4 @@
       art
       sirt
       mlem
-      stream
       update_progress

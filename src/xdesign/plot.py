@@ -73,9 +73,6 @@ PLOT_STYLES :
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import logging
 import types
 import time
@@ -91,7 +88,6 @@ from xdesign.phantom import Phantom
 from xdesign.geometry import Curve, Polygon, Mesh
 from matplotlib.axis import Axis
 from itertools import product
-from six import string_types
 from random import shuffle
 
 logger = logging.getLogger(__name__)
@@ -150,14 +146,17 @@ def get_pie_glyphs(xy, values, color='coverage', trace_normal=1, **kwargs):
         Locations of glyph centers
     values : (M, N) float
         Bin sizes for each glyph
-    color : 'coverage' or 'standard deviation' or 'Kullback-Leibler'
-            or 'random'
-        The coloring mode of the Glyph.
-        IF 'coverage', then the color is determined by the sum of the `values`.
-        IF 'standard deviation', the color is standard deviation of the bins
-        IF 'Kullback-Leibler', The color is the Kullback-Leibler devation
-        IF 'random', the color is randomly assigned from the
-            `DEFAULT_COLOR_MAP`.
+    color : string
+
+            coverage
+                The color is determined by the sum of the `values`.
+            standard deviation
+                The color is standard deviation of the bins
+            Kullback-Leibler
+                The color is the Kullback-Leibler devation
+            random
+                The color is randomly assigned from the `DEFAULT_COLOR_MAP`.
+
     trace_normal : float
         A scalar used to normalize the trace for coloring the glyph.
     kwargs : dict
@@ -432,7 +431,7 @@ def _make_axis():
     module classes."""
     fig = plt.figure(figsize=(8, 8), dpi=100)
     axis = fig.add_subplot(111, aspect='equal')
-    plt.grid('on')
+    plt.grid(True)
     plt.gca().invert_yaxis()
     return fig, axis
 
@@ -669,7 +668,7 @@ def sidebyside(p, size=100, labels=None, prop='mass_attenuation',
 
     axis = fig.add_subplot(121, aspect='equal')
     plot_phantom(p, axis=axis, labels=labels)
-    plt.grid('on')
+    plt.grid(True)
     axis.invert_yaxis()
     axis.set_xticks(np.linspace(0, 1, 6, True) - 0.5)
     axis.set_yticks(np.linspace(0, 1, 6, True) - 0.5)
@@ -820,7 +819,7 @@ def plot_metrics(imqual):
     plt.imshow(imqual.img1, cmap=plt.cm.inferno,
                interpolation="none", aspect='equal')
     # plt.colorbar()
-    plt.axis('off')
+    plt.axis(False)
     # plt.title("Reconstruction")
 
     lo = 1.  # Determine the min local quality for all the scales
@@ -835,7 +834,7 @@ def plot_metrics(imqual):
                         vmin=lo, vmax=1, interpolation="none",
                         aspect='equal')
         # plt.colorbar()
-        plt.axis('off')
+        plt.axis(False)
         plt.annotate(r'$\sigma$ =' + str(imqual.scales[j - 1]),
                      xy=(0.05, 0.05), xycoords='axes fraction',
                      weight='heavy')

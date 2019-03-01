@@ -1,7 +1,7 @@
 :mod:`xdesign.metrics`
 ======================
 
-.. automodule:: xdesign.metrics
+.. automodule:: xdesign.metrics.fullref
    :members:
    :show-inheritance:
    :undoc-members:
@@ -19,8 +19,3 @@
       pcc
       ssim
       msssim
-      compute_mtf
-      compute_mtf_ffst
-      compute_mtf_lwkj
-      compute_nps_ffst
-      compute_neq_d

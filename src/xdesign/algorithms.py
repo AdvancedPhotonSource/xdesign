@@ -60,9 +60,6 @@ algorithms for developing other methods such as noise correction.
 .. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import numpy as np
 import logging
 from xdesign.acquisition import thv_to_zxy

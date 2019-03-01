@@ -46,8 +46,7 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-"""
-Defines objects and methods for simulated data acquisition.
+"""Define objects and methods for simulated data acquisition.
 
 This not only includes physical things like :py:class:`.Probe`, detectors,
 turntables, and lenses, but non-physical things such as scanning patterns.
@@ -56,15 +55,12 @@ turntables, and lenses, but non-physical things such as scanning patterns.
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import logging
 import numpy as np
 from cached_property import cached_property
 from xdesign.constants import RADIUS, DEFAULT_ENERGY
 from xdesign.geometry import *
-from xdesign.geometry import halfspacecirc, clip_SH
+from xdesign.geometry.algorithms import halfspacecirc, clip_SH
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +79,6 @@ class Probe(Line):
     Attributes
     ----------
     p1, p2 : :py:class:`xdesign.geometry.Point`
-        Two points which define the initial position of the probe.
         .. deprecated:: 0.4
             Measure now uses theta, h, v coordinates instead.
     size : float, cm (default: 0.0 cm)
@@ -93,11 +88,12 @@ class Probe(Line):
     energy : float, eV (default: 15 eV)
         The energy of the probe in eV.
 
-
     .. todo::
         Implement additional attributes for Probe such as wavelength,
         etc.
+
     """
+
     def __init__(self, p1=None, p2=None, size=0.0, intensity=1.0,
                  energy=DEFAULT_ENERGY):
         if p1 is None or p2 is None:
@@ -129,6 +125,7 @@ class Probe(Line):
         ----------
         theta, h
             The coordinates of the Probe.
+
         """
         if perc is not None:
             raise UserWarning("Noise during acquisition has been removed. "
@@ -168,12 +165,12 @@ class Probe(Line):
 
     @property
     def cross_section(self):
-        """Return the cross-sectional area of a square beam"""
+        """Return the cross-sectional area of a square beam."""
         return self.size
         # return np.pi * self.size**2 / 4
 
     def half_space(self):
-        """Returns the half space polytope respresentation of the probe."""
+        """Return the half space polytope respresentation of the probe."""
         half_space = list()
 
         for i in range(2):
@@ -191,12 +188,12 @@ class Probe(Line):
         return half_space
 
     def intersect(self, polygon):
-        """Return the intersection with polygon"""
+        """Return the intersection with polygon."""
         return clip_SH(self.half_space(), polygon)
 
 
 def thv_to_zxy(theta, h):
-    """Convert coordinates from (theta, h, v) to (z, x, y) space"""
+    """Convert coordinates from (theta, h, v) to (z, x, y) space."""
     cos_p = np.cos(theta)
     sin_p = np.sin(theta)
     srcx = +RADIUS*cos_p - h*sin_p
@@ -207,7 +204,7 @@ def thv_to_zxy(theta, h):
 
 
 def beamintersect(beam, geometry):
-    """Intersection area of infinite beam with a geometry"""
+    """Intersection area of infinite beam with a geometry."""
 
     logger.debug('BEAMINTERSECT: {}'.format(repr(geometry)))
 
@@ -224,7 +221,7 @@ def beamintersect(beam, geometry):
 
 
 def beammesh(beam, mesh):
-    """Intersection area of infinite beam with polygonal mesh"""
+    """Intersection area of infinite beam with polygonal mesh."""
     if beam.distance(mesh.center) > mesh.radius:
         logger.debug("BEAMMESH: skipped because of radius.")
         return 0
@@ -238,7 +235,7 @@ def beammesh(beam, mesh):
 
 
 def beampoly(beam, poly):
-    """Intersection area of an infinite beam with a polygon"""
+    """Intersection area of an infinite beam with a polygon."""
     if beam.distance(poly.center) > poly.radius:
         logger.debug("BEAMPOLY: skipped because of radius.")
         return 0
@@ -266,6 +263,7 @@ def beamcirc(beam, circle):
     -------
     a : scalar
         Area of the intersected region.
+
     """
     r = circle.radius
     w = beam.size/2
@@ -312,6 +310,7 @@ def raster_scan2D(sa, st, meta=False):
     -------
     theta, h, v : :py:class:`np.array` (M,)
         Probe positions for scan
+
     """
     theta = np.linspace(0, np.pi*2, sa, endpoint=False)
     h = np.linspace(0, 1, st, endpoint=False) - 0.5

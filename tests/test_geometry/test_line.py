@@ -46,56 +46,43 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-import os.path
-import scipy
-import numpy as np
-import xdesign as xd
-import matplotlib.pyplot as plt
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-__author__ = "Daniel Ching"
+from xdesign.geometry import *
+from numpy.testing import assert_allclose, assert_raises, assert_equal
+import numpy as np
+
+
+__author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 
-img1 = plt.imread(os.path.join(os.path.dirname(__file__), "cameraman.png"))
+
+def test_Line_slope_vertical():
+    line = Line(Point([0, -1]), Point([0, 1]))
+    assert_allclose(line.slope, np.inf, rtol=1e-6)
 
 
-def test_SSIM_same_image_is_unity():
-    scales, mets, maps = xd.ssim(img1, img1,
-                                         sigma=1.2, L=256)
-    np.testing.assert_equal(mets, 1., err_msg="Mean is not unity.")
-    np.testing.assert_equal(maps, np.ones(img1.shape),
-                            err_msg="SSIM maps are not unity.")
+def test_Line_yintercept_vertical():
+    line = Line(Point([0, -1]), Point([0, 1]))
+    assert_allclose(line.yintercept, np.inf, rtol=1e-6)
 
 
-def test_MSSSIM_same_image_is_unity():
-    scales, mets, maps = xd.msssim(img1, img1,
-                                           nlevels=5, sigma=1.2, L=256)
-    np.testing.assert_equal(mets, np.ones(mets.shape),
-                            err_msg="Mean is not unity.")
-    np.testing.assert_equal(maps, np.ones(img1.shape),
-                            err_msg="MSSSIM maps are not unity.")
+def test_Line_slope():
+    line = Line(Point([-1, 0]), Point([1, 2]))
+    assert_allclose(line.slope, 1, rtol=1e-6)
 
 
-# def test_VIFp_same_image_is_unity():
-#     scales, mets, maps = xd.vifp(img1, img1,
-#                                          nlevels=5, sigma=1.2, L=256)
-#     np.testing.assert_equal(mets, np.ones(mets.shape),
-#                             err_msg="Mean is not unity.")
-#     np.testing.assert_equal(maps, np.ones(img1.shape),
-#                             err_msg="VIFp maps are not unity.")
+def test_Line_yintercept():
+    line = Line(Point([-1, 0]), Point([1, 2]))
+    assert_allclose(line.yintercept, 1, rtol=1e-6)
 
 
-# def test_FSIM_same_image_is_unity():
-#     scales, mets, maps = xd.fsim(img1, img1,
-#                                          nlevels=5, nwavelets=16, L=None)
-#     np.testing.assert_equal(mets, 1., err_msg="Mean is not unity.")
-#     for map in maps:
-#         np.testing.assert_equal(map, 1.,
-#                                 err_msg="FSIM maps are not unity.")
+def test_Line_same_points():
+    assert_raises(ValueError, Line, Point([1, 2]), Point([1, 2]))
 
 
 if __name__ == '__main__':
-    test_SSIM_same_image_is_unity()
-    test_MSSSIM_same_image_is_unity()
-    # test_VIFp_same_image_is_unity()
-    # test_FSIM_same_image_is_unity()
+    import nose
+    nose.runmodule(exit=False)
