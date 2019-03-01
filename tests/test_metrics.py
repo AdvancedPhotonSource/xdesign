@@ -46,6 +46,7 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
+import os.path
 import scipy
 import numpy as np
 import xdesign as xd
@@ -55,7 +56,7 @@ __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 
-img1 = plt.imread("cameraman.png")
+img1 = plt.imread(os.path.join(os.path.dirname(__file__), "cameraman.png"))
 
 
 def test_SSIM_same_image_is_unity():

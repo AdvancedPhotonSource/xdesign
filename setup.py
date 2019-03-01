@@ -46,11 +46,11 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-import setuptools
+from setuptools import setup, find_packages
 
-setuptools.setup(
+setup(
     name='xdesign',
-    packages=['xdesign'],
+    packages=find_packages('src'),
     package_dir={"": "src"},
     setup_requires=['setuptools_scm'],
     use_scm_version=True,
