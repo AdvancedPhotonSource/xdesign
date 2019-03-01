@@ -16,6 +16,7 @@ requirements:
     - python={{ python }}
     - setuptools
     - setuptools_scm
+    - setuptools_scm_git_archive
   run:
     - cached-property
     - matplotlib
