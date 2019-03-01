@@ -52,7 +52,7 @@ setup(
     name='xdesign',
     packages=find_packages('src'),
     package_dir={"": "src"},
-    setup_requires=['setuptools_scm'],
+    setup_requires=['setuptools_scm', 'setuptools_scm_git_archive'],
     use_scm_version=True,
     author='Daniel Ching, Doga Gursoy',
     description='Benchmarking and optimization tools for tomography.',
