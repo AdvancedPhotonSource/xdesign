@@ -53,13 +53,14 @@ except DistributionNotFound:
     # package is not installed
     pass
 
-from xdesign.geometry import *
-from xdesign.phantom import *
 from xdesign.acquisition import *
 from xdesign.algorithms import *
-from xdesign.metrics import *
-from xdesign.plot import *
+from xdesign.codes import *
+from xdesign.geometry import *
 from xdesign.material import *
+from xdesign.metrics import *
+from xdesign.phantom import *
+from xdesign.plot import *
 
 import logging
 logging.basicConfig()
