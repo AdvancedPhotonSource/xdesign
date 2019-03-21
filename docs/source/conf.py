@@ -325,6 +325,10 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'matplotlib': ('https://matplotlib.org', None)
                        }
 
+autodoc_mock_imports = [
+    "polytope",
+]
+
 
 # picked from http://read-the-docs.readthedocs.org/en/latest/faq.html
 class Mock(MagicMock):
@@ -333,14 +337,14 @@ class Mock(MagicMock):
             return MagicMock()
 
 
-MOCK_MODULES = ['numpy',
-                'matplotlib', 'matplotlib.pyplot', 'matplotlib.patches',
-                'matplotlib.path', 'matplotlib.patheffects', 'matplotlib.axis',
-                'polytope',
-                'cached_property',
-                'scipy', 'scipy.stats', 'scipy.ndimage', 'scipy.spatial',
-                'cycler',
-                'phasepack',
-                ]
+MOCK_MODULES = [
+    'numpy',
+    'matplotlib', 'matplotlib.pyplot', 'matplotlib.patches',
+    'matplotlib.path', 'matplotlib.patheffects', 'matplotlib.axis',
+    'cached_property',
+    'scipy', 'scipy.stats', 'scipy.ndimage', 'scipy.spatial',
+    'cycler',
+    'phasepack',
+]
 
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
