@@ -8,6 +8,7 @@ API
    api/xdesign.acquisition
    api/xdesign.algorithms
    api/xdesign.geometry
+   api/xdesign.codes
    api/xdesign.constants
    api/xdesign.formats
    api/xdesign.material

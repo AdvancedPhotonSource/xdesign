@@ -99,18 +99,18 @@ def mura_1d(L):
 
     From Wikipedia:
     A Modified uniformly redundant array (MURA) can be generated in any length
-    L that is prime and of the form
+    L that is prime and of the form::
 
-    L = 4m + 1, m = 1, 2, 3, ...,
+        L = 4m + 1, m = 1, 2, 3, ...,
 
-    the first six such values being L = 5, 13, 17, 29, 37. The binary sequence
-    of a linear MURA is given by A[0:L] where
+    the first six such values being ``L = 5, 13, 17, 29, 37``. The binary sequence
+    of a linear MURA is given by ``A[0:L]`` where::
 
-    A[i] = {
-        0 if i = 0,
-        1 if i is a quadratic residue modulo L, i != 0,
-        0 otherwise,
-    }
+        A[i] = {
+            0 if i = 0,
+            1 if i is a quadratic residue modulo L, i != 0,
+            0 otherwise,
+        }
     """
     # overestimate m to guess a MURA longer than L
     m = (L + 1) // 4
@@ -132,19 +132,19 @@ def mura_2d(M, N=None):
     """Return the largest 2D MURA whose lengths are less than M and N.
 
     From Wikipedia:
-    A rectangular MURA, A[0:M, 0:N], is defined as follows:
+    A rectangular MURA, ``A[0:M, 0:N]``, is defined as follows::
 
-    A[i, j] = {
-        0 if i = 0,
-        1 if j = 0, i != 0,
-        1 if C[i] * C[j] = 1,
-        0 othewise,
-    }
+        A[i, j] = {
+            0 if i = 0,
+            1 if j = 0, i != 0,
+            1 if C[i] * C[j] = 1,
+            0 othewise,
+        }
 
-    C[i] = {
-        1 if i is a quadratic residue modulo p,
-        -1 otherwise,
-    }
+        C[i] = {
+            1 if i is a quadratic residue modulo p,
+            -1 otherwise,
+        }
 
     where p is the length of the matching side M, N.
     """
