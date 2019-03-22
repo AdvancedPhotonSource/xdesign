@@ -1,21 +1,14 @@
-API
-===
-
-.. rubric:: **XDesign Modules:**
-
-.. toctree::
-
-   api/xdesign.acquisition
-   api/xdesign.geometry
-   api/xdesign.constants
-   api/xdesign.formats
-   api/xdesign.material
-   api/xdesign.metrics
-   api/xdesign.phantom
-   api/xdesign.plot
-   api/xdesign.recon
+API Documentation
+=================
 
 .. automodule:: xdesign
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. toctree::
+   :maxdepth: 4
+   :hidden:
+   :glob:
+
+   api/*
