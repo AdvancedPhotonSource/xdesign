@@ -6,8 +6,8 @@
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-from xdesign.geometry.algorithms import *
 from xdesign.geometry.area import *
 from xdesign.geometry.entity import *
+from xdesign.geometry.intersect import *
 from xdesign.geometry.line import *
 from xdesign.geometry.point import *

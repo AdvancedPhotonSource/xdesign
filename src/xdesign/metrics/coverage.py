@@ -60,7 +60,7 @@ __all__ = ['coverage_approx']
 import logging
 
 from xdesign.acquisition import beamintersect, thv_to_zxy
-from xdesign.algorithms import get_mids_and_lengths
+from xdesign.recon import get_mids_and_lengths
 
 logger = logging.getLogger(__name__)
 

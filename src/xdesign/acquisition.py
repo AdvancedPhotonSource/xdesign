@@ -60,7 +60,7 @@ import numpy as np
 from cached_property import cached_property
 from xdesign.constants import RADIUS, DEFAULT_ENERGY
 from xdesign.geometry import *
-from xdesign.geometry.algorithms import halfspacecirc, clip_SH
+from xdesign.geometry.intersect import halfspacecirc, clip_SH
 
 logger = logging.getLogger(__name__)
 
