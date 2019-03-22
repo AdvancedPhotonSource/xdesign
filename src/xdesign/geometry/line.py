@@ -1,19 +1,21 @@
-import numpy as np
-import logging
-from math import sqrt
-
-from xdesign.geometry.entity import *
-from xdesign.geometry.point import *
-
-logger = logging.getLogger(__name__)
+"""Define one dimensional geometric entities."""
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = [
-           'Line',
-           'Segment',
-           ]
+    'Line',
+    'Segment',
+]
+
+import logging
+from math import sqrt
+import numpy as np
+
+from xdesign.geometry.entity import *
+from xdesign.geometry.point import *
+
+logger = logging.getLogger(__name__)
 
 
 class LinearEntity(Entity):
@@ -29,6 +31,7 @@ class LinearEntity(Entity):
     p2 : Point
 
     """
+
     def __init__(self, p1, p2):
         if not isinstance(p1, Point) or not isinstance(p2, Point):
             raise TypeError("p1 and p2 must be Points")
@@ -41,8 +44,9 @@ class LinearEntity(Entity):
         self._dim = p1.dim
 
     def __repr__(self):
-        return "{}({}, {})".format(type(self).__name__, repr(self.p1),
-                                   repr(self.p2))
+        return "{}({}, {})".format(
+            type(self).__name__, repr(self.p1), repr(self.p2)
+        )
 
     @property
     def vertical(self):
@@ -60,8 +64,7 @@ class LinearEntity(Entity):
         if self.vertical:
             return np.inf
         else:
-            return ((self.p2.y - self.p1.y) /
-                    (self.p2.x - self.p1.x))
+            return ((self.p2.y - self.p1.y) / (self.p2.x - self.p1.x))
 
     @property
     def points(self):
@@ -83,8 +86,7 @@ class LinearEntity(Entity):
     def normal(self):
         """Return the unit normal vector."""
         dx = (self.p2._x - self.p1._x) / self.length
-        R = np.array([[0, 1],
-                      [-1,  0]])
+        R = np.array([[0, 1], [-1, 0]])
         n = np.dot(R, dx)
         return Point(n)
 
@@ -147,7 +149,7 @@ class Line(LinearEntity):
             if A[n] == 0:
                 return np.inf
             else:
-                return B/A[n]
+                return B / A[n]
 
     @property
     def xintercept(self):

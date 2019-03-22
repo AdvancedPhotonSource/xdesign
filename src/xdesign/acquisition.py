@@ -45,7 +45,6 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
-
 """Define objects and methods for simulated data acquisition.
 
 This not only includes physical things like :py:class:`.Probe`, detectors,
@@ -55,22 +54,24 @@ turntables, and lenses, but non-physical things such as scanning patterns.
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-import logging
-import numpy as np
-from cached_property import cached_property
-from xdesign.constants import RADIUS, DEFAULT_ENERGY
-from xdesign.geometry import *
-from xdesign.geometry.algorithms import halfspacecirc, clip_SH
-
-logger = logging.getLogger(__name__)
-
-
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Probe',
-           'raster_scan2D',
-           ]
+__all__ = [
+    'Probe',
+    'raster_scan2D',
+]
+
+import logging
+
+import numpy as np
+from cached_property import cached_property
+
+from xdesign.constants import RADIUS, DEFAULT_ENERGY
+from xdesign.geometry import *
+from xdesign.geometry.intersect import halfspacecirc, clip_SH
+
+logger = logging.getLogger(__name__)
 
 
 class Probe(Line):
@@ -94,8 +95,9 @@ class Probe(Line):
 
     """
 
-    def __init__(self, p1=None, p2=None, size=0.0, intensity=1.0,
-                 energy=DEFAULT_ENERGY):
+    def __init__(
+        self, p1=None, p2=None, size=0.0, intensity=1.0, energy=DEFAULT_ENERGY
+    ):
         if p1 is None or p2 is None:
             p1 = Point([RADIUS, 0])
             p2 = Point([-RADIUS, 0])
@@ -106,8 +108,9 @@ class Probe(Line):
 
     def __repr__(self):
         return "Probe({}, {}, size={}, intensity={}, energy={})".format(
-                repr(self.p1), repr(self.p2), repr(self.size),
-                repr(self.intensity), repr(self.energy))
+            repr(self.p1), repr(self.p2), repr(self.size), repr(self.intensity),
+            repr(self.energy)
+        )
 
     def __str__(self):
         """Return the string respresentation of the Beam."""
@@ -128,9 +131,11 @@ class Probe(Line):
 
         """
         if perc is not None:
-            raise UserWarning("Noise during acquisition has been removed. "
-                              "Use post-processing to add noise "
-                              "instead.")
+            raise UserWarning(
+                "Noise during acquisition has been removed. "
+                "Use post-processing to add noise "
+                "instead."
+            )
         assert theta.shape == h.shape, "theta, h, must be the same shape"
         original_shape = theta.shape
         newdata = np.zeros(theta.size)
@@ -140,8 +145,9 @@ class Probe(Line):
         for i in range(theta.size):
             self.p1 = Point([srcx[i], srcy[i]])
             self.p2 = Point([detx[i], dety[i]])
-            newdata[i] = (self.intensity
-                          * np.exp(-self._get_attenuation(phantom)))
+            newdata[i] = (
+                self.intensity * np.exp(-self._get_attenuation(phantom))
+            )
         logger.debug("Probe.measure: {}".format(newdata))
         return newdata.reshape(original_shape)
 
@@ -153,8 +159,10 @@ class Probe(Line):
             attenuation = 0.0
         else:
             # [ ] = [cm^2] / [cm] * [1/cm]
-            attenuation = (intersection / self.cross_section
-                           * phantom.material.linear_attenuation(self.energy))
+            attenuation = (
+                intersection / self.cross_section *
+                phantom.material.linear_attenuation(self.energy)
+            )
 
         if phantom.geometry is None or intersection > 0:
             # check the children for containers and intersecting geometries
@@ -174,8 +182,10 @@ class Probe(Line):
         half_space = list()
 
         for i in range(2):
-            edge = Line(self.p1 + self.normal * self.size / 2 * (-1)**i,
-                        self.p2 + self.normal * self.size / 2 * (-1)**i)
+            edge = Line(
+                self.p1 + self.normal * self.size / 2 * (-1)**i,
+                self.p2 + self.normal * self.size / 2 * (-1)**i
+            )
             A, B = edge.standard
 
             # test for positive or negative side of line
@@ -196,10 +206,10 @@ def thv_to_zxy(theta, h):
     """Convert coordinates from (theta, h, v) to (z, x, y) space."""
     cos_p = np.cos(theta)
     sin_p = np.sin(theta)
-    srcx = +RADIUS*cos_p - h*sin_p
-    srcy = +RADIUS*sin_p + h*cos_p
-    detx = -RADIUS*cos_p - h*sin_p
-    dety = -RADIUS*sin_p + h*cos_p
+    srcx = +RADIUS * cos_p - h * sin_p
+    srcy = +RADIUS * sin_p + h * cos_p
+    detx = -RADIUS * cos_p - h * sin_p
+    dety = -RADIUS * sin_p + h * cos_p
     return srcx, srcy, detx, dety
 
 
@@ -266,9 +276,9 @@ def beamcirc(beam, circle):
 
     """
     r = circle.radius
-    w = beam.size/2
+    w = beam.size / 2
     p = super(Probe, beam).distance(circle.center)
-    assert(p >= 0)
+    assert (p >= 0)
 
     logger.debug("BEAMCIRC: r = %f, w = %f, p = %f" % (r, w, p))
 
@@ -289,7 +299,7 @@ def beamcirc(beam, circle):
             f = halfspacecirc(p - w, r)
 
     a = np.pi * r**2 * f
-    assert(a >= 0), a
+    assert (a >= 0), a
     return a
 
 
@@ -312,7 +322,7 @@ def raster_scan2D(sa, st, meta=False):
         Probe positions for scan
 
     """
-    theta = np.linspace(0, np.pi*2, sa, endpoint=False)
+    theta = np.linspace(0, np.pi * 2, sa, endpoint=False)
     h = np.linspace(0, 1, st, endpoint=False) - 0.5
     theta, h = np.meshgrid(theta, h)
     return theta, h

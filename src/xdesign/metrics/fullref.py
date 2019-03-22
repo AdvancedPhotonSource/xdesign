@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """Defines full-referene image quality metricsself.
 
 These methods require a ground truth in order to make a quality assessment.
@@ -8,18 +7,18 @@ These methods require a ground truth in order to make a quality assessment.
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-import numpy as np
-from scipy import ndimage
-
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = [
-           'pcc',
-           'ImageQuality',
-           'ssim',
-           'msssim',
-           ]
+    'pcc',
+    'ImageQuality',
+    'ssim',
+    'msssim',
+]
+
+import numpy as np
+from scipy import ndimage
 
 
 def pcc(A, B, masks=None):
@@ -94,8 +93,12 @@ class ImageQuality(object):
             representations and 2^bitdepth for integer representations.
 
         """
-        dictionary = {"SSIM": ssim, "MSSSIM": msssim,
-                      "VIFp": vifp, "FSIM": fsim}
+        dictionary = {
+            "SSIM": ssim,
+            "MSSSIM": msssim,
+            "VIFp": vifp,
+            "FSIM": fsim
+        }
         try:
             method_func = dictionary[method]
         except KeyError:
@@ -109,9 +112,9 @@ class ImageQuality(object):
 
             for i in range(self.img0.shape[2]):
 
-                scales, mets, maps = method_func(self.img0[:, :, i],
-                                                 self.img1[:, :, i],
-                                                 L=L, **kwargs)
+                scales, mets, maps = method_func(
+                    self.img0[:, :, i], self.img1[:, :, i], L=L, **kwargs
+                )
 
                 self.scales = scales
                 self.mets.append(mets)
@@ -131,9 +134,9 @@ class ImageQuality(object):
             self.maps = newmaps
 
         else:
-            self.scales, self.mets, self.maps = method_func(self.img0,
-                                                            self.img1,
-                                                            L=L, **kwargs)
+            self.scales, self.mets, self.maps = method_func(
+                self.img0, self.img1, L=L, **kwargs
+            )
 
 
 def _join_metrics(A, B):
@@ -142,8 +145,9 @@ def _join_metrics(A, B):
         if key in A:
             A[key][0] = np.concatenate((A[key][0], B[key][0]))
 
-            A[key][1] = np.concatenate((np.atleast_3d(A[key][1]),
-                                        np.atleast_3d(B[key][1])), axis=2)
+            A[key][1] = np.concatenate(
+                (np.atleast_3d(A[key][1]), np.atleast_3d(B[key][1])), axis=2
+            )
 
         else:
             A[key] = B[key]
@@ -211,8 +215,8 @@ def vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
     for level in range(0, nlevels):
         # Downsample (using ndimage.zoom to prevent sampling bias)
         if (level > 0):
-            img0 = ndimage.zoom(img0, 1/2)
-            img1 = ndimage.zoom(img1, 1/2)
+            img0 = ndimage.zoom(img0, 0.5)
+            img1 = ndimage.zoom(img1, 0.5)
 
         mu0 = ndimage.gaussian_filter(img0, sigma)
         mu1 = ndimage.gaussian_filter(img1, sigma)
@@ -348,8 +352,16 @@ def vifp(img0, img1, nlevels=5, sigma=1.2, L=None):
 #     return scales, mets, maps
 
 
-def msssim(img0, img1, nlevels=5, sigma=1.2, L=1.0, K=(0.01, 0.03),
-           alpha=4, beta_gamma=None):
+def msssim(
+    img0,
+    img1,
+    nlevels=5,
+    sigma=1.2,
+    L=1.0,
+    K=(0.01, 0.03),
+    alpha=4,
+    beta_gamma=None
+):
     """Multi-Scale Structural SIMilarity index (MS-SSIM).
 
     Parameters
@@ -395,17 +407,29 @@ def msssim(img0, img1, nlevels=5, sigma=1.2, L=1.0, K=(0.01, 0.03),
     assert nlevels < 6, "Not enough beta_gamma weights for more than 5 levels"
     scales = np.zeros(nlevels)
     maps = [None] * nlevels
-    scale, luminance, ssim_map = ssim(img0, img1, sigma=sigma, L=L,
-                                      K=K, scale=sigma,
-                                      alpha=alpha, beta_gamma=0)
+    scale, luminance, ssim_map = ssim(
+        img0,
+        img1,
+        sigma=sigma,
+        L=L,
+        K=K,
+        scale=sigma,
+        alpha=alpha,
+        beta_gamma=0
+    )
     for level in range(0, nlevels):
-        scale, ssim_mean, ssim_map = ssim(img0, img1, sigma=sigma, L=L,
-                                          K=K, scale=sigma,
-                                          alpha=0,
-                                          beta_gamma=beta_gamma[level])
+        scale, ssim_mean, ssim_map = ssim(
+            img0,
+            img1,
+            sigma=sigma,
+            L=L,
+            K=K,
+            scale=sigma,
+            alpha=0,
+            beta_gamma=beta_gamma[level]
+        )
         scales[level] = scale
-        maps[level] = ndimage.zoom(ssim_map, 2**level, prefilter=False,
-                                   order=0)
+        maps[level] = ndimage.zoom(ssim_map, 2**level, prefilter=False, order=0)
         if level == nlevels - 1:
             break
         # Downsample (using ndimage.zoom to prevent sampling bias)
@@ -418,8 +442,16 @@ def msssim(img0, img1, nlevels=5, sigma=1.2, L=1.0, K=(0.01, 0.03),
     return scales, ms_ssim_mean, map
 
 
-def ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
-         alpha=4, beta_gamma=4):
+def ssim(
+    img1,
+    img2,
+    sigma=1.2,
+    L=1,
+    K=(0.01, 0.03),
+    scale=None,
+    alpha=4,
+    beta_gamma=4
+):
     """Return the Structural SIMilarity index (SSIM) of two images.
 
     A modified version of the Structural SIMilarity index (SSIM) based on an
@@ -499,8 +531,9 @@ def ssim(img1, img2, sigma=1.2, L=1, K=(0.01, 0.03), scale=None,
     else:
         ssim_map = np.ones(numerator1.shape)
         index = (denominator1 * denominator2 > 0)
-        ssim_map[index] = ((numerator1[index]/denominator1[index])**alpha *
-                           (numerator2[index]/denominator2[index])**beta_gamma)
+        ssim_map[index] = ((numerator1[index] / denominator1[index])**alpha *
+                           (numerator2[index] / denominator2[index])**
+                           beta_gamma)
     # Sometimes c_1 and c_2 don't do their job of stabilizing the result
     ssim_map[ssim_map > 1] = 1
     ssim_map[ssim_map < -1] = -1
@@ -517,12 +550,15 @@ def _full_reference_input_check(img0, img1, sigma, nlevels, L):
     if sigma < 1.2:
         raise ValueError('sigma < 1.2 is effective meaningless.')
     if np.min(img0.shape) / (2**(nlevels - 1)) < sigma * 2:
-        raise ValueError("{nlevels} levels makes {shape} smaller than a filter"
-                         " size of 2 * {sigma}".format(nlevels=nlevels,
-                                                       shape=img0.shape,
-                                                       sigma=sigma))
+        raise ValueError(
+            "{nlevels} levels makes {shape} smaller than a filter"
+            " size of 2 * {sigma}".format(
+                nlevels=nlevels, shape=img0.shape, sigma=sigma
+            )
+        )
     if L is not None and L < 1:
         raise ValueError("Dynamic range must be >= 1.")
     if img0.shape != img1.shape:
-        raise ValueError("original and reconstruction should be the " +
-                         "same shape")
+        raise ValueError(
+            "original and reconstruction should be the " + "same shape"
+        )

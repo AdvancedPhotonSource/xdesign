@@ -1,7 +1,7 @@
-:mod:`xdesign.algorithms`
+:mod:`xdesign.recon`
 =========================
 
-.. automodule:: xdesign.algorithms
+.. automodule:: xdesign.recon
    :members:
    :show-inheritance:
    :undoc-members:
