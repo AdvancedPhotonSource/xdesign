@@ -45,16 +45,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
-
 """Define a base clase for all geometric entities."""
-
-import logging
-logger = logging.getLogger(__name__)
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['Entity']
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Entity(object):

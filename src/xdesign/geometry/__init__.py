@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """Define geometric objects for compuational geometry operations.
 
 .. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
