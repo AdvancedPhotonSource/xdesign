@@ -1,32 +1,32 @@
-import numpy as np
-import logging
-import warnings
-import matplotlib.pyplot as plt
-from matplotlib.path import Path
-from numbers import Number
-from cached_property import cached_property
-import copy
-from math import sqrt, asin
-from copy import deepcopy
-
-from xdesign.geometry.entity import *
-from xdesign.geometry.point import *
-from xdesign.geometry.line import *
-
-logger = logging.getLogger(__name__)
+"""Define two dimensional geometric entities."""
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = [
-           'Curve',
-           'Circle',
-           'Polygon',
-           'Triangle',
-           'Rectangle',
-           'Square',
-           'Mesh',
-           ]
+    'Curve',
+    'Circle',
+    'Polygon',
+    'Triangle',
+    'Rectangle',
+    'Square',
+    'Mesh',
+]
+
+from copy import deepcopy
+import logging
+import warnings
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.path import Path
+from cached_property import cached_property
+
+from xdesign.geometry.entity import *
+from xdesign.geometry.line import *
+from xdesign.geometry.point import *
+
+logger = logging.getLogger(__name__)
 
 
 class Curve(Entity):
@@ -37,6 +37,7 @@ class Curve(Entity):
     ----------
     center : Point
     """
+
     def __init__(self, center):
         if not isinstance(center, Point):
             raise TypeError("center must be a Point.")
@@ -76,10 +77,9 @@ class Superellipse(Curve):
         self.n = float(n)
 
     def __repr__(self):
-        return "Superellipse(center={}, a={}, b={}, n={})".format(repr(self.center),
-                                                                  repr(self.a),
-                                                                  repr(self.b),
-                                                                  repr(self.n))
+        return "Superellipse(center={}, a={}, b={}, n={})".format(
+            repr(self.center), repr(self.a), repr(self.b), repr(self.n)
+        )
 
     @property
     def list(self):
@@ -106,9 +106,9 @@ class Ellipse(Superellipse):
         super(Ellipse, self).__init__(center, a, b, 2)
 
     def __repr__(self):
-        return "Ellipse(center={}, a={}, b={})".format(repr(self.center),
-                                                       repr(self.a),
-                                                       repr(self.b))
+        return "Ellipse(center={}, a={}, b={})".format(
+            repr(self.center), repr(self.a), repr(self.b)
+        )
 
     @property
     def list(self):
@@ -147,16 +147,18 @@ class Circle(Curve):
 
     def __repr__(self):
         return "Circle(center={}, radius={}, sign={})".format(
-            repr(self.center), repr(self.radius), repr(self.sign))
+            repr(self.center), repr(self.radius), repr(self.sign)
+        )
 
     def __str__(self):
         """Return the analytical equation."""
-        return "(x-%s)^2 + (y-%s)^2 = %s^2" % (self.center.x, self.center.y,
-                                               self.radius)
+        return "(x-%s)^2 + (y-%s)^2 = %s^2" % (
+            self.center.x, self.center.y, self.radius
+        )
 
     def __eq__(self, circle):
-        return ((self.x, self.y, self.radius) ==
-                (circle.x, circle.y, circle.radius))
+        return ((self.x, self.y,
+                 self.radius) == (circle.x, circle.y, circle.radius))
 
     def __neg__(self):
         copE = deepcopy(self)
@@ -226,8 +228,10 @@ class Circle(Curve):
                     assert other.sign is 1
                     # other is within A
                     if isinstance(other, Circle):
-                        return (other.center.distance(self.center)
-                                + other.radius < self.radius)
+                        return (
+                            other.center.distance(self.center) + other.radius <
+                            self.radius
+                        )
                     elif isinstance(other, Polygon):
                         x = _points_to_array(other.vertices)
                         return np.all(self.contains(x))
@@ -236,19 +240,25 @@ class Circle(Curve):
                 if other.sign is 1:
                     # other is outside A and not around
                     if isinstance(other, Circle):
-                        return (other.center.distance(self.center)
-                                - other.radius > self.radius)
+                        return (
+                            other.center.distance(self.center) - other.radius >
+                            self.radius
+                        )
                     elif isinstance(other, Polygon):
                         x = _points_to_array(other.vertices)
-                        return (np.all(self.contains(x)) and
-                                not other.contains(-self))
+                        return (
+                            np.all(self.contains(x))
+                            and not other.contains(-self)
+                        )
 
                 else:
                     assert other.sign is -1
                     # other is around A
                     if isinstance(other, Circle):
-                        return (other.center.distance(self.center)
-                                + self.radius < other.radius)
+                        return (
+                            other.center.distance(self.center) + self.radius <
+                            other.radius
+                        )
                     elif isinstance(other, Polygon):
                         return (-other).contains(-self)
 
@@ -292,8 +302,9 @@ class Polygon(Entity):
         self.sign = sign
 
     def __repr__(self):
-        return "Polygon(vertices={}, sign={})".format(repr(self.vertices),
-                                                      repr(self.sign))
+        return "Polygon(vertices={}, sign={})".format(
+            repr(self.vertices), repr(self.sign)
+        )
 
     def __str__(self):
         return "{}({})".format(type(self).__name__, str(self.numpy))
@@ -353,8 +364,11 @@ class Polygon(Entity):
         edges = []
 
         for i in range(self.numverts):
-            edges.append(Segment(self.vertices[i],
-                                 self.vertices[(i+1) % self.numverts]))
+            edges.append(
+                Segment(
+                    self.vertices[i], self.vertices[(i + 1) % self.numverts]
+                )
+            )
 
         return edges
 
@@ -370,7 +384,7 @@ class Polygon(Entity):
         a = _points_to_array(self.vertices)
         x = a[:, 0]
         y = a[:, 1]
-        return 0.5*np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+        return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
     @cached_property
     def perimeter(self):
@@ -402,12 +416,14 @@ class Polygon(Entity):
     @cached_property
     def half_space(self):
         """Returns the half space polytope respresentation of the polygon."""
-        assert(self.dim > 0), self.dim
+        assert (self.dim > 0), self.dim
         A = np.ndarray((self.numverts, self.dim))
         B = np.ndarray(self.numverts)
 
         for i in range(0, self.numverts):
-            edge = Line(self.vertices[i], self.vertices[(i+1) % self.numverts])
+            edge = Line(
+                self.vertices[i], self.vertices[(i + 1) % self.numverts]
+            )
             A[i, :], B[i] = edge.standard
 
             # test for positive or negative side of line
@@ -496,8 +512,10 @@ class Polygon(Entity):
                         return False
                     elif isinstance(other, Polygon):
                         x = _points_to_array(other.vertices)
-                        return (np.all(self.contains(x)) and
-                                not other.contains(-self))
+                        return (
+                            np.all(self.contains(x))
+                            and not other.contains(-self)
+                        )
 
                 else:
                     assert other.sign is -1
@@ -523,9 +541,9 @@ class Triangle(Polygon):
         super(Triangle, self).__init__([p1, p2, p3])
 
     def __repr__(self):
-        return "Triangle({}, {}, {})".format(self.vertices[0],
-                                             self.vertices[1],
-                                             self.vertices[2])
+        return "Triangle({}, {}, {})".format(
+            self.vertices[0], self.vertices[1], self.vertices[2]
+        )
 
     @cached_property
     def center(self):
@@ -538,7 +556,7 @@ class Triangle(Polygon):
     def area(self):
         A = self.vertices[0] - self.vertices[1]
         B = self.vertices[0] - self.vertices[2]
-        return self.sign * 1/2 * np.abs(np.cross([A.x, A.y], [B.x, B.y]))
+        return self.sign * 1 / 2 * np.abs(np.cross([A.x, A.y], [B.x, B.y]))
 
 
 class Rectangle(Polygon):
@@ -565,13 +583,16 @@ class Rectangle(Polygon):
         super(Rectangle, self).__init__([p1, p2, p3, p4])
 
     def __repr__(self):
-        return "Rectangle({}, {})".format(repr(self.center),
-                                          repr(self.side_lengths.tolist()))
+        return "Rectangle({}, {})".format(
+            repr(self.center), repr(self.side_lengths.tolist())
+        )
 
     @cached_property
     def area(self):
-        return self.sign * (self.vertices[0].distance(self.vertices[1]) *
-                            self.vertices[1].distance(self.vertices[2]))
+        return self.sign * (
+            self.vertices[0].distance(self.vertices[1]) *
+            self.vertices[1].distance(self.vertices[2])
+        )
 
 
 class Square(Rectangle):
@@ -632,12 +653,9 @@ class Mesh(Entity):
         """Loads mesh data from a Python Triangle dict.
         """
         for face in obj['triangles']:
-            p0 = Point(obj['vertices'][face[0], 0],
-                       obj['vertices'][face[0], 1])
-            p1 = Point(obj['vertices'][face[1], 0],
-                       obj['vertices'][face[1], 1])
-            p2 = Point(obj['vertices'][face[2], 0],
-                       obj['vertices'][face[2], 1])
+            p0 = Point(obj['vertices'][face[0], 0], obj['vertices'][face[0], 1])
+            p1 = Point(obj['vertices'][face[1], 0], obj['vertices'][face[1], 1])
+            p2 = Point(obj['vertices'][face[2], 0], obj['vertices'][face[2], 1])
             t = Triangle(p0, p1, p2)
             self.append(t)
 
@@ -675,8 +693,10 @@ class Mesh(Entity):
             for v in t.vertices:
                 self.radius = max(self.radius, self.center.distance(v))
         else:
-            self.radius = max(self.radius,
-                              self.center.distance(t.center) + t.radius)
+            self.radius = max(
+                self.radius,
+                self.center.distance(t.center) + t.radius
+            )
 
         self.faces.append(t)
 

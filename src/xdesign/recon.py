@@ -45,7 +45,6 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
-
 """Defines methods for reconstructing data from the :mod:`.acquisition` module.
 
 The algorithm module contains methods for reconstructing tomographic data
@@ -60,12 +59,13 @@ algorithms for developing other methods such as noise correction.
 .. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
 """
 
-import numpy as np
 import logging
+
+import numpy as np
+
 from xdesign.acquisition import thv_to_zxy
 
 logger = logging.getLogger(__name__)
-
 
 __author__ = "Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -80,17 +80,20 @@ def update_progress(progress):
     -------------
     process : float
         The percentage completed e.g. 0.10 for 10%
+
     """
-    percent = progress*100
-    nbars = int(progress*10)
-    print('\r[{0}{1}] {2:.2f}%'.format('#'*nbars, ' '*(10-nbars), percent),
-          end='')
+    percent = progress * 100
+    nbars = int(progress * 10)
+    print(
+        '\r[{0}{1}] {2:.2f}%'.format('#' * nbars, ' ' * (10 - nbars), percent),
+        end=''
+    )
     if progress == 1:
         print('')
 
 
 def get_mids_and_lengths(x0, y0, x1, y1, gx, gy):
-    """Return the midpoints and intersection lengths of a line and a grid
+    """Return the midpoints and intersection lengths of a line and a grid.
 
     Parameters
     ----------
@@ -105,8 +108,8 @@ def get_mids_and_lengths(x0, y0, x1, y1, gx, gy):
         Coordinates along the line within each intersected grid pixel.
     dist : :py:class:`np.array`
         Lengths of the line segments crossing each pixel
-    """
 
+    """
     # avoid upper-right boundary errors
     if (x1 - x0) == 0:
         x0 += 1e-6
@@ -145,10 +148,18 @@ def get_mids_and_lengths(x0, y0, x1, y1, gx, gy):
     return xm, ym, dist
 
 
-def art(gmin, gsize, data, theta, h, init, niter=10, weights=None,
-        save_interval=None):
-    """Reconstruct data using ART algorithm. :cite:`Gordon1970`
-    """
+def art(
+    gmin,
+    gsize,
+    data,
+    theta,
+    h,
+    init,
+    niter=10,
+    weights=None,
+    save_interval=None
+):
+    """Reconstruct data using ART algorithm. :cite:`Gordon1970`."""
     assert data.size == theta.size == h.size, "theta, h, must be" \
         "the equal lengths"
     data = data.ravel()
@@ -174,15 +185,15 @@ def art(gmin, gsize, data, theta, h, init, niter=10, weights=None,
         # update = np.zeros(init.shape)
         # nupdate = np.zeros(init.shape, dtype=np.uint)
 
-        update_progress(n/niter)
+        update_progress(n / niter)
         for m in range(data.size):
             # get intersection locations and lengths
             if m in midlengths:
                 xm, ym, dist = midlengths[m]
             else:
-                xm, ym, dist = get_mids_and_lengths(srcx[m], srcy[m],
-                                                    detx[m], dety[m],
-                                                    gx, gy)
+                xm, ym, dist = get_mids_and_lengths(
+                    srcx[m], srcy[m], detx[m], dety[m], gx, gy
+                )
                 midlengths[m] = (xm, ym, dist)
             # convert midpoints of line segments to indices
             ix = np.floor(sx * (xm - gmin[0]) / gsize[0]).astype('int')
@@ -204,10 +215,18 @@ def art(gmin, gsize, data, theta, h, init, niter=10, weights=None,
         return archive
 
 
-def sirt(gmin, gsize, data, theta, h, init, niter=10, weights=None,
-         save_interval=None):
-    """Reconstruct data using SIRT algorithm. :cite:`Gilbert1972`
-    """
+def sirt(
+    gmin,
+    gsize,
+    data,
+    theta,
+    h,
+    init,
+    niter=10,
+    weights=None,
+    save_interval=None
+):
+    """Reconstruct data using SIRT algorithm. :cite:`Gilbert1972`."""
     assert data.size == theta.size == h.size, "theta, h, must be" \
         "the equal lengths"
     data = data.ravel()
@@ -233,15 +252,15 @@ def sirt(gmin, gsize, data, theta, h, init, niter=10, weights=None,
         update = np.zeros(init.shape)
         nupdate = np.zeros(init.shape, dtype=np.uint)
 
-        update_progress(n/niter)
+        update_progress(n / niter)
         for m in range(data.size):
             # get intersection locations and lengths
             if m in midlengths:
                 xm, ym, dist = midlengths[m]
             else:
-                xm, ym, dist = get_mids_and_lengths(srcx[m], srcy[m],
-                                                    detx[m], dety[m],
-                                                    gx, gy)
+                xm, ym, dist = get_mids_and_lengths(
+                    srcx[m], srcy[m], detx[m], dety[m], gx, gy
+                )
                 midlengths[m] = (xm, ym, dist)
             # convert midpoints of line segments to indices
             ix = np.floor(sx * (xm - gmin[0]) / gsize[0]).astype('int')
@@ -268,8 +287,7 @@ def sirt(gmin, gsize, data, theta, h, init, niter=10, weights=None,
 
 
 def mlem(gmin, gsize, data, theta, h, init, niter=10):
-    """Reconstruct data using MLEM algorithm.
-    """
+    """Reconstruct data using MLEM algorithm."""
     assert data.size == theta.size == h.size, "theta, h, must be" \
         "the equal lengths"
     data = data.ravel()
@@ -293,15 +311,15 @@ def mlem(gmin, gsize, data, theta, h, init, niter=10):
         update = np.zeros(init.shape)
         sumdist = np.zeros(init.shape)
 
-        update_progress(n/niter)
+        update_progress(n / niter)
         for m in range(data.size):
             # get intersection locations and lengths
             if m in midlengths:
                 xm, ym, dist = midlengths[m]
             else:
-                xm, ym, dist = get_mids_and_lengths(srcx[m], srcy[m],
-                                                    detx[m], dety[m],
-                                                    gx, gy)
+                xm, ym, dist = get_mids_and_lengths(
+                    srcx[m], srcy[m], detx[m], dety[m], gx, gy
+                )
                 midlengths[m] = (xm, ym, dist)
             # convert midpoints of line segments to indices
             ix = np.floor(sx * (xm - gmin[0]) / gsize[0]).astype('int')
@@ -315,7 +333,8 @@ def mlem(gmin, gsize, data, theta, h, init, niter=10):
                 upd = np.true_divide(data[m], sim)
                 update[ix[ind], iy[ind]] += dist[ind] * upd
 
-        init[sumdist > 0] *= np.true_divide(update[sumdist > 0],
-                                            sumdist[sumdist > 0] * sy)
+        init[sumdist > 0] *= np.true_divide(
+            update[sumdist > 0], sumdist[sumdist > 0] * sy
+        )
     update_progress(1)
     return init

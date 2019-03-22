@@ -45,6 +45,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
+"""XDesign aims to provide tools for designing xray-imaging experiments.
+
+These tools include a computational geometry library for simulating x-ray
+phantoms and data acquisition, quality metrics for quantitatively rating the
+image reconstructions and scanning procedures, and other helpful functions for
+specifying motion and coding aperatures for computational imaging.
+
+"""
 
 from pkg_resources import get_distribution, DistributionNotFound
 try:
@@ -53,14 +61,16 @@ except DistributionNotFound:
     # package is not installed
     pass
 
+import logging
+
 from xdesign.acquisition import *
-from xdesign.algorithms import *
 from xdesign.codes import *
 from xdesign.geometry import *
 from xdesign.material import *
 from xdesign.metrics import *
 from xdesign.phantom import *
 from xdesign.plot import *
+from xdesign.phantom import *
+from xdesign.recon import *
 
-import logging
 logging.basicConfig()

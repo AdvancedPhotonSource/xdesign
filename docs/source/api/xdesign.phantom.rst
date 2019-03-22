@@ -1,28 +1,59 @@
 :mod:`xdesign.phantom`
-=======================
+======================
 
 .. automodule:: xdesign.phantom
-   :members:
-   :show-inheritance:
-   :undoc-members:
+  :members:
+  :show-inheritance:
+  :undoc-members:
 
-   .. rubric:: **Classes:**
 
-   .. autosummary::
+Phantoms
+--------
 
-      Phantom
-      save_phantom
-      load_phantom
-      pickle_phantom
-      unpickle_phantom
-      XDesignDefault
-      HyperbolicConcentric
-      DynamicRange
-      DogaCircles
-      SlantedSquares
-      UnitCircle
-      Soil
-      WetCircles
-      SiemensStar
-      Foam
-      Softwood
+.. automodule:: xdesign.phantom.phantom
+  :members:
+  :show-inheritance:
+  :undoc-members:
+
+  .. autosummary::
+
+    Phantom
+    save_phantom
+    load_phantom
+    pickle_phantom
+    unpickle_phantom
+
+
+Standard phantoms
+-----------------
+
+.. automodule:: xdesign.phantom.standards
+  :members:
+  :show-inheritance:
+  :undoc-members:
+
+  .. autosummary::
+
+    XDesignDefault
+    HyperbolicConcentric
+    DynamicRange
+    DogaCircles
+    SlantedSquares
+    UnitCircle
+    SiemensStar
+
+
+Custom phantoms
+---------------
+
+.. automodule:: xdesign.phantom.custom
+  :members:
+  :show-inheritance:
+  :undoc-members:
+
+  .. autosummary::
+
+    Soil
+    WetCircles
+    Foam
+    Softwood

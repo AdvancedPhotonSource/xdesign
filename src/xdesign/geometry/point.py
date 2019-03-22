@@ -1,9 +1,9 @@
-"""Define a base clase for all geometric entities."""
+"""Define zero dimensional geometric entities."""
 
-import numpy as np
 import logging
-from numbers import Number
 from math import sqrt
+from numbers import Number  # TODO: Use duck typing instead of type checking
+import numpy as np
 
 from xdesign.geometry.entity import *
 
@@ -13,13 +13,13 @@ __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = [
-           'Point',
-           'calc_standard',
-           'dim',
-           'rotated',
-           'distance',
-           'norm',
-           ]
+    'Point',
+    'calc_standard',
+    'dim',
+    'rotated',
+    'distance',
+    'norm',
+]
 
 
 def dim(self):
@@ -32,8 +32,10 @@ def rotated(self, theta, center=None, axis=None):
     if center is None:
         center = np.zeros(dim(self))
     if axis is not None:
-        raise NotImplementedError("Rotation about axis besides [0 0 1] are"
-                                  " not implemented.")
+        raise NotImplementedError(
+            "Rotation about axis besides [0 0 1] are"
+            " not implemented."
+        )
     self = self.copy()
     # shift rotation center to origin
     self -= center
@@ -164,8 +166,10 @@ class Point(Entity):
         else:
             raise TypeError("center of rotation must be Point.")
         if axis is not None:
-            raise NotImplementedError("Rotation about axis besides [0 0 1] are"
-                                      " not implemented.")
+            raise NotImplementedError(
+                "Rotation about axis besides [0 0 1] are"
+                " not implemented."
+            )
 
         # shift rotation center to origin
         self._x -= center

@@ -1,18 +1,21 @@
-import numpy as np
-
-from xdesign.geometry.point import *
-from math import asin, sqrt
-
-import logging
-logger = logging.getLogger(__name__)
+"""Define algorithms to support intersection calculation."""
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = [
-           'clip_SH',
-           'halfspacecirc',
-           ]
+    'clip_SH',
+    'halfspacecirc',
+]
+
+import logging
+from math import asin, sqrt
+
+import numpy as np
+
+from xdesign.geometry.point import *
+
+logger = logging.getLogger(__name__)
 
 
 def halfspacecirc(d, r):
@@ -44,13 +47,14 @@ def halfspacecirc(d, r):
     if d >= r:  # The line is too far away to overlap!
         return 0
 
-    f = 0.5 - d*sqrt(r**2 - d**2)/(np.pi*r**2) - asin(d/r)/np.pi
+    f = 0.5 - d * sqrt(r**2 - d**2) / (np.pi * r**2) - asin(d / r) / np.pi
 
     # Returns the smaller fraction of the circle, so it can be at most 1/2.
     if f < 0 or 0.5 < f:
         if f < -1e-16:  # f will often be less than 0 due to rounding errors
-            warnings.warn("halfspacecirc was out of bounds, {}".format(f),
-                          RuntimeWarning)
+            warnings.warn(
+                "halfspacecirc was out of bounds, {}".format(f), RuntimeWarning
+            )
         f = 0
 
     return f
@@ -103,8 +107,9 @@ def clip_SH(clipEdges, polygon):
 
                 if not halfspace_has_point(clipEdge[0], clipEdge[1], S):
                     A, b = calc_standard(np.stack([S._x, E._x], axis=0))
-                    new_vert = two_lines_intersect(A, b,
-                                                   clipEdge[0], clipEdge[1])
+                    new_vert = two_lines_intersect(
+                        A, b, clipEdge[0], clipEdge[1]
+                    )
                     outputList.append(Point(new_vert))
 
                 outputList.append(E)
