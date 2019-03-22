@@ -45,7 +45,6 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
-
 """Contains functions for visualizing :class:`.Phantom` and
 :class:`.ImageQuality` metrics.
 
@@ -73,46 +72,48 @@ PLOT_STYLES :
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
+__author__ = "Daniel Ching, Doga Gursoy"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = [
+    'get_pie_glyphs',
+    'plot_coverage_anisotropy',
+    'plot_phantom',
+    'plot_geometry',
+    'plot_mesh',
+    'plot_polygon',
+    'plot_curve',
+    'discrete_phantom',
+    'combine_grid',
+    'discrete_geometry',
+    'sidebyside',
+    'multiroll',
+    'plot_metrics',
+    'plot_mtf',
+    'plot_nps',
+    'plot_neq',
+]
+
+from itertools import product
 import logging
-import types
-import time
+from random import shuffle
 import string
-import numpy as np
+import time
+import types
+
+from cycler import cycler
+from matplotlib.axis import Axis
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.patheffects as PathEffects
 import matplotlib.collections as collections
+import numpy as np
 import scipy.ndimage
-from cycler import cycler
-from xdesign.phantom import Phantom
+
 from xdesign.geometry import Curve, Polygon, Mesh
-from matplotlib.axis import Axis
-from itertools import product
-from random import shuffle
+from xdesign.phantom import Phantom
 
 logger = logging.getLogger(__name__)
-
-
-__author__ = "Daniel Ching, Doga Gursoy"
-__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
-__docformat__ = 'restructuredtext en'
-__all__ = ['get_pie_glyphs',
-           'plot_coverage_anisotropy',
-           'plot_phantom',
-           'plot_geometry',
-           'plot_mesh',
-           'plot_polygon',
-           'plot_curve',
-           'discrete_phantom',
-           'combine_grid',
-           'discrete_geometry',
-           'sidebyside',
-           'multiroll',
-           'plot_metrics',
-           'plot_mtf',
-           'plot_nps',
-           'plot_neq',
-           ]
 
 DEFAULT_COLOR_MAP = plt.cm.viridis
 DEFAULT_COLOR = DEFAULT_COLOR_MAP(0.25)
@@ -125,11 +126,15 @@ CURVE_LINEWIDTH = 0.5
 DEFAULT_ENERGY = 15
 
 # cycle through 126 unique line styles
-PLOT_STYLES = (14 * cycler('color', ['#377eb8', '#ff7f00', '#4daf4a',
-                                     '#f781bf', '#a65628', '#984ea3',
-                                     '#999999', '#e41a1c', '#dede00']) +
-               63 * cycler('linestyle', ['-', '--']) +
-               18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8']))
+PLOT_STYLES = (
+    14 * cycler(
+        'color', [
+            '#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3',
+            '#999999', '#e41a1c', '#dede00'
+        ]
+    ) + 63 * cycler('linestyle', ['-', '--']) +
+    18 * cycler('marker', ['o', 's', '.', 'D', '^', '*', '8'])
+)
 
 
 def get_pie_glyphs(xy, values, color='coverage', trace_normal=1, **kwargs):
@@ -199,17 +204,30 @@ def get_pie_glyphs(xy, values, color='coverage', trace_normal=1, **kwargs):
     radii = np.sqrt(2 * N * area / np.pi)
     radii[zero_glyphs, :] = 0.1
     # Create pie wedges
-    wedge_edges = np.linspace(0, 180, N+1, endpoint=True)
+    wedge_edges = np.linspace(0, 180, N + 1, endpoint=True)
     wedges = list()
     for j in range(M):
         for i in range(N):
-            wedges.append(patches.Wedge(xy[j], radii[j, i],
-                                        wedge_edges[i], wedge_edges[i+1],
-                                        color=color[j], **kwargs))
-            wedges.append(patches.Wedge(xy[j], radii[j, i],
-                                        wedge_edges[i] + 180,
-                                        wedge_edges[i+1] + 180,
-                                        color=color[j], **kwargs))
+            wedges.append(
+                patches.Wedge(
+                    xy[j],
+                    radii[j, i],
+                    wedge_edges[i],
+                    wedge_edges[i + 1],
+                    color=color[j],
+                    **kwargs
+                )
+            )
+            wedges.append(
+                patches.Wedge(
+                    xy[j],
+                    radii[j, i],
+                    wedge_edges[i] + 180,
+                    wedge_edges[i + 1] + 180,
+                    color=color[j],
+                    **kwargs
+                )
+            )
     return wedges
 
 
@@ -241,11 +259,21 @@ def plot_coverage_anisotropy(coverage_map, **kwargs):
     vectors = np.reshape(coverage_map, [ij_size, coverage_map.shape[-1]])
     glyphs = get_pie_glyphs(coords, vectors, snap=False, **kwargs)
     # Add glyphs to axis
-    axis.add_collection(collections.PatchCollection(glyphs, match_original=True))
+    axis.add_collection(
+        collections.PatchCollection(glyphs, match_original=True)
+    )
 
 
-def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=-1,
-                 z=0.0, t=0.0001):
+def plot_phantom(
+    phantom,
+    axis=None,
+    labels=None,
+    c_props=[],
+    c_map=None,
+    i=-1,
+    z=0.0,
+    t=0.0001
+):
     """Plot a :class:`.Phantom` to the given axis.
 
     Parameters
@@ -289,22 +317,38 @@ def plot_phantom(phantom, axis=None, labels=None, c_props=[], c_map=None, i=-1,
                 # use the colormap to determine the color
                 # TODO: Add parameter to pass other things besides energy
                 for j in num_props:
-                    props[j] = getattr(phantom.material, c_props[j])(DEFAULT_ENERGY)
+                    props[j] = getattr(phantom.material,
+                                       c_props[j])(DEFAULT_ENERGY)
                 color = c_map(props)[0]
 
             plotted = plot_geometry(phantom.geometry, axis, c=color, z=z, t=t)
             i += 1
 
         if plotted is not False and labels is not None:
-            axis.annotate(str(i), xy=(phantom.geometry.center.x,
-                                      phantom.geometry.center.y),
-                          ha='center', va='center', color=LABEL_COLOR,
-                          path_effects=[PathEffects.withStroke(
-                            linewidth=3, foreground=DEFAULT_EDGE_COLOR)])
+            axis.annotate(
+                str(i),
+                xy=(phantom.geometry.center.x, phantom.geometry.center.y),
+                ha='center',
+                va='center',
+                color=LABEL_COLOR,
+                path_effects=[
+                    PathEffects.withStroke(
+                        linewidth=3, foreground=DEFAULT_EDGE_COLOR
+                    )
+                ]
+            )
 
     for child in phantom.children:
-        i = plot_phantom(child, axis=axis, labels=labels, c_props=c_props,
-                         c_map=c_map, i=i, z=z, t=t)
+        i = plot_phantom(
+            child,
+            axis=axis,
+            labels=labels,
+            c_props=c_props,
+            c_map=c_map,
+            i=i,
+            z=z,
+            t=t
+        )
 
     return i
 
@@ -355,7 +399,7 @@ def plot_mesh(mesh, axis=None, alpha=None, c=None):
     c : :mod:`matplotlib.colors`, optional
         The color of the plotted Mesh.
     """
-    assert(isinstance(mesh, Mesh))
+    assert (isinstance(mesh, Mesh))
     if axis is None:
         fig, axis = _make_axis()
 
@@ -379,7 +423,7 @@ def plot_polygon(polygon, axis=None, alpha=None, c=None):
     c : :mod:`matplotlib.colors`, optional
         The color of the plotted Polygon.
     """
-    assert(isinstance(polygon, Polygon))
+    assert (isinstance(polygon, Polygon))
     if axis is None:
         fig, axis = _make_axis()
     if c is None:
@@ -410,7 +454,7 @@ def plot_curve(curve, axis=None, alpha=None, c=None):
     c : :mod:`matplotlib.colors`, optional
         The color of the plotted curve.
     """
-    assert(isinstance(curve, Curve))
+    assert (isinstance(curve, Curve))
     if axis is None:
         fig, axis = _make_axis()
     if c is None:
@@ -436,8 +480,9 @@ def _make_axis():
     return fig, axis
 
 
-def discrete_phantom(phantom, size, ratio=9, uniform=True,
-                     prop='linear_attenuation'):
+def discrete_phantom(
+    phantom, size, ratio=9, uniform=True, prop='linear_attenuation'
+):
     """Return a discrete map of the `property` in the `phantom`.
 
     The values of overlapping :class:`phantom.Phantom` are additive.
@@ -605,8 +650,8 @@ def discrete_geometry(geometry, psize, ratio=9):
     corner = np.zeros(geometry.dim)
 
     for i in range(geometry.dim):
-        x = psize * ((imin.flat[i] - margin)
-                     + np.arange(nsteps.flat[i] * ratio) / ratio)
+        x = psize * ((imin.flat[i] - margin) +
+                     np.arange(nsteps.flat[i] * ratio) / ratio)
         # TODO: @carterbox Determine whether arange, or linspace works better
         # at surpressing rotation error. SEE test_discrete_phantom_uniform
 
@@ -627,8 +672,9 @@ def discrete_geometry(geometry, psize, ratio=9):
 
     # Reshape the pixels_coords into an MxN array
     pixel_coords = np.stack(np.meshgrid(*pixel_coords, indexing='ij'), axis=-1)
-    pixel_coords = np.reshape(pixel_coords, (np.prod(pixel_coords.shape[0:-1]),
-                                             geometry.dim))
+    pixel_coords = np.reshape(
+        pixel_coords, (np.prod(pixel_coords.shape[0:-1]), geometry.dim)
+    )
 
     # Compute whether each pixel is contained within the geometry
     image = geometry.contains(pixel_coords)
@@ -640,11 +686,11 @@ def discrete_geometry(geometry, psize, ratio=9):
     if True:
         image = scipy.ndimage.uniform_filter(image, ratio, mode='constant')
     else:
-        image = scipy.ndimage.gaussian_filter(image, np.sqrt(ratio/2))
+        image = scipy.ndimage.gaussian_filter(image, np.sqrt(ratio / 2))
 
     # Roll image so that decimation chooses
     # from the exact center of each filter when ratio is odd.
-    patch = multiroll(image, [-ratio//2 + 1]*geometry.dim)
+    patch = multiroll(image, [-ratio // 2 + 1] * geometry.dim)
 
     # Decimate each axis
     for i in range(geometry.dim):
@@ -658,8 +704,15 @@ def discrete_geometry(geometry, psize, ratio=9):
     return corner, patch
 
 
-def sidebyside(p, size=100, labels=None, prop='mass_attenuation',
-               figsize=(6, 3), dpi=100, **kwargs):
+def sidebyside(
+    p,
+    size=100,
+    labels=None,
+    prop='mass_attenuation',
+    figsize=(6, 3),
+    dpi=100,
+    **kwargs
+):
     '''Displays the geometry and the discrete property function of
     the given :class:`.Phantom` side by side.'''
     # plt.rcParams.update({'font.size': 6})
@@ -764,9 +817,11 @@ def multiroll(x, shift, axis=None):
     x = np.asarray(x)
     if axis is None:
         if len(shift) != x.ndim:
-            raise ValueError("The array has %d axes, but len(shift) is only "
-                             "%d. When 'axis' is not given, a shift must be "
-                             "provided for all axes." % (x.ndim, len(shift)))
+            raise ValueError(
+                "The array has %d axes, but len(shift) is only "
+                "%d. When 'axis' is not given, a shift must be "
+                "provided for all axes." % (x.ndim, len(shift))
+            )
         axis = range(x.ndim)
     else:
         # axis does not have to contain all the axes.  Here we append the
@@ -774,7 +829,7 @@ def multiroll(x, shift, axis=None):
         missing_axes = set(range(x.ndim)) - set(axis)
         num_missing = len(missing_axes)
         axis = tuple(axis) + tuple(missing_axes)
-        shift = tuple(shift) + (0,)*num_missing
+        shift = tuple(shift) + (0, ) * num_missing
 
     # Use mod to convert all shifts to be values between 0 and the length
     # of the corresponding axis.
@@ -785,7 +840,7 @@ def multiroll(x, shift, axis=None):
 
     # Create the output array, and copy the shifted blocks from x to y.
     y = np.empty_like(x)
-    src_slices = [(slice(n-shft, n), slice(0, n-shft))
+    src_slices = [(slice(n - shft, n), slice(0, n - shft))
                   for shft, n in zip(shift, x.shape)]
     dst_slices = [(slice(0, shft), slice(shft, n))
                   for shft, n in zip(shift, x.shape)]
@@ -814,10 +869,13 @@ def plot_metrics(imqual):
     f = plt.figure()
     N = len(imqual.maps) + 1
     p = _pyramid(N)
-    plt.subplot2grid((p[0][0], p[0][0]), p[0][1], colspan=p[0][2],
+    plt.subplot2grid((p[0][0], p[0][0]),
+                     p[0][1],
+                     colspan=p[0][2],
                      rowspan=p[0][2])
-    plt.imshow(imqual.img1, cmap=plt.cm.inferno,
-               interpolation="none", aspect='equal')
+    plt.imshow(
+        imqual.img1, cmap=plt.cm.inferno, interpolation="none", aspect='equal'
+    )
     # plt.colorbar()
     plt.axis(False)
     # plt.title("Reconstruction")
@@ -828,23 +886,32 @@ def plot_metrics(imqual):
 
     # Draw a plot of the local quality at each scale.
     for j in range(1, N):
-        plt.subplot2grid((p[j][0], p[j][0]), p[j][1], colspan=p[j][2],
+        plt.subplot2grid((p[j][0], p[j][0]),
+                         p[j][1],
+                         colspan=p[j][2],
                          rowspan=p[j][2])
-        im = plt.imshow(imqual.maps[j - 1], cmap=plt.cm.viridis,
-                        vmin=lo, vmax=1, interpolation="none",
-                        aspect='equal')
+        im = plt.imshow(
+            imqual.maps[j - 1],
+            cmap=plt.cm.viridis,
+            vmin=lo,
+            vmax=1,
+            interpolation="none",
+            aspect='equal'
+        )
         # plt.colorbar()
         plt.axis(False)
-        plt.annotate(r'$\sigma$ =' + str(imqual.scales[j - 1]),
-                     xy=(0.05, 0.05), xycoords='axes fraction',
-                     weight='heavy')
+        plt.annotate(
+            r'$\sigma$ =' + str(imqual.scales[j - 1]),
+            xy=(0.05, 0.05),
+            xycoords='axes fraction',
+            weight='heavy'
+        )
 
     # plot one colorbar to the right of these images.
     f.subplots_adjust(right=0.8)
     cbar_ax = f.add_axes([0.85, 0.15, 0.05, 0.7])
     f.colorbar(im, cax=cbar_ax)
     plt.title(imqual.method)
-
     '''
     plt.subplot(121)
     plt.imshow(imqual.orig, cmap=plt.cm.viridis, vmin=0, vmax=1,
@@ -965,7 +1032,7 @@ def plot_histograms(images, masks=None, thresh=0.025):
             for j in range(len(images)):
                 m = masks[i]
                 A = images[j]
-                assert(A.shape == m.shape)
+                assert (A.shape == m.shape)
                 # convert probability mask to boolean mask
                 mA = A[m >= thresh]
                 # h = np.histogram(m, bins='auto', density=True)

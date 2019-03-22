@@ -48,9 +48,7 @@
 
 import logging
 
-
 logger = logging.getLogger(__name__)
-
 
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."

@@ -51,9 +51,18 @@
 .. moduleauthor:: Doga Gursoy <dgursoy@aps.anl.gov>
 """
 
-import numpy as np
+__author__ = "Daniel Ching, Doga Gursoy"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = [
+    'SimpleMaterial',
+    'XraylibMaterial',
+]
+
 import logging
 import warnings
+
+import numpy as np
 
 try:
     import xraylib as xl
@@ -63,21 +72,16 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-__author__ = "Daniel Ching, Doga Gursoy"
-__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
-__docformat__ = 'restructuredtext en'
-__all__ = ['SimpleMaterial',
-           'XraylibMaterial']
-
-
 def memodict(f):
     """Memoization decorator for a function taking a single argument
     http://code.activestate.com/recipes/578231-probably-the-fastest-memoization-decorator-in-the-/
     """
+
     class memodict(dict):
         def __missing__(self, key):
             ret = self[key] = f(key)
             return ret
+
     return memodict().__getitem__
 
 
@@ -103,13 +107,15 @@ class SimpleMaterial(Material):
     density : float [g/cm^3] (default: 1.0)
         The mass density of the material
     """
+
     def __init__(self, mass_attenuation=1.0):
         super(SimpleMaterial, self).__init__(density=1.0)
         self._mass_attenuation = mass_attenuation
 
     def __repr__(self):
         return "SimpleMaterial(mass_attenuation={})".format(
-                repr(self._mass_attenuation))
+            repr(self._mass_attenuation)
+        )
 
     def linear_attenuation(self, energy):
         """linear x-ray attenuation [1/cm] for the energy [KeV]."""
@@ -137,8 +143,9 @@ class XraylibMaterial(Material):
         self.density = density
 
     def __repr__(self):
-        return "XraylibMaterial({0}, {1})".format(repr(self.compound),
-                                                  repr(self.density))
+        return "XraylibMaterial({0}, {1})".format(
+            repr(self.compound), repr(self.density)
+        )
 
     @memodict
     def beta(self, energy):
@@ -198,8 +205,9 @@ class NISTMaterial(Material):
             self.density = density
 
     def __repr__(self):
-        return "NISTMaterial({0}, density={1})".format(repr(self.name),
-                                                       repr(self.density))
+        return "NISTMaterial({0}, density={1})".format(
+            repr(self.name), repr(self.density)
+        )
 
     @memodict
     def linear_attenuation(self, energy):
@@ -209,8 +217,9 @@ class NISTMaterial(Material):
     @memodict
     def mass_attenuation(self, energy):
         """mass x-ray attenuation [1/cm] for the energy [KeV]."""
-        return self.predict_property('mass_attenuation', energy,
-                                     loglogscale=True)
+        return self.predict_property(
+            'mass_attenuation', energy, loglogscale=True
+        )
 
     def predict_property(self, property_name, energy, loglogscale=False):
         """Interpolate a property from the coefficient table."""
@@ -218,8 +227,9 @@ class NISTMaterial(Material):
         x = self.coefficent_table['energy']
 
         if loglogscale:
-            return np.power(10, np.interp(np.log10(energy), np.log10(x),
-                                          np.log10(y)))
+            return np.power(
+                10, np.interp(np.log10(energy), np.log10(x), np.log10(y))
+            )
 
         # TODO: Make special case for electron shell edges
         return np.interp(energy, x, y)

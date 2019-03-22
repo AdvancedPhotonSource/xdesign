@@ -45,46 +45,47 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
-
 """Defines an object for simulating X-ray phantoms.
 
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-import numpy as np
-import logging
-import warnings
-from copy import deepcopy
-from scipy.spatial import Delaunay
-import pickle
-import itertools
-
-from xdesign.geometry import *
-from xdesign.material import *
-from xdesign.constants import PI
-
-logger = logging.getLogger(__name__)
-
-
 __author__ = "Daniel Ching, Doga Gursoy"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
-__all__ = ['Phantom',
-           'save_phantom',
-           'load_phantom',
-           'pickle_phantom',
-           'unpickle_phantom',
-           'XDesignDefault',
-           'HyperbolicConcentric',
-           'DynamicRange',
-           'DogaCircles',
-           'SlantedSquares',
-           'UnitCircle',
-           'Soil',
-           'WetCircles',
-           'SiemensStar',
-           'Foam',
-           'Softwood']
+__all__ = [
+    'Phantom',
+    'save_phantom',
+    'load_phantom',
+    'pickle_phantom',
+    'unpickle_phantom',
+    'XDesignDefault',
+    'HyperbolicConcentric',
+    'DynamicRange',
+    'DogaCircles',
+    'SlantedSquares',
+    'UnitCircle',
+    'Soil',
+    'WetCircles',
+    'SiemensStar',
+    'Foam',
+    'Softwood',
+]
+
+from copy import deepcopy
+import itertools
+import logging
+import pickle
+import warnings
+
+import numpy as np
+from scipy.spatial import Delaunay
+
+from xdesign.constants import PI
+from xdesign.geometry import *
+from xdesign.material import *
+
+logger = logging.getLogger(__name__)
 
 
 def save_phantom(phantom, filename):
@@ -141,6 +142,7 @@ class Phantom(object):
     population :
         The number of decendents of this phantom.
     """
+
     # OPERATOR OVERLOADS
     def __init__(self, geometry=None, children=[], material=None):
 
@@ -165,9 +167,8 @@ class Phantom(object):
 
     def __repr__(self):
         return "Phantom(geometry={}, children={}, material={})".format(
-                repr(self.geometry),
-                repr(self.children),
-                repr(self.material))
+            repr(self.geometry), repr(self.children), repr(self.material)
+        )
 
     # PROPERTIES
     @property
@@ -248,22 +249,25 @@ class Phantom(object):
         parent = self.parent
 
         while boundary is None and parent is not None:
-                boundary = parent.geometry
-                parent = parent.parent
+            boundary = parent.geometry
+            parent = parent.parent
 
         def contains_children(boundary, child):
             for grandchild in child.children:
-                if (grandchild.geometry is None
-                        and not contains_children(boundary, grandchild)):
+                if (
+                    grandchild.geometry is None
+                    and not contains_children(boundary, grandchild)
+                ):
                     return False
                 if not boundary.contains(grandchild.geometry):
                     return False
             return True
 
-        if (boundary is None
-                or (child.geometry is None and contains_children(boundary,
-                                                                 child))
-                or boundary.contains(child.geometry)):
+        if (
+            boundary is None
+            or (child.geometry is None and contains_children(boundary, child))
+            or boundary.contains(child.geometry)
+        ):
 
             child.parent = self
             self.children.append(child)
@@ -271,8 +275,10 @@ class Phantom(object):
             return True
 
         else:
-            warnings.warn("{} not appended; it is not a subset.".format(
-                          repr(child)), RuntimeWarning)
+            warnings.warn(
+                "{} not appended; it is not a subset.".format(repr(child)),
+                RuntimeWarning
+            )
             return False
 
     def pop(self, i=-1):
@@ -281,8 +287,16 @@ class Phantom(object):
         self.population -= self.children[i].population + 1
         return self.children.pop(i)
 
-    def sprinkle(self, counts, radius, gap=0, region=None,
-                 material=None, max_density=1, shape=Circle):
+    def sprinkle(
+        self,
+        counts,
+        radius,
+        gap=0,
+        region=None,
+        material=None,
+        max_density=1,
+        shape=Circle
+    ):
         """Sprinkle a number of :class:`.Circle` shaped Phantoms around the
         Phantom. Uses various termination criteria to determine when to stop
         trying to add circles.
@@ -315,8 +329,10 @@ class Phantom(object):
         if not isinstance(radius, list):
             radius = [radius, radius]
         if len(radius) != 2 or radius[0] < radius[1] or radius[1] <= 0:
-            raise ValueError('Radius range must be larger than zero and largest' +
-                       'radius must be listed first.')
+            raise ValueError(
+                'Radius range must be larger than zero and largest' +
+                'radius must be listed first.'
+            )
         if gap < 0:
             # Support for partially overlapping phantoms is not yet supported
             # in the aquisition module
@@ -337,13 +353,18 @@ class Phantom(object):
                 return 0
             region = self.geometry
 
-        while (n_tries < kTERM_CRIT and n_added < counts and
-               self.density < max_density):
+        while (
+            n_tries < kTERM_CRIT and n_added < counts
+            and self.density < max_density
+        ):
             center = _random_point(region, margin=radius[0])
 
             if collision:
-                self.append(Phantom(geometry=Circle(center, radius[0]),
-                                    material=material))
+                self.append(
+                    Phantom(
+                        geometry=Circle(center, radius[0]), material=material
+                    )
+                )
                 n_added += 1
                 continue
 
@@ -363,43 +384,44 @@ class Phantom(object):
             n_tries += 1
 
         if n_added != counts and n_tries == kTERM_CRIT:
-            warnings.warn(("Reached termination criteria of {} attempts " +
-                           "before adding all of the circles.").format(
-                           kTERM_CRIT), RuntimeWarning)
+            warnings.warn((
+                "Reached termination criteria of {} attempts " +
+                "before adding all of the circles."
+            ).format(kTERM_CRIT), RuntimeWarning)
             # no warning for reaching max_density because that's settable
         return n_added
 
 
 def _collision(phantom, entity):
-        """Return the max overlap of the entity and a child of this Phantom.
+    """Return the max overlap of the entity and a child of this Phantom.
 
         May return overlap < 0; the distance between the two non-overlapping
         circles.
         """
 
-        max_overlap = 0
+    max_overlap = 0
 
-        for child in phantom.children:
-            if child.geometry is None:
-                # get overlap from grandchildren
-                overlap = _collision(child, entity)
+    for child in phantom.children:
+        if child.geometry is None:
+            # get overlap from grandchildren
+            overlap = _collision(child, entity)
+
+        else:
+            # calculate overlap with entity
+            if isinstance(entity, Circle):
+                dx = child.center.distance(entity.center)
+                dr = child.radius + entity.radius
 
             else:
-                # calculate overlap with entity
-                if isinstance(entity, Circle):
-                    dx = child.center.distance(entity.center)
-                    dr = child.radius + entity.radius
+                dx = np.abs(child.center._x - entity.center._x)
+                dr = (child.geometry.side_lengths + entity.side_lengths) / 2
 
-                else:
-                    dx = np.abs(child.center._x - entity.center._x)
-                    dr = (child.geometry.side_lengths + entity.side_lengths) / 2
+        overlap = dr - dx
 
-            overlap = dr - dx
+        if np.all(overlap > 0):
+            max_overlap = np.maximum(max_overlap, overlap)
 
-            if np.all(overlap > 0):
-                max_overlap = np.maximum(max_overlap, overlap)
-
-        return max_overlap
+    return max_overlap
 
 
 def _random_point(geometry, margin=0.0):
@@ -432,8 +454,9 @@ def _random_point(geometry, margin=0.0):
         x = np.random.uniform(xmin + margin, xmax - margin)
         random_point = Point(x)
     else:
-        raise NotImplementedError("Cannot give point in {}.".format(
-                                  type(geometry)))
+        raise NotImplementedError(
+            "Cannot give point in {}.".format(type(geometry))
+        )
 
     return random_point
 
@@ -448,9 +471,10 @@ class XDesignDefault(Phantom):
     """
 
     def __init__(self):
-        super(XDesignDefault, self).__init__(geometry=Circle(Point([0.5, 0.5]),
-                                                             radius=0.5),
-                                             material=SimpleMaterial(0.0))
+        super(XDesignDefault, self).__init__(
+            geometry=Circle(Point([0.5, 0.5]), radius=0.5),
+            material=SimpleMaterial(0.0)
+        )
 
         # define the points of the mesh
         a = Point([0.6, 0.6])
@@ -472,10 +496,14 @@ class XDesignDefault(Phantom):
         m1.append(-Circle(Point([0.3, 0.5]), radius=0.02))
 
         # construct Phantoms
-        self.append(Phantom(children=[Phantom(geometry=t0,
-                                              material=SimpleMaterial(0.5)),
-                                      Phantom(geometry=m0,
-                                              material=SimpleMaterial(0.5))]))
+        self.append(
+            Phantom(
+                children=[
+                    Phantom(geometry=t0, material=SimpleMaterial(0.5)),
+                    Phantom(geometry=m0, material=SimpleMaterial(0.5))
+                ]
+            )
+        )
         self.append(Phantom(geometry=m1, material=SimpleMaterial(1.0)))
         self.translate([-0.5, -0.5])
 
@@ -494,7 +522,7 @@ class HyperbolicConcentric(Phantom):
         The list of the widths of the bands
     """
 
-    def __init__(self, min_width=0.1, exponent=1/2):
+    def __init__(self, min_width=0.1, exponent=1 / 2):
         """
         Parameters
         ----------
@@ -515,8 +543,12 @@ class HyperbolicConcentric(Phantom):
             if radius > 0.5 and ring % 2:
                 break
 
-            self.append(Phantom(geometry=Circle(center, radius),
-                                material=SimpleMaterial((-1.)**(ring % 2))))
+            self.append(
+                Phantom(
+                    geometry=Circle(center, radius),
+                    material=SimpleMaterial((-1.)**(ring % 2))
+                )
+            )
             # record information about the rings
             widths.append(radius - radii[-1])
             radii.append(radius)
@@ -540,8 +572,12 @@ class DynamicRange(Phantom):
     shape : string, optional
     """
 
-    def __init__(self, steps=10, jitter=True,
-                 geometry=Square(center=Point([0.5, 0.5]), side_length=1)):
+    def __init__(
+        self,
+        steps=10,
+        jitter=True,
+        geometry=Square(center=Point([0.5, 0.5]), side_length=1)
+    ):
         super(DynamicRange, self).__init__(geometry=geometry)
 
         # determine the size and and spacing of the circles around the box.
@@ -564,13 +600,21 @@ class DynamicRange(Phantom):
             # place the circles
             for i in range(0, steps):
                 center = Point([px[i] + jitters[0, i], py[i] + jitters[1, i]])
-                self.append(Phantom(geometry=Circle(center, radius),
-                                    material=SimpleMaterial(colors[i])))
+                self.append(
+                    Phantom(
+                        geometry=Circle(center, radius),
+                        material=SimpleMaterial(colors[i])
+                    )
+                )
         else:
             # completely random
             for i in range(0, steps):
-                if 1 > self.sprinkle(1, radius, gap=radius * 0.9,
-                                     material=SimpleMaterial(colors[i])):
+                if 1 > self.sprinkle(
+                    1,
+                    radius,
+                    gap=radius * 0.9,
+                    material=SimpleMaterial(colors[i])
+                ):
                     None
                     # TODO: ensure that all circles are placed
         self.translate([-0.5, -0.5])
@@ -589,6 +633,7 @@ class DogaCircles(Phantom):
     y : ndarray
         y position of circles
     """
+
     # IDEA: Use method in this reference to calculate uniformly distributed
     # latin squares.
     # DOI: 10.1002/(SICI)1520-6610(1996)4:6<405::AID-JCD3>3.0.CO;2-J
@@ -603,9 +648,9 @@ class DogaCircles(Phantom):
         n_shuffles : int
             The number of times to shuffles the latin square
         """
-        super(DogaCircles, self).__init__(geometry=Circle(center=Point([0.5,
-                                                                        0.5]),
-                                                          radius=0.5))
+        super(DogaCircles, self).__init__(
+            geometry=Circle(center=Point([0.5, 0.5]), radius=0.5)
+        )
 
         n_sizes = int(n_sizes)
         if n_sizes <= 0:
@@ -641,16 +686,19 @@ class DogaCircles(Phantom):
                                                         lsquare[i, :]), rowsum)
 
         # Draw it
-        period = (np.arange(0, n_sizes)/n_sizes + 1/(2*n_sizes)) * 0.7
+        period = (np.arange(0, n_sizes) / n_sizes + 1 / (2 * n_sizes)) * 0.7
         _x, _y = np.meshgrid(period, period)
         radii = (1 - 1e-10) / (2 * n_sizes) * size_ratio**lsquare * 0.7
         _x += (1 - 0.7) / 2
         _y += (1 - 0.7) / 2
 
-        for (k, x, y) in zip(radii.flatten(), _x.flatten(),
-                             _y.flatten()):
-            self.append(Phantom(geometry=Circle(Point([x, y]), radius=k),
-                                material=SimpleMaterial(1.0)))
+        for (k, x, y) in zip(radii.flatten(), _x.flatten(), _y.flatten()):
+            self.append(
+                Phantom(
+                    geometry=Circle(Point([x, y]), radius=k),
+                    material=SimpleMaterial(1.0)
+                )
+            )
 
         self.radii = radii
         self.x = _x
@@ -682,13 +730,13 @@ class SlantedSquares(Phantom):
         the number of levels
     """
 
-    def __init__(self, count=10, angle=5/360*2*PI, gap=0):
+    def __init__(self, count=10, angle=5 / 360 * 2 * PI, gap=0):
         super(SlantedSquares, self).__init__()
         if count < 1:
             raise ValueError("There must be at least one square.")
 
         # approximate the max diameter from total area available
-        d_max = np.sqrt(PI/4 / (2 * count))
+        d_max = np.sqrt(PI / 4 / (2 * count))
 
         if 1 < count and count < 5:
             # bump all the squares to the 1st ring and calculate sizes
@@ -702,10 +750,11 @@ class SlantedSquares(Phantom):
             n_levels = 1
             while remaining > 0:
                 # calculate next level capacity
-                radius_per_level.append(radius_per_level[n_levels-1] + d_max +
-                                        gap)
-                this_circumference = PI*2*radius_per_level[n_levels]
-                this_capacity = this_circumference//(d_max + gap)
+                radius_per_level.append(
+                    radius_per_level[n_levels - 1] + d_max + gap
+                )
+                this_circumference = PI * 2 * radius_per_level[n_levels]
+                this_capacity = this_circumference // (d_max + gap)
 
                 # assign squares to levels
                 if remaining - this_capacity >= 0:
@@ -715,33 +764,33 @@ class SlantedSquares(Phantom):
                     squares_per_level.append(remaining)
                     remaining = 0
                 n_levels += 1
-                assert(remaining >= 0)
+                assert (remaining >= 0)
 
             # Make sure squares will not be outside the phantom, else
             # decrease diameter by 5%
-            if radius_per_level[-1] < (0.5 - d_max/2 - gap):
+            if radius_per_level[-1] < (0.5 - d_max / 2 - gap):
                 break
             d_max *= 0.95
 
-        assert(len(squares_per_level) == len(radius_per_level))
+        assert (len(squares_per_level) == len(radius_per_level))
 
         # determine center positions of squares
         x, y = np.array([]), np.array([])
         for level in range(0, n_levels):
             radius = radius_per_level[level]
-            thetas = (((np.arange(0, squares_per_level[level]) /
-                      squares_per_level[level]) +
-                      1/(squares_per_level[level] * 2)) *
-                      2 * PI)
-            x = np.concatenate((x, radius*np.cos(thetas)))
-            y = np.concatenate((y, radius*np.sin(thetas)))
+            thetas = (((
+                np.arange(0, squares_per_level[level]) /
+                squares_per_level[level]
+            ) + 1 / (squares_per_level[level] * 2)) * 2 * PI)
+            x = np.concatenate((x, radius * np.cos(thetas)))
+            y = np.concatenate((y, radius * np.sin(thetas)))
 
         # move to center of phantom.
         x += 0.5
         y += 0.5
 
         # add the squares to the phantom
-        side_length = d_max/np.sqrt(2)
+        side_length = d_max / np.sqrt(2)
         for i in range(0, x.size):
             center = Point([x[i], y[i]])
             s = Square(center=center, side_length=side_length)
@@ -762,9 +811,9 @@ class UnitCircle(Phantom):
     """Generates a phantom with a single circle in its center."""
 
     def __init__(self, radius=0.5, material=SimpleMaterial(1.0)):
-        super(UnitCircle, self).__init__(geometry=Circle(Point([0.0, 0.0]),
-                                                         radius),
-                                         material=material)
+        super(UnitCircle, self).__init__(
+            geometry=Circle(Point([0.0, 0.0]), radius), material=material
+        )
 
 
 class Soil(UnitCircle):
@@ -779,8 +828,12 @@ class Soil(UnitCircle):
 
     def __init__(self, porosity=0.412):
         super(Soil, self).__init__(radius=0.5, material=SimpleMaterial(0.5))
-        self.sprinkle(30, [0.1, 0.03], 0, material=SimpleMaterial(0.5),
-                      max_density=1-porosity)
+        self.sprinkle(
+            30, [0.1, 0.03],
+            0,
+            material=SimpleMaterial(0.5),
+            max_density=1 - porosity
+        )
         # use overlap to approximate area opening transform because opening is
         # not discrete
         self.sprinkle(100, 0.02, 0.01, material=SimpleMaterial(-.25))
@@ -788,22 +841,27 @@ class Soil(UnitCircle):
 
 class WetCircles(UnitCircle):
     def __init__(self):
-        super(WetCircles, self).__init__(radius=0.5,
-                                         material=SimpleMaterial(0.5))
+        super(WetCircles, self).__init__(
+            radius=0.5, material=SimpleMaterial(0.5)
+        )
         porosity = 0.412
         np.random.seed(0)
 
-        self.sprinkle(30, [0.1, 0.03], 0.005, material=SimpleMaterial(0.5),
-                      max_density=1 - porosity)
+        self.sprinkle(
+            30, [0.1, 0.03],
+            0.005,
+            material=SimpleMaterial(0.5),
+            max_density=1 - porosity
+        )
 
-        pairs = [(23, 12), (12, 19), (29, 11), (22, 5), (1, 3), (21, 9),
-                 (8, 2), (2, 27)]
+        pairs = [(23, 12), (12, 19), (29, 11), (22, 5), (1, 3), (21, 9), (8, 2),
+                 (2, 27)]
         for p in pairs:
-            A = self.children[p[0]-1].geometry
-            B = self.children[p[1]-1].geometry
+            A = self.children[p[0] - 1].geometry
+            B = self.children[p[1] - 1].geometry
 
-            thetaA = [PI/2, 10]
-            thetaB = [PI/2, 10]
+            thetaA = [PI / 2, 10]
+            thetaB = [PI / 2, 10]
 
             mesh = wet_circles(A, B, thetaA, thetaB)
 
@@ -823,29 +881,29 @@ def wet_circles(A, B, thetaA, thetaB):
 
     vector = B.center - A.center
     if vector.x > 0:
-        angleA = np.arctan(vector.y/vector.x)
+        angleA = np.arctan(vector.y / vector.x)
         angleB = PI + angleA
     else:
-        angleB = np.arctan(vector.y/vector.x)
+        angleB = np.arctan(vector.y / vector.x)
         angleA = PI + angleB
     # print(vector)
     rA = A.radius
     rB = B.radius
 
     points = []
-    for t in ((np.arange(0, thetaA[1])/(thetaA[1]-1) - 0.5)
-              * thetaA[0] + angleA):
+    for t in ((np.arange(0, thetaA[1]) / (thetaA[1] - 1) - 0.5) * thetaA[0] +
+              angleA):
 
-        x = rA*np.cos(t) + A.center.x
-        y = rA*np.sin(t) + A.center.y
+        x = rA * np.cos(t) + A.center.x
+        y = rA * np.sin(t) + A.center.y
         points.append([x, y])
 
     mid = len(points)
-    for t in ((np.arange(0, thetaB[1])/(thetaB[1]-1) - 0.5)
-              * thetaB[0] + angleB):
+    for t in ((np.arange(0, thetaB[1]) / (thetaB[1] - 1) - 0.5) * thetaB[0] +
+              angleB):
 
-        x = rB*np.cos(t) + B.center.x
-        y = rB*np.sin(t) + B.center.y
+        x = rB * np.cos(t) + B.center.x
+        y = rB * np.sin(t) + B.center.y
         points.append([x, y])
 
     points = np.array(points)
@@ -862,9 +920,13 @@ def wet_circles(A, B, thetaA, thetaB):
 
     m = Mesh()
     for t in tri.simplices:
-        m.append(Triangle(Point([points[t[0], 0], points[t[0], 1]]),
-                          Point([points[t[1], 0], points[t[1], 1]]),
-                          Point([points[t[2], 0], points[t[2], 1]])))
+        m.append(
+            Triangle(
+                Point([points[t[0], 0], points[t[0], 1]]),
+                Point([points[t[1], 0], points[t[1], 1]]),
+                Point([points[t[2], 0], points[t[2], 1]])
+            )
+        )
 
     return m
 
@@ -879,6 +941,7 @@ class SiemensStar(Phantom):
         frequency, f, divide this ratio by some fraction of the maximum radius:
         f = ratio/radius_fraction
     """
+
     def __init__(self, n_sectors=4, center=Point([0.0, 0.0]), radius=0.5):
         """
         Parameters
@@ -899,16 +962,18 @@ class SiemensStar(Phantom):
 
         # generate an even number of points around the unit circle
         points = []
-        for t in (np.arange(0, n_points)/n_points) * 2 * PI:
-            x = radius*np.cos(t) + center.x
-            y = radius*np.sin(t) + center.y
+        for t in (np.arange(0, n_points) / n_points) * 2 * PI:
+            x = radius * np.cos(t) + center.x
+            y = radius * np.sin(t) + center.y
             points.append(Point([x, y]))
-        assert(len(points) == n_points)
+        assert (len(points) == n_points)
 
         # connect pairs of points to the center to make triangles
-        for i in range(0, n_sectors//2):
-            f = Phantom(geometry=Triangle(points[2*i], points[2*i+1], center),
-                        material=SimpleMaterial(1))
+        for i in range(0, n_sectors // 2):
+            f = Phantom(
+                geometry=Triangle(points[2 * i], points[2 * i + 1], center),
+                material=SimpleMaterial(1)
+            )
             self.append(f)
 
         self.ratio = n_points / (4 * PI * radius)
@@ -922,8 +987,13 @@ class Foam(UnitCircle):
         super(Foam, self).__init__(radius=0.5, material=SimpleMaterial(1.0))
         if porosity < 0 or porosity > 1:
             raise ValueError('Porosity must be in the range [0,1).')
-        self.sprinkle(300, size_range, gap, material=SimpleMaterial(-1.0),
-                      max_density=porosity)
+        self.sprinkle(
+            300,
+            size_range,
+            gap,
+            material=SimpleMaterial(-1.0),
+            max_density=porosity
+        )
 
 
 class Softwood(Phantom):
@@ -954,7 +1024,7 @@ class Softwood(Phantom):
         ring_offset = np.random.rand()
         latewood_fraction = 0.35
 
-        ray_fraction = 1/8
+        ray_fraction = 1 / 8
         ray_height = 0.01
         ray_width = 0.09
         ray_thickness = 0.002
@@ -1002,10 +1072,13 @@ class Softwood(Phantom):
                     x += cell_width
 
                 if is_ray:
-                    cell = WoodCell(corner=Point([x, y]), material=cellulose,
-                                    width=ray_width * five_p(),
-                                    height=ray_height,
-                                    wall_thickness=ray_thickness * five_p())
+                    cell = WoodCell(
+                        corner=Point([x, y]),
+                        material=cellulose,
+                        width=ray_width * five_p(),
+                        height=ray_height,
+                        wall_thickness=ray_thickness * five_p()
+                    )
 
                 else:  # not ray cells
                     if ring_progress < 1 - latewood_fraction:
@@ -1016,10 +1089,13 @@ class Softwood(Phantom):
                         dw = 0.6
                         dt = 1.5
 
-                    cell = WoodCell(corner=Point([x, y]), material=cellulose,
-                                    width=cell_width * dw * five_p(),
-                                    height=cell_height,
-                                    wall_thickness=cell_thickness * dt * five_p())
+                    cell = WoodCell(
+                        corner=Point([x, y]),
+                        material=cellulose,
+                        width=cell_width * dw * five_p(),
+                        height=cell_height,
+                        wall_thickness=cell_thickness * dt * five_p()
+                    )
                 self.append(cell)
 
                 x += cell.width
@@ -1038,16 +1114,22 @@ class WoodCell(Phantom):
     cell and the cell wall substance which is generally hexagonal.
     """
 
-    def __init__(self, corner=Point([0.5, 0.5]), width=0.003, height=0.003,
-                 wall_thickness=0.0008, material=None):
+    def __init__(
+        self,
+        corner=Point([0.5, 0.5]),
+        width=0.003,
+        height=0.003,
+        wall_thickness=0.0008,
+        material=None
+    ):
         super(WoodCell, self).__init__()
 
-        p1 = deepcopy(corner) + Point([width/2, height/2])
+        p1 = deepcopy(corner) + Point([width / 2, height / 2])
         cell_wall = Rectangle(p1, [width, height])
 
         wt = wall_thickness
         p1 = deepcopy(p1)
-        lumen = -Rectangle(p1, [width - 2*wt, height - 2*wt])
+        lumen = -Rectangle(p1, [width - 2 * wt, height - 2 * wt])
 
         self._geometry = Mesh(faces=[cell_wall, lumen])
         self.material = material
