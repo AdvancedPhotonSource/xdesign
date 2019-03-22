@@ -52,6 +52,11 @@ These methods are based on the scanning trajectory only.
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
+__author__ = "Daniel Ching, Doga Gursoy"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = ['coverage_approx']
+
 import logging
 
 from xdesign.acquisition import beamintersect, thv_to_zxy
@@ -59,25 +64,28 @@ from xdesign.algorithms import get_mids_and_lengths
 
 logger = logging.getLogger(__name__)
 
-__author__ = "Daniel Ching, Doga Gursoy"
-__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
-__docformat__ = 'restructuredtext en'
-__all__ = [
-           'coverage_approx'
-           ]
-
 
 def tensor_at_angle(angle, magnitude):
     """Return 2D tensor(s) with magnitude(s) at the angle [rad]."""
     R = np.array([[np.cos(angle), -np.sin(angle)],
-                  [np.sin(angle),  np.cos(angle)]])
+                  [np.sin(angle), np.cos(angle)]])
     tensor = np.array([[1, 0], [0, 0]])
     tensor = np.einsum('...,jk->...jk', magnitude, tensor)
     return np.einsum('ij,...jk,lk->...il', R, tensor, R)
 
 
-def coverage_approx(gmin, gsize, ngrid, probe_size, theta, h, v, weights=None,
-                    anisotropy=1, num_rays=16):
+def coverage_approx(
+    gmin,
+    gsize,
+    ngrid,
+    probe_size,
+    theta,
+    h,
+    v,
+    weights=None,
+    anisotropy=1,
+    num_rays=16
+):
     """Approximate procedure coverage with a Riemann sum.
 
     The intersection between the beam and each pixel is approximated by using a
@@ -135,15 +143,15 @@ def coverage_approx(gmin, gsize, ngrid, probe_size, theta, h, v, weights=None,
 
     for m in range(theta.size):
         # get intersection locations and lengths
-        xm, ym, dist = get_mids_and_lengths(srcx[m], srcy[m],
-                                            detx[m], dety[m],
-                                            gx, gy)
+        xm, ym, dist = get_mids_and_lengths(
+            srcx[m], srcy[m], detx[m], dety[m], gx, gy
+        )
         if np.any(dist > 0):
             # convert midpoints of line segments to indices
             ix = np.floor(sx * (xm - gmin[0]) / gsize[0]).astype('int')
             iy = np.floor(sy * (ym - gmin[1]) / gsize[1]).astype('int')
-            ia = np.floor((theta[m] / (np.pi / anisotropy)
-                          % anisotropy)).astype('int')
+            ia = np.floor((theta[m] / (np.pi / anisotropy) % anisotropy)
+                          ).astype('int')
             ind = (dist != 0) & (0 <= ix) & (ix < sx) \
                 & (0 <= iy) & (iy < sy)
             # put the weights in the binn

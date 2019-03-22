@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """Defines standards based image quality metrics.
 
 These methods require the reconstructed image to be of a specifically shaped
@@ -9,22 +8,24 @@ standard object such as a siemens star or a zone plate.
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-import warnings
-import numpy as np
-from scipy import optimize
-from xdesign.phantom import HyperbolicConcentric, UnitCircle
-from xdesign.geometry import Circle, Point, Line
-
 __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = [
-           'compute_mtf',
-           'compute_mtf_ffst',
-           'compute_mtf_lwkj',
-           'compute_nps_ffst',
-           'compute_neq_d',
-           ]
+    'compute_mtf',
+    'compute_mtf_ffst',
+    'compute_mtf_lwkj',
+    'compute_nps_ffst',
+    'compute_neq_d',
+]
+
+import warnings
+
+import numpy as np
+from scipy import optimize
+
+from xdesign.geometry import Circle, Point, Line
+from xdesign.phantom import HyperbolicConcentric, UnitCircle
 
 
 def compute_mtf(phantom, image):
@@ -56,8 +57,10 @@ def compute_mtf(phantom, image):
         :meth:`compute_mtf_lwkj`
 
     """
-    warnings.warn('compute_mtf is decprecated, use compute_mtf_lwkj or ' +
-                  'compute_mtf_ffst instead', DeprecationWarning)
+    warnings.warn(
+        'compute_mtf is decprecated, use compute_mtf_lwkj or ' +
+        'compute_mtf_ffst instead', DeprecationWarning
+    )
 
     if not isinstance(phantom, HyperbolicConcentric):
         raise TypeError
@@ -143,8 +146,9 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
     # print(R_bins)
 
     Th_bin_width = 2 * np.pi / Ntheta  # [radians]
-    Th_bins = np.arange(-Th_bin_width / 2, 2 * np.pi -
-                        Th_bin_width / 2, Th_bin_width)
+    Th_bins = np.arange(
+        -Th_bin_width / 2, 2 * np.pi - Th_bin_width / 2, Th_bin_width
+    )
     Th[Th < -Th_bin_width / 2] = 2 * np.pi + Th[Th < -Th_bin_width / 2]
     # print(Th_bins)
 
@@ -187,10 +191,10 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
     # Calculate the MTF
     T = np.fft.fftshift(np.fft.fft(LSF_weighted))
     faxis = (np.arange(0, LSF.shape[1]) / LSF.shape[1] - 0.5) / R_bin_width
-    nyquist = 0.5*image.shape[0]
+    nyquist = 0.5 * image.shape[0]
 
     MTF = np.abs(T)
-    bin_centers = Th_bins + Th_bin_width/2
+    bin_centers = Th_bins + Th_bin_width / 2
 
     return faxis, MTF, bin_centers
 
@@ -219,14 +223,14 @@ def compute_mtf_lwkj(phantom, image):
     # spatial frequency changes as 1/r
     Nradii = 100
     Nangles = 256
-    pradii = 1/1.05**np.arange(1, Nradii)  # proportional radii of the star
+    pradii = 1 / 1.05**np.arange(1, Nradii)  # proportional radii of the star
 
     line, theta = get_line_at_radius(image, pradii, Nangles)
-    M = fit_sinusoid(line, theta, phantom.n_sectors/2)
+    M = fit_sinusoid(line, theta, phantom.n_sectors / 2)
 
     # convert from contrast as a function of radius to contrast as a function
     # of spatial frequency
-    frequency = phantom.ratio/pradii.flatten()
+    frequency = phantom.ratio / pradii.flatten()
 
     return frequency, M
 
@@ -275,7 +279,7 @@ def get_line_at_radius(image, fradius, N):
     x = fradius * np.cos(theta)
     y = fradius * np.sin(theta)
     # round to nearest integer location and shift to center
-    image_half = image.shape[0]/2
+    image_half = image.shape[0] / 2
     x = np.round((x + 1) * image_half)
     y = np.round((y + 1) * image_half)
     # extract from image
@@ -311,22 +315,24 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
     M = value.shape[1]
 
     # Distance to the target function
-    def errorfunc(p, x, y): return periodic_function(p, x) - y
+    def errorfunc(p, x, y):
+        return periodic_function(p, x) - y
 
-    time = np.linspace(0, 2*np.pi, 100)
+    time = np.linspace(0, 2 * np.pi, 100)
 
     MTFR = np.ndarray((1, M))
-    x = (f*angle).squeeze()
+    x = (f * angle).squeeze()
     for radius in range(0, M):
-        p1, success = optimize.leastsq(errorfunc, p0[:],
-                                       args=(x, value[:, radius]))
+        p1, success = optimize.leastsq(
+            errorfunc, p0[:], args=(x, value[:, radius])
+        )
 
-        MTFR[:, radius] = np.sqrt(p1[1]**2 + p1[2]**2)/p1[0]
+        MTFR[:, radius] = np.sqrt(p1[1]**2 + p1[2]**2) / p1[0]
 
     # cap the MTF at unity
     MTFR[MTFR > 1.] = 1.
-    assert(not np.any(MTFR < 0)), MTFR
-    assert(MTFR.shape == (1, M)), MTFR.shape
+    assert (not np.any(MTFR < 0)), MTFR
+    assert (MTFR.shape == (1, M)), MTFR.shape
     return MTFR
 
 
@@ -355,8 +361,8 @@ def periodic_function(p, x):
     """
     # x = w * theta
     value = p[0] + p[1] * np.sin(x) + p[2] * np.cos(x)
-    assert(value.shape == x.shape), (value.shape, theta.shape)
-    assert(not np.any(np.isnan(value)))
+    assert (value.shape == x.shape), (value.shape, theta.shape)
+    assert (not np.any(np.isnan(value)))
     return value
 
 
@@ -409,8 +415,8 @@ def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
     i_half = int(image.shape[0] / 2)  # half image
     # half of the square inside the circle
     s_half = int(image.shape[0] * phantom.geometry.radius / np.sqrt(2))
-    unif_region = image[i_half - s_half:i_half +
-                        s_half, i_half - s_half:i_half + s_half]
+    unif_region = image[i_half - s_half:i_half + s_half, i_half -
+                        s_half:i_half + s_half]
 
     # zero-mean normalization
     unif_region = unif_region - np.mean(unif_region)
@@ -422,8 +428,8 @@ def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
 
     # Calculate axis labels
     # TODO@dgursoy is this frequency scaling correct?
-    x = y = (np.arange(0, unif_region.shape[0]) /
-             unif_region.shape[0] - 0.5) * image.shape[0]
+    x = y = (np.arange(0, unif_region.shape[0]) / unif_region.shape[0] -
+             0.5) * image.shape[0]
     X, Y = np.meshgrid(x, y)
     # print(x)
 
@@ -484,11 +490,11 @@ def compute_neq_d(phantom, A, B):
     for i in range(0, mu_b.size):
         bucket = mu_b[i] < mu_a
         if i + 1 < mu_b.size:
-            bucket = np.logical_and(bucket, mu_a < mu_b[i+1])
+            bucket = np.logical_and(bucket, mu_a < mu_b[i + 1])
 
         if NPS[bucket].size > 0:
             NPS_binned[0, i] = np.sum(NPS[bucket])
 
-    NEQ = MTF/np.sqrt(NPS_binned)  # or something similiar
+    NEQ = MTF / np.sqrt(NPS_binned)  # or something similiar
 
     return mu_b, NEQ
