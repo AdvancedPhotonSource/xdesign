@@ -10,6 +10,7 @@ __all__ = [
 
 import logging
 from math import asin, sqrt
+import warnings
 
 import numpy as np
 

@@ -239,7 +239,7 @@ class WetCircles(UnitCircle):
 
             mesh = wet_circles(A, B, thetaA, thetaB)
 
-            self.append(Phantom(geometry=mesh, material=-.25))
+            self.append(Phantom(geometry=mesh, material=SimpleMaterial(-.25)))
 
 
 def wet_circles(A, B, thetaA, thetaB):
