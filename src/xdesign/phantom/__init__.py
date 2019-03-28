@@ -5,6 +5,6 @@
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
 
-from xdesign.metrics.coverage import *
-from xdesign.metrics.fullref import *
-from xdesign.metrics.standards import *
+from xdesign.phantom.custom import *
+from xdesign.phantom.phantom import *
+from xdesign.phantom.standards import *

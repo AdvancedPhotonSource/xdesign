@@ -46,9 +46,6 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from xdesign.geometry import *
 from numpy.testing import assert_allclose, assert_equal
 import numpy as np

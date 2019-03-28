@@ -17,16 +17,27 @@ XDesign
    :target: https://codeclimate.com/github/tomography/xdesign
    :alt: Code Climate
 
-**XDesign** is an open-source Python package for generating
-configurable simulation phantoms for benchmarking tomographic
-image reconstruction.
+**XDesign** is an open-source Python package for generating configurable
+x-ray imaging `phantoms <https://en.wikipedia.org/wiki/Imaging_phantom>`_,
+simulating `data acquisition <https://en.wikipedia.org/wiki/Data_acquisition>`_,
+and benchmarking x-ray `tomographic image reconstruction
+<https://en.wikipedia.org/wiki/Tomography>`_.
+
+
+Goals
+=====
+* Assist faster development of new generation tomographic reconstruction methods
+* Allow quantitative comparison of different reconstruction methods
+* Create a framework for designing x-ray imaging experiments
+
 
 Current Scope
-=====
+=============
 * Customizable 2D phantoms constructed from circles and convex polygons
 * Quantitative reconstruction quality and probe coverage metrics
 * Attenuation interactions with X-ray probes of uniform flux
 * Use of analytic (exact) solutions for algorithms and computation
+
 
 Contribute
 ==========
@@ -35,18 +46,18 @@ Contribute
 * Source Code: https://github.com/tomography/xdesign/tree/master/xdesign
 * Tests: https://github.com/tomography/xdesign/tree/master/tests
 
+
 License
 =======
 The project is licensed under the
 `BSD-3 <https://github.com/tomography/xdesign/blob/master/LICENSE.txt>`_ license.
 
+
 Install
 =======
-
-First, install XDesign's dependencies using pip. Then install XDesign
-in the usual way. Using pip or by running setup.py.
+Since version 0.5, XDesign is available on the conda-forge channel. Install it
+in the usual way:
 
 .. code-block:: bash
 
-  $ pip install -r requirements.txt
-  $ pip install .
+  $ conda install xdesign -c conda-forge
