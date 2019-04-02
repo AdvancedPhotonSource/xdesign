@@ -417,6 +417,7 @@ def msssim(
         alpha=alpha,
         beta_gamma=0
     )
+    original_shape = np.array(img0.shape)
     for level in range(0, nlevels):
         scale, ssim_mean, ssim_map = ssim(
             img0,
@@ -428,8 +429,12 @@ def msssim(
             alpha=0,
             beta_gamma=beta_gamma[level]
         )
-        scales[level] = scale
-        maps[level] = ndimage.zoom(ssim_map, 2**level, prefilter=False, order=0)
+        # Always take the direct ratio between original and downsampled maps
+        # to prevent resizing mismatch for odd sizes
+        ratio = original_shape / np.array(ssim_map.shape)
+        scales[level] = scale * ratio[0]
+        maps[level] = ndimage.zoom(ssim_map, ratio, prefilter=False, order=0)
+
         if level == nlevels - 1:
             break
         # Downsample (using ndimage.zoom to prevent sampling bias)
