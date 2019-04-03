@@ -264,6 +264,74 @@ def plot_coverage_anisotropy(coverage_map, **kwargs):
     )
 
 
+def get_angle_intensity_glyphs(
+    xy, angles, magnitudes, colormap=plt.cm.viridis, **kwargs
+):
+    """Returns a list of pie glyphs at coordinates xy representing values
+
+    Parameters
+    ----------
+    xy: array
+        An (N, 2) array of the xy coordinates of the glyphs.
+    angles: float radians
+        An (N, ) array of the angles of the glyphs.
+    magnitudes: float
+        An (N, ...) array of the magnitudes of the glyphs.
+    colormap: function
+        Takes a magnitude and returns a color.
+    """
+    assert len(xy
+               ) == len(magnitudes), "Each value needs exactly one coodrinate."
+    assert len(xy) == len(angles), "Each value needs exactly one coodrinate."
+    # Determine properties of each glyph
+    wedge_arc = 120  # degrees
+    wedge_start = angles * 0.5 / np.pi * 360  # radians
+    wedge_color = colormap(magnitudes)
+    # Create pie wedges
+    wedges = list()
+    for i in range(len(xy)):
+        wedges.append(
+            patches.Wedge(
+                xy[i],
+                0.5,  # radius
+                wedge_start[i],
+                wedge_start[i] + wedge_arc,
+                color=wedge_color[i],
+                linewidth=0,  # otherwise wedges overlap
+                **kwargs
+            )
+        )
+    return wedges
+
+
+def plot_angle_intensity(angle, intensity, background_color='white'):
+    """Plot the phase angle and intensity in the same plot using 2D glyphs.
+
+    """
+    assert np.all(angle.shape == intensity.shape)
+    x, y = angle.shape[0:2]
+    # Compute coordinates of glyphs
+    irange, jrange = np.meshgrid(range(x), range(y))
+    irange = irange.flatten()
+    jrange = jrange.flatten()
+    ij_size = irange.size
+    coords = np.stack([irange, jrange], axis=1)
+    # Generate glyphs
+    glyphs = get_angle_intensity_glyphs(
+        coords, angle.flatten(), intensity.flatten(), snap=False
+    )
+    # Add glyphs to axis
+    axis = plt.gca()
+    axis.set_aspect('equal')
+    plt.xlim([-.5, x - 0.5])
+    plt.ylim([-.5, y - 0.5])
+    axis.invert_yaxis()
+    axis.set_facecolor(background_color)
+    axis.add_collection(
+        collections.PatchCollection(glyphs, match_original=True)
+    )
+
+
 def plot_phantom(
     phantom,
     axis=None,
