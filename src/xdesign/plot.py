@@ -264,9 +264,7 @@ def plot_coverage_anisotropy(coverage_map, **kwargs):
     )
 
 
-def get_angle_intensity_glyphs(
-    xy, angles, magnitudes, colormap=plt.cm.viridis, **kwargs
-):
+def get_angle_intensity_glyphs(xy, angles, magnitudes, **kwargs):
     """Returns a list of pie glyphs at coordinates xy representing values
 
     Parameters
@@ -277,16 +275,21 @@ def get_angle_intensity_glyphs(
         An (N, ) array of the angles of the glyphs.
     magnitudes: float
         An (N, ...) array of the magnitudes of the glyphs.
-    colormap: function
-        Takes a magnitude and returns a color.
     """
-    assert len(xy
-               ) == len(magnitudes), "Each value needs exactly one coodrinate."
-    assert len(xy) == len(angles), "Each value needs exactly one coodrinate."
+    assert len(xy) == len(magnitudes), \
+        "Each value needs exactly one coodrinate."
+    assert len(xy) == len(angles), \
+        "Each value needs exactly one coodrinate."
+    # Normalize angles to [0, 1] range
+    angles = np.mod(angles * 0.5 / np.pi, 1.0)
+    # Assign angle to hue, and magnitude value in hsv colorspace
+    hsv = np.ones([len(magnitudes), 3])
+    hsv[:, 0] = angles
+    hsv[:, 2] = magnitudes
     # Determine properties of each glyph
     wedge_arc = 120  # degrees
-    wedge_start = angles * 0.5 / np.pi * 360  # radians
-    wedge_color = colormap(magnitudes)
+    wedge_start = angles * 360
+    wedge_color = hsv_to_rgb(hsv)
     # Create pie wedges
     wedges = list()
     for i in range(len(xy)):
@@ -304,9 +307,12 @@ def get_angle_intensity_glyphs(
     return wedges
 
 
-def plot_angle_intensity(angle, intensity, background_color='white'):
+def plot_angle_intensity(angle, intensity, background_color='black'):
     """Plot the phase angle and intensity in the same plot using 2D glyphs.
 
+    The glyphs are 120 degree pie glyphs whose orientation and hue are
+    determined by the angle and whose brightness are determined by the
+    intensity.
     """
     assert np.all(angle.shape == intensity.shape)
     x, y = angle.shape[0:2]
