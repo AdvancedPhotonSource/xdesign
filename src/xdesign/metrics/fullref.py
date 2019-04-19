@@ -531,8 +531,9 @@ def ssim(
     denominator2 = sigma_1_sq + sigma_2_sq + c_2
 
     if (c_1 > 0) and (c_2 > 0):
-        ssim_map = ((numerator1 / denominator1)**alpha *
-                    (numerator2 / denominator2)**beta_gamma)
+        with np.errstate(invalid='ignore'):
+            ssim_map = ((numerator1 / denominator1)**alpha *
+                        (numerator2 / denominator2)**beta_gamma)
     else:
         ssim_map = np.ones(numerator1.shape)
         index = (denominator1 * denominator2 > 0)
@@ -540,8 +541,9 @@ def ssim(
                            (numerator2[index] / denominator2[index])**
                            beta_gamma)
     # Sometimes c_1 and c_2 don't do their job of stabilizing the result
-    ssim_map[ssim_map > 1] = 1
-    ssim_map[ssim_map < -1] = -1
+    with np.errstate(invalid='ignore'):
+        ssim_map[ssim_map > 1] = 1
+        ssim_map[ssim_map < -1] = -1
     ssim_mean = np.nanmean(ssim_map)
     if scale is None:
         scale = sigma
