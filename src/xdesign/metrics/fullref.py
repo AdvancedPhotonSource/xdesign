@@ -17,8 +17,16 @@ __all__ = [
     'msssim',
 ]
 
+import warnings
+
 import numpy as np
 from scipy import ndimage
+
+warnings.filterwarnings(
+    'ignore',
+    'From scipy 0\.13\.0, the output shape of zoom\(\) '
+    'is calculated with round\(\) instead of int\(\)'
+)
 
 
 def pcc(A, B, masks=None):
