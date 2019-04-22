@@ -17,8 +17,16 @@ __all__ = [
     'msssim',
 ]
 
+import warnings
+
 import numpy as np
 from scipy import ndimage
+
+warnings.filterwarnings(
+    'ignore',
+    'From scipy 0\.13\.0, the output shape of zoom\(\) '
+    'is calculated with round\(\) instead of int\(\)'
+)
 
 
 def pcc(A, B, masks=None):
@@ -417,6 +425,7 @@ def msssim(
         alpha=alpha,
         beta_gamma=0
     )
+    original_shape = np.array(img0.shape)
     for level in range(0, nlevels):
         scale, ssim_mean, ssim_map = ssim(
             img0,
@@ -428,8 +437,12 @@ def msssim(
             alpha=0,
             beta_gamma=beta_gamma[level]
         )
-        scales[level] = scale
-        maps[level] = ndimage.zoom(ssim_map, 2**level, prefilter=False, order=0)
+        # Always take the direct ratio between original and downsampled maps
+        # to prevent resizing mismatch for odd sizes
+        ratio = original_shape / np.array(ssim_map.shape)
+        scales[level] = scale * ratio[0]
+        maps[level] = ndimage.zoom(ssim_map, ratio, prefilter=False, order=0)
+
         if level == nlevels - 1:
             break
         # Downsample (using ndimage.zoom to prevent sampling bias)
@@ -526,8 +539,9 @@ def ssim(
     denominator2 = sigma_1_sq + sigma_2_sq + c_2
 
     if (c_1 > 0) and (c_2 > 0):
-        ssim_map = ((numerator1 / denominator1)**alpha *
-                    (numerator2 / denominator2)**beta_gamma)
+        with np.errstate(invalid='ignore'):
+            ssim_map = ((numerator1 / denominator1)**alpha *
+                        (numerator2 / denominator2)**beta_gamma)
     else:
         ssim_map = np.ones(numerator1.shape)
         index = (denominator1 * denominator2 > 0)
@@ -535,8 +549,9 @@ def ssim(
                            (numerator2[index] / denominator2[index])**
                            beta_gamma)
     # Sometimes c_1 and c_2 don't do their job of stabilizing the result
-    ssim_map[ssim_map > 1] = 1
-    ssim_map[ssim_map < -1] = -1
+    with np.errstate(invalid='ignore'):
+        ssim_map[ssim_map > 1] = 1
+        ssim_map[ssim_map < -1] = -1
     ssim_mean = np.nanmean(ssim_map)
     if scale is None:
         scale = sigma
