@@ -112,6 +112,8 @@ def mura_1d(L):
             0 otherwise,
         }
     """
+    if L < 5:
+        raise ValueError("A MURA cannot have length less than 5.")
     # overestimate m to guess a MURA longer than L
     m = (L + 1) // 4
     L1 = (4 * m) + 1
