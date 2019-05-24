@@ -307,7 +307,7 @@ def get_angle_intensity_glyphs(xy, angles, magnitudes, **kwargs):
     return wedges
 
 
-def plot_angle_intensity(angle, intensity, background_color='black'):
+def plot_angle_intensity(angle, intensity, background_color=(0.3, 0.3, 0.3)):
     """Plot the phase angle and intensity in the same plot using 2D glyphs.
 
     The glyphs are 120 degree pie glyphs whose orientation and hue are
