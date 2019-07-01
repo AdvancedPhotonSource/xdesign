@@ -64,9 +64,11 @@ except DistributionNotFound:
 import logging
 
 from xdesign.acquisition import *
+from xdesign.codes import *
 from xdesign.geometry import *
 from xdesign.material import *
 from xdesign.metrics import *
+from xdesign.phantom import *
 from xdesign.plot import *
 from xdesign.phantom import *
 from xdesign.recon import *
