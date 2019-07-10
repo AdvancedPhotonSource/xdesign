@@ -415,16 +415,6 @@ def msssim(
     assert nlevels < 6, "Not enough beta_gamma weights for more than 5 levels"
     scales = np.zeros(nlevels)
     maps = [None] * nlevels
-    scale, luminance, ssim_map = ssim(
-        img0,
-        img1,
-        sigma=sigma,
-        L=L,
-        K=K,
-        scale=sigma,
-        alpha=alpha,
-        beta_gamma=0
-    )
     original_shape = np.array(img0.shape)
     for level in range(0, nlevels):
         scale, ssim_mean, ssim_map = ssim(
@@ -434,7 +424,7 @@ def msssim(
             L=L,
             K=K,
             scale=sigma,
-            alpha=0,
+            alpha=0 if level < (nlevels - 1) else alpha,
             beta_gamma=beta_gamma[level]
         )
         # Always take the direct ratio between original and downsampled maps
@@ -450,9 +440,9 @@ def msssim(
         img0 = ndimage.zoom(img0, 0.5)
         img1 = ndimage.zoom(img1, 0.5)
 
-    map = luminance * np.nanprod(maps, axis=0)
-    ms_ssim_mean = np.nanmean(map)
-    return scales, ms_ssim_mean, map
+    ms_ssim_map = np.nanprod(maps, axis=0)
+    ms_ssim_mean = np.nanmean(ms_ssim_map)
+    return scales, ms_ssim_mean, ms_ssim_map
 
 
 def ssim(
