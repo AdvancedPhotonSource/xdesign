@@ -1,4 +1,2 @@
-include README.rst
-include LICENSE
 graft src
 global-exclude *.py[co]
