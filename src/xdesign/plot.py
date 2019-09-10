@@ -78,6 +78,7 @@ __docformat__ = 'restructuredtext en'
 __all__ = [
     'get_pie_glyphs',
     'plot_coverage_anisotropy',
+    'plot_angle_intensity',
     'plot_phantom',
     'plot_geometry',
     'plot_mesh',
@@ -107,6 +108,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.patheffects as PathEffects
 import matplotlib.collections as collections
+from matplotlib.colors import hsv_to_rgb
 import numpy as np
 import scipy.ndimage
 
