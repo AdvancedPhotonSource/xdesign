@@ -390,45 +390,63 @@ class SiemensStar(Phantom):
 
     Attributes
     ----------
+    center: Point
+        The center of the Siemens Star.
+    n_sectors: int >= 2
+        The number of spokes/blades on the star.
+    radius: scalar > 0
+        The radius of the circle inscribing the Siemens Star.
     ratio : scalar
         The spatial frequency times the proportional radius. e.g to get the
         frequency, f, divide this ratio by some fraction of the maximum radius:
-        f = ratio/radius_fraction
+        f = ratio/radius_fraction.
+        .. deprecated:: 0.5
+            Use :func:`SiemensStar.get_frequency` or
+            :func:`SiemensStar.get_radius` instead.
+
+    .. versionchanged 0.5
+        The `n_sectors` parameter was changed to count only the material as
+        spokes instead of both the material and the space between. This allows
+        evenly spaced odd numbers of spokes.
+
     """
 
-    def __init__(self, n_sectors=4, center=Point([0.0, 0.0]), radius=0.5):
-        """
-        Parameters
-        ----------
-        n_sectors: int >= 4
-            The number of spokes/blades on the star.
-        center: Point
-        radius: scalar > 0
-        """
+    def __init__(self, n_sectors=2, center=Point([0.0, 0.0]), radius=0.5):
+        """See help(SiemensStar) for more info."""
         super(SiemensStar, self).__init__()
-        if n_sectors < 4:
-            raise ValueError("Must have >= 4 sectors.")
+        if n_sectors < 2:
+            raise ValueError("A Siemens star must have > 1 sector.")
         if radius <= 0:
             raise ValueError("radius must be greater than zero.")
         if not isinstance(center, Point):
-            raise TypeError("center must be of type Point.!")
-        n_points = n_sectors
-
+            raise TypeError("center must be of type Point!")
+        n_points = 2 * n_sectors
+        self.ratio = n_sectors / (2 * np.pi * radius)
+        self.n_sectors = n_sectors
         # generate an even number of points around the unit circle
         points = []
-        for t in (np.arange(0, n_points) / n_points) * 2 * PI:
+        for t in np.linspace(0, 2 * np.pi, n_points, endpoint=False):
             x = radius * np.cos(t) + center.x
             y = radius * np.sin(t) + center.y
             points.append(Point([x, y]))
-        assert (len(points) == n_points)
-
         # connect pairs of points to the center to make triangles
-        for i in range(0, n_sectors // 2):
+        for i in range(0, n_sectors):
             f = Phantom(
                 geometry=Triangle(points[2 * i], points[2 * i + 1], center),
                 material=SimpleMaterial(1)
             )
             self.append(f)
 
-        self.ratio = n_points / (4 * PI * radius)
-        self.n_sectors = n_sectors
+    def get_frequency(radius):
+        """Return the spatial frequency at the given radius.
+
+        .. versionadded:: 0.5
+        """
+        return self.n_sectors / (2 * np.pi * radius)
+
+    def get_radius(frequency):
+        """Return the radius which provides the given frequency.
+
+        .. versionadded:: 0.5
+        """
+        return self.n_sectors / (2 * np.pi * frequency)
