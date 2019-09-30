@@ -415,16 +415,6 @@ def msssim(
     assert nlevels < 6, "Not enough beta_gamma weights for more than 5 levels"
     scales = np.zeros(nlevels)
     maps = [None] * nlevels
-    scale, luminance, ssim_map = ssim(
-        img0,
-        img1,
-        sigma=sigma,
-        L=L,
-        K=K,
-        scale=sigma,
-        alpha=alpha,
-        beta_gamma=0
-    )
     original_shape = np.array(img0.shape)
     for level in range(0, nlevels):
         scale, ssim_mean, ssim_map = ssim(
@@ -434,7 +424,7 @@ def msssim(
             L=L,
             K=K,
             scale=sigma,
-            alpha=0,
+            alpha=0 if level < (nlevels - 1) else alpha,
             beta_gamma=beta_gamma[level]
         )
         # Always take the direct ratio between original and downsampled maps
@@ -450,9 +440,9 @@ def msssim(
         img0 = ndimage.zoom(img0, 0.5)
         img1 = ndimage.zoom(img1, 0.5)
 
-    map = luminance * np.nanprod(maps, axis=0)
-    ms_ssim_mean = np.nanmean(map)
-    return scales, ms_ssim_mean, map
+    ms_ssim_map = np.nanprod(maps, axis=0)
+    ms_ssim_mean = np.nanmean(ms_ssim_map)
+    return scales, ms_ssim_mean, ms_ssim_map
 
 
 def ssim(
@@ -520,6 +510,7 @@ def ssim(
     assert L > 0, "L, the dynamic range must be larger than 0."
     c_1 = (K[0] * L)**2
     c_2 = (K[1] * L)**2
+    c_3 = c_2 * 0.5
     # Means obtained by Gaussian filtering of inputs
     mu_1 = ndimage.filters.gaussian_filter(img1, sigma)
     mu_2 = ndimage.filters.gaussian_filter(img2, sigma)
@@ -532,22 +523,31 @@ def ssim(
     sigma_2_sq = ndimage.filters.gaussian_filter(img2**2, sigma) - mu_2_sq
     # Covariance
     sigma_12 = ndimage.filters.gaussian_filter(img1 * img2, sigma) - mu_1_mu_2
+    # Standard deviations multiplied
+    sigma_1_sigma_2 = np.sqrt(sigma_1_sq * sigma_2_sq)
     # Division by zero is prevented by adding c_1 and c_2
-    numerator1 = 2 * mu_1_mu_2 + c_1
-    denominator1 = mu_1_sq + mu_2_sq + c_1
-    numerator2 = 2 * sigma_12 + c_2
-    denominator2 = sigma_1_sq + sigma_2_sq + c_2
+    numerator1 = 2 * mu_1_mu_2 + c_1  # luminance
+    denominator1 = mu_1_sq + mu_2_sq + c_1  # luminace
+    numerator2 = 2 * sigma_1_sigma_2 + c_2  # contrast
+    denominator2 = sigma_1_sq + sigma_2_sq + c_2  # constrast
+    numerator3 = sigma_12 + c_3  # structure
+    denominator3 = sigma_1_sigma_2 + c_3  # structure
 
     if (c_1 > 0) and (c_2 > 0):
         with np.errstate(invalid='ignore'):
-            ssim_map = ((numerator1 / denominator1)**alpha *
-                        (numerator2 / denominator2)**beta_gamma)
+            ssim_map = (
+                (numerator1 / denominator1)**alpha *
+                ((numerator2 * numerator3) /
+                 (denominator2 * denominator3))**beta_gamma
+            )
     else:
         ssim_map = np.ones(numerator1.shape)
         index = (denominator1 * denominator2 > 0)
-        ssim_map[index] = ((numerator1[index] / denominator1[index])**alpha *
-                           (numerator2[index] / denominator2[index])**
-                           beta_gamma)
+        ssim_map[index] = (
+            (numerator1[index] / denominator1[index])**alpha *
+            ((numerator2[index] * numerator3[index]) /
+             (denominator2[index] * denominator3[index]))**beta_gamma
+        )
     # Sometimes c_1 and c_2 don't do their job of stabilizing the result
     with np.errstate(invalid='ignore'):
         ssim_map[ssim_map > 1] = 1

@@ -50,7 +50,8 @@ def compute_mtf(phantom, image):
     .. deprecated:: 0.3
         This method rapidly becomes inaccurate at small wavelenths because the
         measurement gets out of phase with the waves due to rounding error. Use
-        another one of the MTF functions instead.
+        another one of the MTF functions instead. This method will be removed
+        in xdesign 0.6.
 
     .. seealso::
         :meth:`compute_mtf_ffst`
@@ -58,8 +59,8 @@ def compute_mtf(phantom, image):
 
     """
     warnings.warn(
-        'compute_mtf is decprecated, use compute_mtf_lwkj or ' +
-        'compute_mtf_ffst instead', DeprecationWarning
+        'compute_mtf will be removed in xdesign 0.6, use compute_mtf_lwkj or '
+        + 'compute_mtf_ffst instead', FutureWarning
     )
 
     if not isinstance(phantom, HyperbolicConcentric):

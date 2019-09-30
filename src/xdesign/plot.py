@@ -78,6 +78,7 @@ __docformat__ = 'restructuredtext en'
 __all__ = [
     'get_pie_glyphs',
     'plot_coverage_anisotropy',
+    'plot_angle_intensity',
     'plot_phantom',
     'plot_geometry',
     'plot_mesh',
@@ -107,6 +108,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.patheffects as PathEffects
 import matplotlib.collections as collections
+from matplotlib.colors import hsv_to_rgb
 import numpy as np
 import scipy.ndimage
 
@@ -259,6 +261,80 @@ def plot_coverage_anisotropy(coverage_map, **kwargs):
     vectors = np.reshape(coverage_map, [ij_size, coverage_map.shape[-1]])
     glyphs = get_pie_glyphs(coords, vectors, snap=False, **kwargs)
     # Add glyphs to axis
+    axis.add_collection(
+        collections.PatchCollection(glyphs, match_original=True)
+    )
+
+
+def get_angle_intensity_glyphs(xy, angles, magnitudes, **kwargs):
+    """Returns a list of pie glyphs at coordinates xy representing values
+
+    Parameters
+    ----------
+    xy: array
+        An (N, 2) array of the xy coordinates of the glyphs.
+    angles: float radians
+        An (N, ) array of the angles of the glyphs.
+    magnitudes: float
+        An (N, ...) array of the magnitudes of the glyphs.
+    """
+    assert len(xy) == len(magnitudes), \
+        "Each value needs exactly one coodrinate."
+    assert len(xy) == len(angles), \
+        "Each value needs exactly one coodrinate."
+    # Normalize angles to [0, 1] range
+    angles = np.mod(angles * 0.5 / np.pi, 1.0)
+    # Assign angle to hue, and magnitude value in hsv colorspace
+    hsv = np.ones([len(magnitudes), 3])
+    hsv[:, 0] = angles
+    hsv[:, 2] = magnitudes
+    # Determine properties of each glyph
+    wedge_arc = 120  # degrees
+    wedge_start = angles * 360
+    wedge_color = hsv_to_rgb(hsv)
+    # Create pie wedges
+    wedges = list()
+    for i in range(len(xy)):
+        wedges.append(
+            patches.Wedge(
+                xy[i],
+                0.5,  # radius
+                wedge_start[i],
+                wedge_start[i] + wedge_arc,
+                color=wedge_color[i],
+                linewidth=0,  # otherwise wedges overlap
+                **kwargs
+            )
+        )
+    return wedges
+
+
+def plot_angle_intensity(angle, intensity, background_color=(0.3, 0.3, 0.3)):
+    """Plot the phase angle and intensity in the same plot using 2D glyphs.
+
+    The glyphs are 120 degree pie glyphs whose orientation and hue are
+    determined by the angle and whose brightness are determined by the
+    intensity.
+    """
+    assert np.all(angle.shape == intensity.shape)
+    x, y = angle.shape[0:2]
+    # Compute coordinates of glyphs
+    irange, jrange = np.meshgrid(range(x), range(y))
+    irange = irange.flatten()
+    jrange = jrange.flatten()
+    ij_size = irange.size
+    coords = np.stack([irange, jrange], axis=1)
+    # Generate glyphs
+    glyphs = get_angle_intensity_glyphs(
+        coords, angle.flatten(), intensity.flatten(), snap=False
+    )
+    # Add glyphs to axis
+    axis = plt.gca()
+    axis.set_aspect('equal')
+    plt.xlim([-.5, x - 0.5])
+    plt.ylim([-.5, y - 0.5])
+    axis.invert_yaxis()
+    axis.set_facecolor(background_color)
     axis.add_collection(
         collections.PatchCollection(glyphs, match_original=True)
     )
