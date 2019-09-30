@@ -3,7 +3,7 @@
 """Defines standards based image quality metrics.
 
 These methods require the reconstructed image to be of a specifically shaped
-standard object such as a siemens star or a zone plate.
+standard object such as a Siemens star or a zone plate.
 
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
@@ -245,7 +245,7 @@ def get_line_at_radius(image, fradius, N):
     Parameters
     ----------
     image : :py:class:`numpy.ndarray`
-        A centered image of the seimens star.
+        A centered image of the Siemens star.
     fradius : :py:class:`numpy.array_like`
         The M radius fractions of the image at which to extract the line
         given as a floats in the range (0, 1).
@@ -307,7 +307,7 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
         The N angles at which the function was sampled
     f : scalar
         The expected angular frequency; the number of black/white pairs in
-        the siemens star. i.e. half the number of spokes
+        the Siemens star. i.e. half the number of spokes
     p0 : list, optional
         The initial guesses for the parameters.
 
@@ -353,7 +353,7 @@ def periodic_function(p, x):
         the angular frequency multiplied by the angles for the function.
         w * theta
     w : scalar
-        the angular frequency; the number of black/white pairs in the siemens
+        the angular frequency; the number of black/white pairs in the Siemens
         star. i.e. half the number of spokes
     theta : Nx1 ndarray
         input angles for the function
