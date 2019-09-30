@@ -202,7 +202,7 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
     return faxis, MTF, bin_centers
 
 
-def compute_mtf_lwkj(phantom, image):
+def compute_mtf_lwkj(image, n_sectors, n_radii=100, n_angles=256):
     """Calculate the MTF using the modulated Siemens Star method in
     :cite:`loebich2007digital`.
 
@@ -212,31 +212,36 @@ def compute_mtf_lwkj(phantom, image):
 
     Parameters
     ----------
-    phantom : :py:class:`.SiemensStar`
     image : ndarray
-        The reconstruciton of the SiemensStar
+        A centered image of a Siemens star.
+    n_sectors: int >= 2
+        The number of spokes/blades on the star. i.e. the number of
+        light/dark pairs.
 
     Returns
     -------
     frequency : array
-        The spatial frequency in cycles per unit length
-    M : array
-        The MTF values for each frequency
+        The spatial frequency in cycles per pixel length.
+    mtf : array
+        The MTF values for each frequency.
+
+    .. seealso::
+        :meth:`compute_mtf_ffst`
     """
-    # Determine which radii to sample. Do not sample linearly because the
-    # spatial frequency changes as 1/r
-    Nradii = 100
-    Nangles = 256
-    pradii = 1 / 1.05**np.arange(1, Nradii)  # proportional radii of the star
-
-    line, theta = get_line_at_radius(image, pradii, Nangles)
-    M = fit_sinusoid(line, theta, phantom.n_sectors / 2)
-
-    # convert from contrast as a function of radius to contrast as a function
-    # of spatial frequency
-    frequency = phantom.ratio / pradii.flatten()
-
-    return frequency, M
+    assert image.shape[0] == image.shape[1], "image should be square."
+    # Determine which radii to sample. Frequencies are limited by
+    # the radius of the image and the Nyqust fequency (1/2).
+    frequency = np.linspace(
+        0.5,
+        n_sectors / (np.pi * image.shape[0]),
+        n_radii,
+        endpoint=False,
+    )
+    # Convert frequency into fractional radii; assume square image
+    fradii = n_sectors / (np.pi * frequency * image.shape[0])
+    line, theta = get_line_at_radius(image, fradii, n_angles)
+    mtf = fit_sinusoid(line, theta, n_sectors)
+    return frequency, mtf
 
 
 def get_line_at_radius(image, fradius, N):
@@ -307,7 +312,7 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
         The N angles at which the function was sampled
     f : scalar
         The expected angular frequency; the number of black/white pairs in
-        the Siemens star. i.e. half the number of spokes
+        the Siemens star.
     p0 : list, optional
         The initial guesses for the parameters.
 
