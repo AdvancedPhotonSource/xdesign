@@ -137,7 +137,7 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
     return faxis, MTF, bin_centers
 
 
-def compute_mtf_lwkj(image, n_sectors, n_radii=100, n_angles=256):
+def compute_mtf_lwkj(image, n_sectors, n_radii=100):
     """Calculate the MTF using the modulated Siemens Star method in
     :cite:`loebich2007digital`.
 
@@ -174,45 +174,45 @@ def compute_mtf_lwkj(image, n_sectors, n_radii=100, n_angles=256):
     )
     # Convert frequency into fractional radii; assume square image
     fradii = n_sectors / (np.pi * frequency * image.shape[0])
-    line, theta = get_line_at_radius(image, fradii, n_angles)
+    line, theta = get_line_at_radius(image, fradii)
     mtf = fit_sinusoid(line, theta, n_sectors)
     return frequency, mtf
 
 
-def get_line_at_radius(image, fradius, N):
+def get_line_at_radius(image, fradius, N=None):
     """Return an Nx1 array of the values of the image at a radius.
 
     Parameters
     ----------
     image : :py:class:`numpy.ndarray`
         A centered image of the Siemens star.
-    fradius : :py:class:`numpy.array_like`
-        The M radius fractions of the image at which to extract the line
-        given as a floats in the range (0, 1).
-    N : int
-        The number of points to sample around the circumference of each circle
+    fradius : (M, ) :py:class:`numpy.array_like`
+        The fractional radii of the image at which to extract lines.
+        Given as a floats in the range (0, 1).
+    N : int >= PI * image_width
+        The number of points to sample along each line.
 
     Returns
     -------
-    line : NxM :py:class:`numpy.ndarray`
-        the values from image at the radius
-    theta : Nx1 :py:class:`numpy.ndarray`
-        the angles that were sampled in radians
+    line : (N, M) :py:class:`numpy.ndarray`
+        The values from image at each radius.
+    theta : (N, 1) :py:class:`numpy.ndarray`
+        The angles that were sampled [radians].
 
     Raises
     ------
     ValueError
-        If `image` is not square.
-        If any value of `fradius` is not in the range (0, 1).
-        If `N` < 1.
+        If any value of `fradius` is not between 0 and 1.
     """
     fradius = np.asanyarray(fradius)
-    if image.shape[0] != image.shape[1]:
-        raise ValueError('image must be square.')
-    if np.any(0 >= fradius) or np.any(fradius >= 1):
-        raise ValueError('fradius must be in the range (0, 1)')
-    if N < 1:
-        raise ValueError('Sampling less than 1 point is not useful.')
+    if np.any(fradius <= 0) or np.any(1 <= fradius):
+        raise ValueError('fradius must be between 0 and 1.')
+    # set the number of sample to pi * d in order to get good sampling
+    image_width = np.min(image.shape)
+    if N is None:
+        N = int(np.pi * image_width)
+    else:
+        N = max(N, int(np.pi * image_width))
     # add singleton dimension to enable matrix multiplication
     M = fradius.size
     fradius.shape = (1, M)
@@ -223,7 +223,7 @@ def get_line_at_radius(image, fradius, N):
     x = fradius * np.cos(theta)
     y = fradius * np.sin(theta)
     # round to nearest integer location and shift to center
-    image_half = image.shape[0] / 2
+    image_half = image_width / 2
     x = np.round((x + 1) * image_half)
     y = np.round((y + 1) * image_half)
     # extract from image
