@@ -28,7 +28,7 @@ from xdesign.phantom import HyperbolicConcentric, UnitCircle
 
 
 def compute_mtf_ffst(phantom, image, Ntheta=4):
-    '''Calculate the MTF using the method described in :cite:`Friedman:13`.
+    """Calculate the MTF using the method described in :cite:`Friedman:13`.
 
     .. seealso::
 
@@ -51,7 +51,11 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
         MTF values
     bin_centers : ndarray
         the center of the bins if Ntheta >= 1
-    '''
+
+    .. seealso::
+        :meth:`compute_mtf_lwkj`
+
+    """
     if not isinstance(phantom, UnitCircle):
         raise TypeError('MTF requires unit circle phantom.')
     if phantom.geometry.radius >= 0.5:
@@ -142,8 +146,8 @@ def compute_mtf_lwkj(image, n_sectors, n_radii=100):
 
     This method fits a sinusoidal function to the image of a Siemens star
     at many radii. Then it uses the ratio of the amplitude of the sinusoidal
-    function to its mean value as the modulation transfer function (MTF) at each
-    radii.
+    function to its mean value as the modulation transfer function (MTF) at
+    each radii.
 
     .. seealso::
 
@@ -208,6 +212,7 @@ def get_line_at_radius(image, fradius, N=None):
     ------
     ValueError
         If any value of `fradius` is not between 0 and 1.
+
     """
     fradius = np.asanyarray(fradius)
     if np.any(fradius <= 0) or np.any(1 <= fradius):
@@ -283,7 +288,7 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.5, 0]):
 
 
 def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
-    '''Calculate the noise power spectrum from a unit circle image using the
+    """Calculate the noise power spectrum from a unit circle image using the
     method from :cite:`Friedman:13`.
 
     Parameters
@@ -310,7 +315,8 @@ def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
         Frequencies for the 2D frequency plot NPS
     NPS : 2Darray
         the NPS for the 2D frequency plot
-    '''
+
+    """
     if not isinstance(phantom, UnitCircle):
         raise TypeError('NPS requires unit circle phantom.')
     if not isinstance(A, np.ndarray):
@@ -374,7 +380,7 @@ def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
 
 
 def compute_neq_d(phantom, A, B):
-    '''Calculate the NEQ according to recommendations by :cite:`Dobbins:95`.
+    """Calculate the NEQ according to recommendations by :cite:`Dobbins:95`.
 
     Parameters
     ----------
@@ -393,7 +399,8 @@ def compute_neq_d(phantom, A, B):
         The spatial frequencies
     NEQ :
         the Noise Equivalent Quanta
-    '''
+
+    """
     mu_a, NPS = compute_nps_ffst(phantom, A, B, plot_type='histogram')
     mu_b, MTF, bins = compute_mtf_ffst(phantom, A, Ntheta=1)
 
