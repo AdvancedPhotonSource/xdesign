@@ -138,8 +138,12 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
 
 
 def compute_mtf_lwkj(image, n_sectors, n_radii=100):
-    """Calculate the MTF using the modulated Siemens Star method in
-    :cite:`loebich2007digital`.
+    """Calculate the MTF using the method in :cite:`loebich2007digital`.
+
+    This method fits a sinusoidal function to the image of a Siemens star
+    at many radii. Then it uses the ratio of the amplitude of the sinusoidal
+    function to its mean value as the modulation transfer function (MTF) at each
+    radii.
 
     .. seealso::
 
@@ -162,6 +166,7 @@ def compute_mtf_lwkj(image, n_sectors, n_radii=100):
 
     .. seealso::
         :meth:`compute_mtf_ffst`
+
     """
     assert image.shape[0] == image.shape[1], "image should be square."
     # Determine which radii to sample. Frequencies are limited by
@@ -234,10 +239,18 @@ def get_line_at_radius(image, fradius, N=None):
 
 
 def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
-    """Fit a periodic function of known frequency, f, to the value and angle
-    data. value = Func(angle, f). NOTE: Because the fiting function is
-    sinusoidal instead of square, contrast values larger than unity are clipped
-    back to unity.
+    """Fit a function of known frequency, f, to the value and angle data.
+
+    We fit the function by minimizing the fitting_error between the sinusoidal
+    function and the values:
+
+    fitting_error = (
+        mean + A0 * np.sin(f * angle) + A1 * np.cos(f * angle) - value
+    )
+
+    The MTF is then calculated using the fitted amplitudes and mean. Because the
+    fiting function is sinusoidal instead of square, contrast values larger than
+    unity are clipped back to unity.
 
     Parameters
     ----------
@@ -249,65 +262,32 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
         The expected angular frequency; the number of black/white pairs in
         the Siemens star.
     p0 : list, optional
-        The initial guesses for the parameters.
+        The initial guesses for the mean, A0, and A1.
 
     Returns
     -------
     MTFR: 1xM ndarray
         The modulation part of the MTF at each of the M radii
+
     """
-    M = value.shape[1]
-
-    # Distance to the target function
+    # Function to minimize to get the amplitudes and mean values of the star
     def errorfunc(p, x, y):
-        return periodic_function(p, x) - y
+        # p[0] the mean of the function
+        # p[1], p[2] the amplitudes of sine and cosine respectively.
+        return p[0] + p[1] * np.sin(x) + p[2] * np.cos(x) - y
 
-    time = np.linspace(0, 2 * np.pi, 100)
-
+    M = value.shape[1]
     MTFR = np.ndarray((1, M))
-    x = (f * angle).squeeze()
+    x = (f * angle).flatten()
     for radius in range(0, M):
         p1, success = optimize.leastsq(
             errorfunc, p0[:], args=(x, value[:, radius])
         )
-
         MTFR[:, radius] = np.sqrt(p1[1]**2 + p1[2]**2) / p1[0]
-
     # cap the MTF at unity
     MTFR[MTFR > 1.] = 1.
-    assert (not np.any(MTFR < 0)), MTFR
     assert (MTFR.shape == (1, M)), MTFR.shape
     return MTFR
-
-
-def periodic_function(p, x):
-    """A periodic function for fitting to the spokes of the Siemens Star.
-
-    Parameters
-    ----------
-    p[0] : scalar
-        the mean of the function
-    p[1], p[2] : scalar
-        the amplitudes of the function
-    x : Nx1 ndarray
-        the angular frequency multiplied by the angles for the function.
-        w * theta
-    w : scalar
-        the angular frequency; the number of black/white pairs in the Siemens
-        star. i.e. half the number of spokes
-    theta : Nx1 ndarray
-        input angles for the function
-
-    Returns
-    -------
-    value : Nx1 array
-        the values of the function at phi; cannot return NaNs.
-    """
-    # x = w * theta
-    value = p[0] + p[1] * np.sin(x) + p[2] * np.cos(x)
-    assert (value.shape == x.shape), (value.shape, x.shape)
-    assert (not np.any(np.isnan(value)))
-    return value
 
 
 def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
