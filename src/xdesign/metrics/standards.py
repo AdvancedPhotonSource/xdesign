@@ -21,7 +21,7 @@ __all__ = [
 import warnings
 
 import numpy as np
-from scipy import optimize
+import scipy
 
 from xdesign.geometry import Circle, Point, Line
 from xdesign.phantom import HyperbolicConcentric, UnitCircle
@@ -238,19 +238,15 @@ def get_line_at_radius(image, fradius, N=None):
     return line, theta
 
 
-def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
+def fit_sinusoid(value, angle, f, p0=[0.5, 0.5, 0]):
     """Fit a function of known frequency, f, to the value and angle data.
 
-    We fit the function by minimizing the fitting_error between the sinusoidal
-    function and the values:
+    We fit the function by minimizing the fitting_error between the square
+    function and the measured values:
 
-    fitting_error = (
-        mean + A0 * np.sin(f * angle) + A1 * np.cos(f * angle) - value
-    )
+    fitting_error = mean + A0 * square(f * angle - shift) - value
 
-    The MTF is then calculated using the fitted amplitudes and mean. Because the
-    fiting function is sinusoidal instead of square, contrast values larger than
-    unity are clipped back to unity.
+    The MTF is then calculated using the fitted amplitude / the fitted mean.
 
     Parameters
     ----------
@@ -262,7 +258,7 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
         The expected angular frequency; the number of black/white pairs in
         the Siemens star.
     p0 : list, optional
-        The initial guesses for the mean, A0, and A1.
+        The initial guesses for the mean, A0, and angular shift.
 
     Returns
     -------
@@ -272,20 +268,16 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
     """
     # Function to minimize to get the amplitudes and mean values of the star
     def errorfunc(p, x, y):
-        # p[0] the mean of the function
-        # p[1], p[2] the amplitudes of sine and cosine respectively.
-        return p[0] + p[1] * np.sin(x) + p[2] * np.cos(x) - y
+        return p[0] + p[1] * scipy.signal.square(x - p[2]) - y
 
     M = value.shape[1]
     MTFR = np.ndarray((1, M))
     x = (f * angle).flatten()
     for radius in range(0, M):
-        p1, success = optimize.leastsq(
+        p1, success = scipy.optimize.leastsq(
             errorfunc, p0[:], args=(x, value[:, radius])
         )
-        MTFR[:, radius] = np.sqrt(p1[1]**2 + p1[2]**2) / p1[0]
-    # cap the MTF at unity
-    MTFR[MTFR > 1.] = 1.
+        MTFR[:, radius] = p1[1] / p1[0]
     assert (MTFR.shape == (1, M)), MTFR.shape
     return MTFR
 
