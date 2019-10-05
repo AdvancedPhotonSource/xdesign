@@ -21,7 +21,8 @@ __all__ = [
 import warnings
 
 import numpy as np
-import scipy
+import scipy.optimize
+import scipy.signal
 
 from xdesign.geometry import Circle, Point, Line
 from xdesign.phantom import HyperbolicConcentric, UnitCircle
