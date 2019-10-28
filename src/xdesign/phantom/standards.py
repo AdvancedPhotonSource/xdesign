@@ -437,14 +437,14 @@ class SiemensStar(Phantom):
             )
             self.append(f)
 
-    def get_frequency(radius):
+    def get_frequency(self, radius):
         """Return the spatial frequency at the given radius.
 
         .. versionadded:: 0.5
         """
         return self.n_sectors / (2 * np.pi * radius)
 
-    def get_radius(frequency):
+    def get_radius(self, frequency):
         """Return the radius which provides the given frequency.
 
         .. versionadded:: 0.5
