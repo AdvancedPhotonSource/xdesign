@@ -33,30 +33,31 @@ def compute_mtf(phantom, image):
     HyperbolicCocentric phantom. Calculate the MTF from the modulation depth
     at each edge on the line from (0.5,0.5) to (0.5,1). MTF = (hi-lo)/(hi+lo)
 
-    Parameters
-    ---------------
-    phantom : HyperbolicConcentric
-        Predefined phantom of cocentric rings whose widths decay parabolically.
-    image : ndarray
-        The reconstruction of the above phantom.
-
-    Returns
-    --------------
-    wavelength : list
-        wavelenth in the scale of the original phantom
-    MTF : list
-        MTF values
-
     .. deprecated:: 0.3
+
         This method rapidly becomes inaccurate at small wavelenths because the
         measurement gets out of phase with the waves due to rounding error. Use
         another one of the MTF functions instead. This method will be removed
         in xdesign 0.6.
 
     .. seealso::
+
         :meth:`compute_mtf_ffst`
         :meth:`compute_mtf_lwkj`
 
+    Parameters
+    ----------
+    phantom : HyperbolicConcentric
+        Predefined phantom of cocentric rings whose widths decay parabolically.
+    image : ndarray
+        The reconstruction of the above phantom.
+
+    Returns
+    -------
+    wavelength : list
+        wavelenth in the scale of the original phantom
+    MTF : list
+        MTF values
     """
     warnings.warn(
         'compute_mtf will be removed in xdesign 0.6, use compute_mtf_lwkj or '
@@ -94,6 +95,10 @@ def compute_mtf(phantom, image):
 def compute_mtf_ffst(phantom, image, Ntheta=4):
     '''Calculate the MTF using the method described in :cite:`Friedman:13`.
 
+    .. seealso::
+
+        :meth:`compute_mtf_lwkj`
+
     Parameters
     ----------
     phantom : :py:class:`.UnitCircle`
@@ -111,9 +116,6 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
         MTF values
     bin_centers : ndarray
         the center of the bins if Ntheta >= 1
-
-    .. seealso::
-        :meth:`compute_mtf_lwkj`
     '''
     if not isinstance(phantom, UnitCircle):
         raise TypeError('MTF requires unit circle phantom.')
@@ -204,6 +206,10 @@ def compute_mtf_lwkj(phantom, image):
     """Calculate the MTF using the modulated Siemens Star method in
     :cite:`loebich2007digital`.
 
+    .. seealso::
+
+        :meth:`compute_mtf_ffst`
+
     Parameters
     ----------
     phantom : :py:class:`.SiemensStar`
@@ -216,9 +222,6 @@ def compute_mtf_lwkj(phantom, image):
         The spatial frequency in cycles per unit length
     M : array
         The MTF values for each frequency
-
-    .. seealso::
-        :meth:`compute_mtf_ffst`
     """
     # Determine which radii to sample. Do not sample linearly because the
     # spatial frequency changes as 1/r
@@ -296,7 +299,7 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
     sinusoidal instead of square, contrast values larger than unity are clipped
     back to unity.
 
-    parameters
+    Parameters
     ----------
     value : NxM ndarray
         The value of the function at N angles and M radii
@@ -308,8 +311,8 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
     p0 : list, optional
         The initial guesses for the parameters.
 
-    returns:
-    --------
+    Returns
+    -------
     MTFR: 1xM ndarray
         The modulation part of the MTF at each of the M radii
     """
@@ -340,7 +343,7 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
 def periodic_function(p, x):
     """A periodic function for fitting to the spokes of the Siemens Star.
 
-    parameters
+    Parameters
     ----------
     p[0] : scalar
         the mean of the function
@@ -355,7 +358,7 @@ def periodic_function(p, x):
     theta : Nx1 ndarray
         input angles for the function
 
-    returns
+    Returns
     -------
     value : Nx1 array
         the values of the function at phi; cannot return NaNs.
@@ -385,7 +388,7 @@ def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
         'histogram' returns a plot binned by radial coordinate wavenumber
         'frequency' returns a wavenumber vs wavenumber plot
 
-    returns
+    Returns
     -------
     bins :
         Bins for the radially binned NPS

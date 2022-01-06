@@ -37,8 +37,8 @@ def halfspacecirc(d, r):
     f : scalar
         The proportion of the circle in the smaller half-space
 
-    Reference
-    ---------
+    References
+    ----------
     Glassner, A. S. (Ed.). (2013). Graphics gems. Elsevier.
 
     """
