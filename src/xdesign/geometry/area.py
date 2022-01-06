@@ -538,23 +538,23 @@ class RegularPolygon(Polygon):
     It is defined by the polynomial center, order, and radius.
     """
 
-    def __init__(self, center, order, radius, angle=0, sign=1):
+    def __init__(self, center, radius, order, angle=0, sign=1):
         """
         Parameters
         ----------
         center : :class:`Point`
             The center of the polygon
-        order : int
-            Order of the polygon (e.g. order 6 is a hexagon)
         radius : float
             Distance from polygon center to vertices
+        order : int
+            Order of the polygon (e.g. order 6 is a hexagon)
         angle : float
             Optional rotation angle
         sign : int (-1 or 1)
-            The sign of the area (see :class:`Polygon`)
+            Optional sign of the area (see :class:`Polygon`)
         """
 
-        vertex_angles = np.linspace(0, 2 * np.pi, N, endpoint=False) + angle
+        vertex_angles = np.linspace(0, 2 * np.pi, order, endpoint=False) + angle
         vertices = [
             Point([radius * np.cos(theta), radius * np.sin(theta)]) + center
             for theta in vertex_angles
