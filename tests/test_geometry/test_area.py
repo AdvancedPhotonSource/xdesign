@@ -196,6 +196,15 @@ def test_Polygon_contains():
     contains_no_overlap(A, Bn)
 
 
+def test_RegularPolygon_contains():
+    r = 0.5
+    order = 7
+    A = Circle(Point([0, 0]), r)
+    B = RegularPolygon(Point([0, 0]), r - 1e-7, order)
+    A.contains(B)
+    assert A.contains(B)
+
+
 def test_Mesh_contains():
     p0 = Point([0, 0])
     p1 = Point([0, 1])
