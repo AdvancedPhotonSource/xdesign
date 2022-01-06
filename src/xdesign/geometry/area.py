@@ -554,7 +554,8 @@ class RegularPolygon(Polygon):
             Optional sign of the area (see :class:`Polygon`)
         """
 
-        vertex_angles = np.linspace(0, 2 * np.pi, order, endpoint=False) + angle
+        vertex_angles = (np.linspace(0, 2 * np.pi, order, endpoint=False) +
+                         angle)
         vertices = [
             Point([radius * np.cos(theta), radius * np.sin(theta)]) + center
             for theta in vertex_angles
