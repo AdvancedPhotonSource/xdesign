@@ -291,12 +291,18 @@ class Polygon(Entity):
     vertices : List of Points
     sign : int (-1 or 1)
         The sign of the area
+
+    Raises
+    ------
+    ValueError : If the number of vertices is less than three.
     """
 
     def __init__(self, vertices, sign=1):
         for v in vertices:
             if not isinstance(v, Point):
                 raise TypeError("vertices must be of type Point.")
+        if len(vertices) < 3:
+            raise ValueError("A Polygon has at least three vertices.")
         super(Polygon, self).__init__()
         self.vertices = vertices
         self._dim = vertices[0].dim
@@ -539,8 +545,6 @@ class RegularPolygon(Polygon):
 
     It is defined by the polynomial center, order, and radius.
 
-    A :exc:`ValueError` is raised if ``order`` < 3.
-
     By default (i.e. when the ``angle`` parameter is zero), the regular
     polygon is oriented so that one of the vertices is at coordinates
     :math:`(x + r, x)` where :math:`x` is the x-coordinate of
@@ -563,8 +567,6 @@ class RegularPolygon(Polygon):
     """
 
     def __init__(self, center, radius, order, angle=0, sign=1):
-        if order < 3:
-            raise ValueError("Parameter order must be greater than or equal to 3")
         vertex_angles = (np.linspace(0, 2 * np.pi, order, endpoint=False) +
                          angle)
         vertices = [
