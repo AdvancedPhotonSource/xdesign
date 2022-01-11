@@ -89,13 +89,13 @@ class ImageQuality(object):
         """Compute the full-reference image quality of each image pair.
 
         Available methods include SSIM :cite:`wang:02`, MSSSIM :cite:`wang:03`,
-        VIFp :cite:`Sheikh:15`, and FSIM :cite:`zhang:11`.
+        VIFp :cite:`Sheikh:15`
 
         Parameters
         ----------
         method : string, optional, (default: MSSSIM)
             The quality metric desired for this comparison.
-            Options include: SSIM, MSSSIM, VIFp, FSIM
+            Options include: SSIM, MSSSIM, VIFp
         L : scalar
             The dynamic range of the data. This value is 1 for float
             representations and 2^bitdepth for integer representations.
@@ -105,7 +105,7 @@ class ImageQuality(object):
             "SSIM": ssim,
             "MSSSIM": msssim,
             "VIFp": vifp,
-            "FSIM": fsim
+            # "FSIM": fsim  # FSIM :cite:`zhang:11`.
         }
         try:
             method_func = dictionary[method]
