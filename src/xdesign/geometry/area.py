@@ -346,7 +346,9 @@ class Polygon(Entity):
         """Returns a 4-tuple (xmin, ymin, xmax, ymax) representing the
         bounding rectangle for the Polygon.
         """
-        warnings.warn("Use Polygon.bounding_box instead.", DeprecationWarning)
+        warnings.warn(
+            "Polygon.bounds is deprecated; use Polygon.bounding_box instead.",
+            DeprecationWarning)
         xs = [p.x for p in self.vertices]
         ys = [p.y for p in self.vertices]
         return (min(xs), min(ys), max(xs), max(ys))
