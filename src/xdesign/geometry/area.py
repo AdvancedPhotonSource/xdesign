@@ -225,7 +225,7 @@ class Circle(Curve):
                     # Closed shape cannot contain infinite one
                     return False
                 else:
-                    assert other.sign is 1
+                    assert other.sign == 1
                     # other is within A
                     if isinstance(other, Circle):
                         return (
@@ -487,7 +487,7 @@ class Polygon(Entity):
                     # Closed shape cannot contain infinite one
                     return False
                 else:
-                    assert other.sign is 1
+                    assert other.sign == 1
                     # other is within A
                     if isinstance(other, Circle):
                         if self.contains(other.center):
