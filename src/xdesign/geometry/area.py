@@ -216,12 +216,12 @@ class Circle(Curve):
             x = other
         elif isinstance(other, Mesh):
             for face in other.faces:
-                if not self.contains(face) and face.sign is 1:
+                if not self.contains(face) and face.sign == 1:
                     return False
             return True
         else:
-            if self.sign is 1:
-                if other.sign is -1:
+            if self.sign == 1:
+                if other.sign == -1:
                     # Closed shape cannot contain infinite one
                     return False
                 else:
@@ -236,8 +236,8 @@ class Circle(Curve):
                         x = _points_to_array(other.vertices)
                         return np.all(self.contains(x))
 
-            elif self.sign is -1:
-                if other.sign is 1:
+            elif self.sign == -1:
+                if other.sign == 1:
                     # other is outside A and not around
                     if isinstance(other, Circle):
                         return (
@@ -264,7 +264,7 @@ class Circle(Curve):
 
         x = np.atleast_2d(x)
 
-        if self.sign is 1:
+        if self.sign == 1:
             return np.sum((x - self.center._x)**2, axis=1) < self.radius**2
         else:
             return np.sum((x - self.center._x)**2, axis=1) > self.radius**2
@@ -478,12 +478,12 @@ class Polygon(Entity):
             x = other
         elif isinstance(other, Mesh):
             for face in other.faces:
-                if not self.contains(face) and face.sign is 1:
+                if not self.contains(face) and face.sign == 1:
                     return False
             return True
         else:
-            if self.sign is 1:
-                if other.sign is -1:
+            if self.sign == 1:
+                if other.sign == -1:
                     # Closed shape cannot contain infinite one
                     return False
                 else:
@@ -500,8 +500,8 @@ class Polygon(Entity):
                         x = _points_to_array(other.vertices)
                         return np.all(self.contains(x))
 
-            elif self.sign is -1:
-                if other.sign is 1:
+            elif self.sign == -1:
+                if other.sign == 1:
                     # other is outside A and not around
                     if isinstance(other, Circle):
                         if self.contains(other.center):
@@ -525,7 +525,7 @@ class Polygon(Entity):
 
         border = Path(self.numpy)
 
-        if self.sign is 1:
+        if self.sign == 1:
             return border.contains_points(np.atleast_2d(x))
         else:
             return np.logical_not(border.contains_points(np.atleast_2d(x)))
