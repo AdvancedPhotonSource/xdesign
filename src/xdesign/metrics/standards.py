@@ -362,7 +362,7 @@ def periodic_function(p, x):
     """
     # x = w * theta
     value = p[0] + p[1] * np.sin(x) + p[2] * np.cos(x)
-    assert (value.shape == x.shape), (value.shape, theta.shape)
+    assert (value.shape == x.shape), (value.shape, x.shape)
     assert (not np.any(np.isnan(value)))
     return value
 
