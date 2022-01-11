@@ -549,8 +549,8 @@ class RegularPolygon(Polygon):
     polygon is oriented so that one of the vertices is at coordinates
     :math:`(x + r, x)` where :math:`x` is the x-coordinate of
     ``center`` and :math:`r` = ``radius``. The ``angle`` parameter is
-    only meaningful modulo :math:`\pi /` ``order`` since rotation by
-    :math:`\pi /` ``order`` gives a result equivalent to no rotation.
+    only meaningful modulo :math:`2\pi /` ``order`` since rotation by
+    :math:`2\pi /` ``order`` gives a result equivalent to no rotation.
 
     Parameters
     ----------
