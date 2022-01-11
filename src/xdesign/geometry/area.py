@@ -542,6 +542,15 @@ class RegularPolygon(Polygon):
 
     def __init__(self, center, radius, order, angle=0, sign=1):
         """
+        A :exc:`ValueError` is raised if ``order`` < 3.
+
+        By default (i.e. when the ``angle`` parameter is zero), the regular
+        polygon is oriented so that one of the vertices is at coordinates
+        :math:`(x + r, x)` where :math:`x` is the x-coordinate of
+        ``center`` and :math:`r` = ``radius``. The ``angle`` parameter is
+        only meaningful module :math:`\pi /` ``order`` since rotation by
+        :math:`\pi /` ``order`` gives a result equivalent to no rotation.
+
         Parameters
         ----------
         center : :class:`Point`
@@ -549,13 +558,15 @@ class RegularPolygon(Polygon):
         radius : float
             Distance from polygon center to vertices
         order : int
-            Order of the polygon (e.g. order 6 is a hexagon)
+            Order of the polygon (e.g. order 6 is a hexagon).
         angle : float
             Optional rotation angle
         sign : int (-1 or 1)
             Optional sign of the area (see :class:`Polygon`)
         """
 
+        if order < 3:
+            raise ValueError("Parameter order must be greater than or equal to 3")
         vertex_angles = (np.linspace(0, 2 * np.pi, order, endpoint=False) +
                          angle)
         vertices = [
