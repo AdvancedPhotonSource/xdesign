@@ -57,6 +57,9 @@ napoleon_use_ivar = False
 napoleon_use_param = False
 napoleon_use_rtype = False
 
+# Bibtex settings
+bibtex_bibfiles = ['bibtex/cite.bib', 'bibtex/refs.bib']
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 

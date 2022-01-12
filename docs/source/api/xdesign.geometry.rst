@@ -53,6 +53,7 @@ Two dimensional entities
       Curve
       Circle
       Polygon
+      RegularPolygon
       Triangle
       Rectangle
       Square

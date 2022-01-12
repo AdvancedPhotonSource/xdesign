@@ -46,7 +46,18 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 
+import os
 from setuptools import setup, find_packages
+
+long_desc = """
+XDesign is an open-source Python package for generating configurable
+x-ray imaging phantoms, simulating data acquisition, and benchmarking x-ray
+tomographic image reconstruction.
+"""
+
+with open(os.path.join("requirements.txt")) as f:
+    lines = f.readlines()
+install_requires = [line.strip() for line in lines]
 
 setup(
     name='xdesign',
@@ -56,7 +67,9 @@ setup(
     use_scm_version=True,
     author='Daniel Ching, Doga Gursoy',
     description='Benchmarking and optimization tools for tomography.',
+    long_description=long_desc,
     include_package_data=True,
+    install_requires=install_requires,
     url='http://github.com/tomography/xdesign.git',
     keywords=['xdesign', 'tomography'],
     license='BSD-3',
