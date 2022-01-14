@@ -7,6 +7,7 @@ __all__ = [
     'Curve',
     'Circle',
     'Polygon',
+    'RegularPolygon',
     'Triangle',
     'Rectangle',
     'Square',
@@ -216,16 +217,16 @@ class Circle(Curve):
             x = other
         elif isinstance(other, Mesh):
             for face in other.faces:
-                if not self.contains(face) and face.sign is 1:
+                if not self.contains(face) and face.sign == 1:
                     return False
             return True
         else:
-            if self.sign is 1:
-                if other.sign is -1:
+            if self.sign == 1:
+                if other.sign == -1:
                     # Closed shape cannot contain infinite one
                     return False
                 else:
-                    assert other.sign is 1
+                    assert other.sign == 1
                     # other is within A
                     if isinstance(other, Circle):
                         return (
@@ -236,8 +237,8 @@ class Circle(Curve):
                         x = _points_to_array(other.vertices)
                         return np.all(self.contains(x))
 
-            elif self.sign is -1:
-                if other.sign is 1:
+            elif self.sign == -1:
+                if other.sign == 1:
                     # other is outside A and not around
                     if isinstance(other, Circle):
                         return (
@@ -264,7 +265,7 @@ class Circle(Curve):
 
         x = np.atleast_2d(x)
 
-        if self.sign is 1:
+        if self.sign == 1:
             return np.sum((x - self.center._x)**2, axis=1) < self.radius**2
         else:
             return np.sum((x - self.center._x)**2, axis=1) > self.radius**2
@@ -290,12 +291,18 @@ class Polygon(Entity):
     vertices : List of Points
     sign : int (-1 or 1)
         The sign of the area
+
+    Raises
+    ------
+    ValueError : If the number of vertices is less than three.
     """
 
     def __init__(self, vertices, sign=1):
         for v in vertices:
             if not isinstance(v, Point):
                 raise TypeError("vertices must be of type Point.")
+        if len(vertices) < 3:
+            raise ValueError("A Polygon has at least three vertices.")
         super(Polygon, self).__init__()
         self.vertices = vertices
         self._dim = vertices[0].dim
@@ -346,7 +353,9 @@ class Polygon(Entity):
         """Returns a 4-tuple (xmin, ymin, xmax, ymax) representing the
         bounding rectangle for the Polygon.
         """
-        warnings.warn("Use Polygon.bounding_box instead.", DeprecationWarning)
+        warnings.warn(
+            "Polygon.bounds is deprecated; use Polygon.bounding_box instead.",
+            DeprecationWarning)
         xs = [p.x for p in self.vertices]
         ys = [p.y for p in self.vertices]
         return (min(xs), min(ys), max(xs), max(ys))
@@ -478,16 +487,16 @@ class Polygon(Entity):
             x = other
         elif isinstance(other, Mesh):
             for face in other.faces:
-                if not self.contains(face) and face.sign is 1:
+                if not self.contains(face) and face.sign == 1:
                     return False
             return True
         else:
-            if self.sign is 1:
-                if other.sign is -1:
+            if self.sign == 1:
+                if other.sign == -1:
                     # Closed shape cannot contain infinite one
                     return False
                 else:
-                    assert other.sign is 1
+                    assert other.sign == 1
                     # other is within A
                     if isinstance(other, Circle):
                         if self.contains(other.center):
@@ -500,8 +509,8 @@ class Polygon(Entity):
                         x = _points_to_array(other.vertices)
                         return np.all(self.contains(x))
 
-            elif self.sign is -1:
-                if other.sign is 1:
+            elif self.sign == -1:
+                if other.sign == 1:
                     # other is outside A and not around
                     if isinstance(other, Circle):
                         if self.contains(other.center):
@@ -525,10 +534,46 @@ class Polygon(Entity):
 
         border = Path(self.numpy)
 
-        if self.sign is 1:
+        if self.sign == 1:
             return border.contains_points(np.atleast_2d(x))
         else:
             return np.logical_not(border.contains_points(np.atleast_2d(x)))
+
+
+class RegularPolygon(Polygon):
+    """A regular polygon in 2D cartesian space.
+
+    It is defined by the polynomial center, order, and radius.
+
+    By default (i.e. when the ``angle`` parameter is zero), the regular
+    polygon is oriented so that one of the vertices is at coordinates
+    :math:`(x + r, x)` where :math:`x` is the x-coordinate of
+    ``center`` and :math:`r` = ``radius``. The ``angle`` parameter is
+    only meaningful modulo :math:`2\pi /` ``order`` since rotation by
+    :math:`2\pi /` ``order`` gives a result equivalent to no rotation.
+
+    Parameters
+    ----------
+    center : :class:`Point`
+        The center of the polygon
+    radius : float
+        Distance from polygon center to vertices
+    order : int
+        Order of the polygon (e.g. order 6 is a hexagon).
+    angle : float
+        Optional rotation angle in radians.
+    sign : int (-1 or 1)
+        Optional sign of the area (see :class:`Polygon`)
+    """
+
+    def __init__(self, center, radius, order, angle=0, sign=1):
+        vertex_angles = (np.linspace(0, 2 * np.pi, order, endpoint=False) +
+                         angle)
+        vertices = [
+            Point([radius * np.cos(theta), radius * np.sin(theta)]) + center
+            for theta in vertex_angles
+        ]
+        super(RegularPolygon, self).__init__(vertices, sign=sign)
 
 
 class Triangle(Polygon):
@@ -564,7 +609,7 @@ class Rectangle(Polygon):
 
     Defined by a point and a vector to enforce perpendicular sides.
 
-    Attributes
+    Parameters
     ----------
     side_lengths : array
         The lengths of the sides

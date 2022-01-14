@@ -9,7 +9,6 @@ __docformat__ = 'restructuredtext en'
 __all__ = [
     'Soil',
     'WetCircles',
-    'SiemensStar',
     'Foam',
     'Softwood',
 ]

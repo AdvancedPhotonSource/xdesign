@@ -113,7 +113,7 @@ class Probe(Line):
         )
 
     def __str__(self):
-        """Return the string respresentation of the Beam."""
+        """Return the string representation of the Beam."""
         return "Probe(" + super(Probe, self).__str__() + ")"
 
     def distance(self, other):

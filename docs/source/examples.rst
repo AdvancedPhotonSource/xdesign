@@ -16,11 +16,3 @@ To `run <http://jupyter.readthedocs.org/en/latest/running.html>`_ these examples
     demos/Parameterized
     demos/NoReferenceMetrics
     demos/FullReferenceMetrics
-    demos/WetCircles
-
-
-
-.. automodule:: xdesign
-   :members:
-   :undoc-members:
-   :show-inheritance:

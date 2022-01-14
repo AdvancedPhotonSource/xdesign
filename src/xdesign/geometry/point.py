@@ -78,7 +78,7 @@ def calc_standard(A):
     Return
     ------
     c0 : :py:class:`np.array` (..., N)
-        The first N coeffients for the hyper-plane
+        The first N coefficients for the hyper-plane
     c1 : :py:class:`np.array` (..., 1)
         The last coefficient for the hyper-plane
 
@@ -186,7 +186,7 @@ class Point(Entity):
         self._x += center
 
     def scale(self, vector):
-        """SScale the ambient space in each dimension according to vector.
+        """Scale the ambient space in each dimension according to vector.
 
         Scaling is centered on the origin.
         """
