@@ -51,7 +51,6 @@ Standards-based metrics
 
   .. autosummary::
 
-    compute_mtf
     compute_mtf_ffst
     compute_mtf_lwkj
     compute_nps_ffst
