@@ -404,7 +404,7 @@ class SiemensStar(Phantom):
             Use :func:`SiemensStar.get_frequency` or
             :func:`SiemensStar.get_radius` instead.
 
-    .. versionchanged 0.5
+    .. versionchanged 0.6
         The `n_sectors` parameter was changed to count only the material as
         spokes instead of both the material and the space between. This allows
         evenly spaced odd numbers of spokes.
@@ -440,13 +440,13 @@ class SiemensStar(Phantom):
     def get_frequency(self, radius):
         """Return the spatial frequency at the given radius.
 
-        .. versionadded:: 0.5
+        .. versionadded:: 0.6
         """
         return self.n_sectors / (2 * np.pi * radius)
 
     def get_radius(self, frequency):
         """Return the radius which provides the given frequency.
 
-        .. versionadded:: 0.5
+        .. versionadded:: 0.6
         """
         return self.n_sectors / (2 * np.pi * frequency)
