@@ -3,7 +3,7 @@
 """Defines standards based image quality metrics.
 
 These methods require the reconstructed image to be of a specifically shaped
-standard object such as a siemens star or a zone plate.
+standard object such as a Siemens star or a zone plate.
 
 .. moduleauthor:: Daniel J Ching <carterbox@users.noreply.github.com>
 """
@@ -12,7 +12,6 @@ __author__ = "Daniel Ching"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = [
-    'compute_mtf',
     'compute_mtf_ffst',
     'compute_mtf_lwkj',
     'compute_nps_ffst',
@@ -22,78 +21,15 @@ __all__ = [
 import warnings
 
 import numpy as np
-from scipy import optimize
+import scipy.optimize
+import scipy.signal
 
 from xdesign.geometry import Circle, Point, Line
 from xdesign.phantom import HyperbolicConcentric, UnitCircle
 
 
-def compute_mtf(phantom, image):
-    """Approximate the modulation tranfer function using the
-    HyperbolicCocentric phantom. Calculate the MTF from the modulation depth
-    at each edge on the line from (0.5,0.5) to (0.5,1). MTF = (hi-lo)/(hi+lo)
-
-    .. deprecated:: 0.3
-
-        This method rapidly becomes inaccurate at small wavelenths because the
-        measurement gets out of phase with the waves due to rounding error. Use
-        another one of the MTF functions instead. This method will be removed
-        in xdesign 0.6.
-
-    .. seealso::
-
-        :meth:`compute_mtf_ffst`
-        :meth:`compute_mtf_lwkj`
-
-    Parameters
-    ----------
-    phantom : HyperbolicConcentric
-        Predefined phantom of cocentric rings whose widths decay parabolically.
-    image : ndarray
-        The reconstruction of the above phantom.
-
-    Returns
-    -------
-    wavelength : list
-        wavelenth in the scale of the original phantom
-    MTF : list
-        MTF values
-    """
-    warnings.warn(
-        'compute_mtf will be removed in xdesign 0.6, use compute_mtf_lwkj or '
-        + 'compute_mtf_ffst instead', FutureWarning
-    )
-
-    if not isinstance(phantom, HyperbolicConcentric):
-        raise TypeError
-
-    center = int(image.shape[0] / 2)  # assume square shape
-    radii = np.array(phantom.radii) * image.shape[0]
-    widths = np.array(phantom.widths) * image.shape[0]
-
-    MTF = []
-    for i in range(1, len(widths) - 1):
-        # Locate the edge between rings in the discrete reconstruction.
-        mid = int(center + radii[i])  # middle of edge
-        rig = int(mid + widths[i + 1])  # right boundary
-        lef = int(mid - widths[i + 1])  # left boundary
-        # print(lef,mid,rig)
-
-        # Stop when the waves are below the size of a pixel
-        if rig == mid or lef == mid:
-            break
-
-        # Calculate MTF at the edge
-        hi = np.sum(image[center, lef:mid])
-        lo = np.sum(image[center, mid:rig])
-        MTF.append(abs(hi - lo) / (hi + lo))
-
-    wavelength = phantom.widths[1:-1]
-    return wavelength, MTF
-
-
 def compute_mtf_ffst(phantom, image, Ntheta=4):
-    '''Calculate the MTF using the method described in :cite:`Friedman:13`.
+    """Calculate the MTF using the method described in :cite:`Friedman:13`.
 
     .. seealso::
 
@@ -116,7 +52,11 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
         MTF values
     bin_centers : ndarray
         the center of the bins if Ntheta >= 1
-    '''
+
+    .. seealso::
+        :meth:`compute_mtf_lwkj`
+
+    """
     if not isinstance(phantom, UnitCircle):
         raise TypeError('MTF requires unit circle phantom.')
     if phantom.geometry.radius >= 0.5:
@@ -202,9 +142,13 @@ def compute_mtf_ffst(phantom, image, Ntheta=4):
     return faxis, MTF, bin_centers
 
 
-def compute_mtf_lwkj(phantom, image):
-    """Calculate the MTF using the modulated Siemens Star method in
-    :cite:`loebich2007digital`.
+def compute_mtf_lwkj(image, n_sectors, n_radii=100):
+    """Calculate the MTF using the method in :cite:`loebich2007digital`.
+
+    This method fits a sinusoidal function to the image of a Siemens star
+    at many radii. Then it uses the ratio of the amplitude of the sinusoidal
+    function to its mean value as the modulation transfer function (MTF) at
+    each radii.
 
     .. seealso::
 
@@ -212,67 +156,74 @@ def compute_mtf_lwkj(phantom, image):
 
     Parameters
     ----------
-    phantom : :py:class:`.SiemensStar`
     image : ndarray
-        The reconstruciton of the SiemensStar
+        A centered image of a Siemens star.
+    n_sectors: int >= 2
+        The number of spokes/blades on the star. i.e. the number of
+        light/dark pairs.
 
     Returns
     -------
     frequency : array
-        The spatial frequency in cycles per unit length
-    M : array
-        The MTF values for each frequency
+        The spatial frequency in cycles per pixel length.
+    mtf : array
+        The MTF values for each frequency.
+
+    .. seealso::
+        :meth:`compute_mtf_ffst`
+
     """
-    # Determine which radii to sample. Do not sample linearly because the
-    # spatial frequency changes as 1/r
-    Nradii = 100
-    Nangles = 256
-    pradii = 1 / 1.05**np.arange(1, Nradii)  # proportional radii of the star
+    assert image.shape[0] == image.shape[1], "image should be square."
+    # Determine which radii to sample. Frequencies are limited by
+    # the radius of the image and the Nyqust fequency (1/2).
+    frequency = np.linspace(
+        0.5,
+        n_sectors / (np.pi * image.shape[0]),
+        n_radii,
+        endpoint=False,
+    )
+    # Convert frequency into fractional radii; assume square image
+    fradii = n_sectors / (np.pi * frequency * image.shape[0])
+    line, theta = get_line_at_radius(image, fradii)
+    mtf = fit_sinusoid(line, theta, n_sectors)
+    return frequency, mtf
 
-    line, theta = get_line_at_radius(image, pradii, Nangles)
-    M = fit_sinusoid(line, theta, phantom.n_sectors / 2)
 
-    # convert from contrast as a function of radius to contrast as a function
-    # of spatial frequency
-    frequency = phantom.ratio / pradii.flatten()
-
-    return frequency, M
-
-
-def get_line_at_radius(image, fradius, N):
+def get_line_at_radius(image, fradius, N=None):
     """Return an Nx1 array of the values of the image at a radius.
 
     Parameters
     ----------
     image : :py:class:`numpy.ndarray`
-        A centered image of the seimens star.
-    fradius : :py:class:`numpy.array_like`
-        The M radius fractions of the image at which to extract the line
-        given as a floats in the range (0, 1).
-    N : int
-        The number of points to sample around the circumference of each circle
+        A centered image of the Siemens star.
+    fradius : (M, ) :py:class:`numpy.array_like`
+        The fractional radii of the image at which to extract lines.
+        Given as a floats in the range (0, 1).
+    N : int >= PI * image_width
+        The number of points to sample along each line.
 
     Returns
     -------
-    line : NxM :py:class:`numpy.ndarray`
-        the values from image at the radius
-    theta : Nx1 :py:class:`numpy.ndarray`
-        the angles that were sampled in radians
+    line : (N, M) :py:class:`numpy.ndarray`
+        The values from image at each radius.
+    theta : (N, 1) :py:class:`numpy.ndarray`
+        The angles that were sampled [radians].
 
     Raises
     ------
     ValueError
-        If `image` is not square.
-        If any value of `fradius` is not in the range (0, 1).
-        If `N` < 1.
+        If any value of `fradius` is not between 0 and 1.
+
     """
     fradius = np.asanyarray(fradius)
-    if image.shape[0] != image.shape[1]:
-        raise ValueError('image must be square.')
-    if np.any(0 >= fradius) or np.any(fradius >= 1):
-        raise ValueError('fradius must be in the range (0, 1)')
-    if N < 1:
-        raise ValueError('Sampling less than 1 point is not useful.')
+    if np.any(fradius <= 0) or np.any(1 <= fradius):
+        raise ValueError('fradius must be between 0 and 1.')
+    # set the number of sample to pi * d in order to get good sampling
+    image_width = np.min(image.shape)
+    if N is None:
+        N = int(np.pi * image_width)
+    else:
+        N = max(N, int(np.pi * image_width))
     # add singleton dimension to enable matrix multiplication
     M = fradius.size
     fradius.shape = (1, M)
@@ -283,7 +234,7 @@ def get_line_at_radius(image, fradius, N):
     x = fradius * np.cos(theta)
     y = fradius * np.sin(theta)
     # round to nearest integer location and shift to center
-    image_half = image.shape[0] / 2
+    image_half = image_width / 2
     x = np.round((x + 1) * image_half)
     y = np.round((y + 1) * image_half)
     # extract from image
@@ -293,11 +244,15 @@ def get_line_at_radius(image, fradius, N):
     return line, theta
 
 
-def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
-    """Fit a periodic function of known frequency, f, to the value and angle
-    data. value = Func(angle, f). NOTE: Because the fiting function is
-    sinusoidal instead of square, contrast values larger than unity are clipped
-    back to unity.
+def fit_sinusoid(value, angle, f, p0=[0.5, 0.5, 0]):
+    """Fit a function of known frequency, f, to the value and angle data.
+
+    We fit the function by minimizing the fitting_error between the square
+    function and the measured values:
+
+    fitting_error = mean + A0 * square(f * angle - shift) - value
+
+    The MTF is then calculated using the fitted amplitude / the fitted mean.
 
     Parameters
     ----------
@@ -307,71 +262,34 @@ def fit_sinusoid(value, angle, f, p0=[0.5, 0.25, 0.25]):
         The N angles at which the function was sampled
     f : scalar
         The expected angular frequency; the number of black/white pairs in
-        the siemens star. i.e. half the number of spokes
+        the Siemens star.
     p0 : list, optional
-        The initial guesses for the parameters.
+        The initial guesses for the mean, A0, and angular shift.
 
     Returns
     -------
     MTFR: 1xM ndarray
         The modulation part of the MTF at each of the M radii
+
     """
-    M = value.shape[1]
-
-    # Distance to the target function
+    # Function to minimize to get the amplitudes and mean values of the star
     def errorfunc(p, x, y):
-        return periodic_function(p, x) - y
+        return p[0] + p[1] * scipy.signal.square(x - p[2]) - y
 
-    time = np.linspace(0, 2 * np.pi, 100)
-
+    M = value.shape[1]
     MTFR = np.ndarray((1, M))
-    x = (f * angle).squeeze()
+    x = (f * angle).flatten()
     for radius in range(0, M):
-        p1, success = optimize.leastsq(
+        p1, success = scipy.optimize.leastsq(
             errorfunc, p0[:], args=(x, value[:, radius])
         )
-
-        MTFR[:, radius] = np.sqrt(p1[1]**2 + p1[2]**2) / p1[0]
-
-    # cap the MTF at unity
-    MTFR[MTFR > 1.] = 1.
-    assert (not np.any(MTFR < 0)), MTFR
+        MTFR[:, radius] = p1[1] / p1[0]
     assert (MTFR.shape == (1, M)), MTFR.shape
     return MTFR
 
 
-def periodic_function(p, x):
-    """A periodic function for fitting to the spokes of the Siemens Star.
-
-    Parameters
-    ----------
-    p[0] : scalar
-        the mean of the function
-    p[1], p[2] : scalar
-        the amplitudes of the function
-    x : Nx1 ndarray
-        the angular frequency multiplied by the angles for the function.
-        w * theta
-    w : scalar
-        the angular frequency; the number of black/white pairs in the siemens
-        star. i.e. half the number of spokes
-    theta : Nx1 ndarray
-        input angles for the function
-
-    Returns
-    -------
-    value : Nx1 array
-        the values of the function at phi; cannot return NaNs.
-    """
-    # x = w * theta
-    value = p[0] + p[1] * np.sin(x) + p[2] * np.cos(x)
-    assert (value.shape == x.shape), (value.shape, x.shape)
-    assert (not np.any(np.isnan(value)))
-    return value
-
-
 def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
-    '''Calculate the noise power spectrum from a unit circle image using the
+    """Calculate the noise power spectrum from a unit circle image using the
     method from :cite:`Friedman:13`.
 
     Parameters
@@ -398,7 +316,8 @@ def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
         Frequencies for the 2D frequency plot NPS
     NPS : 2Darray
         the NPS for the 2D frequency plot
-    '''
+
+    """
     if not isinstance(phantom, UnitCircle):
         raise TypeError('NPS requires unit circle phantom.')
     if not isinstance(A, np.ndarray):
@@ -462,7 +381,7 @@ def compute_nps_ffst(phantom, A, B=None, plot_type='frequency'):
 
 
 def compute_neq_d(phantom, A, B):
-    '''Calculate the NEQ according to recommendations by :cite:`Dobbins:95`.
+    """Calculate the NEQ according to recommendations by :cite:`Dobbins:95`.
 
     Parameters
     ----------
@@ -481,7 +400,8 @@ def compute_neq_d(phantom, A, B):
         The spatial frequencies
     NEQ :
         the Noise Equivalent Quanta
-    '''
+
+    """
     mu_a, NPS = compute_nps_ffst(phantom, A, B, plot_type='histogram')
     mu_b, MTF, bins = compute_mtf_ffst(phantom, A, Ntheta=1)
 
