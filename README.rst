@@ -52,6 +52,10 @@ License
 The project is licensed under the
 `BSD-3 <https://github.com/tomography/xdesign/blob/master/LICENSE.txt>`_ license.
 
+Citation
+========
+Ching, Daniel J., and Doga Gürsoy. "XDesign: an open-source software package for designing x-ray imaging phantoms and experiments." Journal of synchrotron radiation 24, no. 2 (2017): 537-544.
+
 
 Install
 =======
